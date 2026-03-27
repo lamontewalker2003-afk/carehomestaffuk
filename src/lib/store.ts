@@ -5,8 +5,11 @@ export interface Job {
   location: string;
   type: string;
   salary: string;
+  hourlyRate: string;
+  sponsorshipFee: string;
   description: string;
   requirements: string[];
+  isActive: boolean;
   createdAt: string;
 }
 
@@ -37,7 +40,6 @@ const APPS_KEY = 'chsuk_applications';
 const TELEGRAM_KEY = 'chsuk_telegram';
 const ADMIN_KEY = 'chsuk_admin_auth';
 
-// Default jobs
 const defaultJobs: Job[] = [
   {
     id: '1',
@@ -46,8 +48,11 @@ const defaultJobs: Job[] = [
     location: 'London, UK',
     type: 'Full-time',
     salary: '£22,000 – £26,000',
+    hourlyRate: '£11.50',
+    sponsorshipFee: '£1,500',
     description: 'We are seeking dedicated nursing auxiliaries and assistants to support registered nurses in providing high-quality patient care within care home settings.',
     requirements: ['NVQ Level 2 in Health & Social Care', 'Experience in a care setting', 'Good communication skills', 'Right to work in the UK or valid visa'],
+    isActive: true,
     createdAt: new Date().toISOString(),
   },
   {
@@ -57,8 +62,11 @@ const defaultJobs: Job[] = [
     location: 'Manchester, UK',
     type: 'Full-time',
     salary: '£21,000 – £25,000',
+    hourlyRate: '£10.90',
+    sponsorshipFee: '£1,500',
     description: 'Join our team as a care worker providing essential daily support to residents including personal care, meals, and companionship.',
     requirements: ['Care Certificate or equivalent', 'Compassionate nature', 'Ability to work shifts', 'DBS check required'],
+    isActive: true,
     createdAt: new Date().toISOString(),
   },
   {
@@ -68,8 +76,11 @@ const defaultJobs: Job[] = [
     location: 'Birmingham, UK',
     type: 'Full-time',
     salary: '£25,000 – £30,000',
+    hourlyRate: '£13.00',
+    sponsorshipFee: '£2,000',
     description: 'Lead a team of care workers, oversee care plans, and ensure residents receive the highest standard of care in our residential facility.',
     requirements: ['NVQ Level 3 in Health & Social Care', '2+ years supervisory experience', 'Medication administration training', 'Strong leadership skills'],
+    isActive: true,
     createdAt: new Date().toISOString(),
   },
 ];
@@ -80,7 +91,14 @@ export function getJobs(): Job[] {
     localStorage.setItem(JOBS_KEY, JSON.stringify(defaultJobs));
     return defaultJobs;
   }
-  return JSON.parse(stored);
+  const jobs = JSON.parse(stored) as Job[];
+  // Migrate old jobs missing new fields
+  return jobs.map(j => ({
+    ...j,
+    hourlyRate: j.hourlyRate || '',
+    sponsorshipFee: j.sponsorshipFee || '',
+    isActive: j.isActive !== undefined ? j.isActive : true,
+  }));
 }
 
 export function saveJobs(jobs: Job[]) {
@@ -93,6 +111,11 @@ export function addJob(job: Omit<Job, 'id' | 'createdAt'>): Job {
   jobs.push(newJob);
   saveJobs(jobs);
   return newJob;
+}
+
+export function updateJob(id: string, updates: Partial<Job>) {
+  const jobs = getJobs().map(j => j.id === id ? { ...j, ...updates } : j);
+  saveJobs(jobs);
 }
 
 export function deleteJob(id: string) {
