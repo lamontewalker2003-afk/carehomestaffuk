@@ -14,7 +14,7 @@ const features = [
 ];
 
 const Index = () => {
-  const jobs = getJobs().slice(0, 3);
+  const jobs = getJobs().filter(j => j.isActive).slice(0, 3);
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -41,7 +41,7 @@ const Index = () => {
                 </Button>
               </Link>
               <Link to="/apply">
-                <Button size="lg" variant="outline" className="border-hero-foreground/30 text-hero-foreground hover:bg-hero-foreground/10">
+                <Button size="lg" className="bg-card text-primary hover:bg-card/90 font-semibold border-2 border-accent">
                   Apply as a Worker
                 </Button>
               </Link>

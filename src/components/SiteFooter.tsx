@@ -4,7 +4,7 @@ export function SiteFooter() {
   return (
     <footer className="bg-hero text-hero-foreground">
       <div className="container py-12">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
           <div>
             <Link to="/" className="flex items-center gap-1 mb-4">
               <span className="font-heading text-xl font-bold text-hero-foreground">CareHomeStaff</span>
@@ -22,6 +22,15 @@ export function SiteFooter() {
               <li><Link to="/apply" className="hover:text-hero-accent transition-colors">Apply Now</Link></li>
               <li><Link to="/visa-info" className="hover:text-hero-accent transition-colors">Visa Information</Link></li>
               <li><Link to="/about" className="hover:text-hero-accent transition-colors">About Us</Link></li>
+            </ul>
+          </div>
+
+          <div>
+            <h4 className="font-heading text-lg font-semibold mb-4">Support</h4>
+            <ul className="space-y-2 text-sm text-hero-foreground/70">
+              <li><Link to="/faq" className="hover:text-hero-accent transition-colors">FAQ</Link></li>
+              <li><Link to="/testimonials" className="hover:text-hero-accent transition-colors">Testimonials</Link></li>
+              <li><Link to="/contact" className="hover:text-hero-accent transition-colors">Contact Us</Link></li>
             </ul>
           </div>
 

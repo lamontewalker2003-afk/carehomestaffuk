@@ -8,6 +8,9 @@ import JobsPage from "./pages/JobsPage.tsx";
 import ApplyPage from "./pages/ApplyPage.tsx";
 import VisaInfoPage from "./pages/VisaInfoPage.tsx";
 import AboutPage from "./pages/AboutPage.tsx";
+import ContactPage from "./pages/ContactPage.tsx";
+import FAQPage from "./pages/FAQPage.tsx";
+import TestimonialsPage from "./pages/TestimonialsPage.tsx";
 import AdminLogin from "./pages/admin/AdminLogin.tsx";
 import AdminDashboard from "./pages/admin/AdminDashboard.tsx";
 import NotFound from "./pages/NotFound.tsx";
@@ -26,6 +29,9 @@ const App = () => (
           <Route path="/apply" element={<ApplyPage />} />
           <Route path="/visa-info" element={<VisaInfoPage />} />
           <Route path="/about" element={<AboutPage />} />
+          <Route path="/contact" element={<ContactPage />} />
+          <Route path="/faq" element={<FAQPage />} />
+          <Route path="/testimonials" element={<TestimonialsPage />} />
           <Route path="/bestadmin" element={<AdminLogin />} />
           <Route path="/bestadmin/dashboard" element={<AdminDashboard />} />
           <Route path="*" element={<NotFound />} />
