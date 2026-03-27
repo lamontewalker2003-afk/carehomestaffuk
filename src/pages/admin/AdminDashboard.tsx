@@ -1,19 +1,19 @@
 import { useState, useEffect } from "react";
-import { useNavigate, Link, useLocation } from "react-router-dom";
-import { isAdminLoggedIn, adminLogout, getApplications, getJobs, getTelegramSettings, saveTelegramSettings, addJob, deleteJob } from "@/lib/store";
+import { useNavigate, Link } from "react-router-dom";
+import { isAdminLoggedIn, adminLogout, getApplications, getJobs, getTelegramSettings, saveTelegramSettings, addJob, deleteJob, updateJob } from "@/lib/store";
 import type { Application, Job, TelegramSettings } from "@/lib/store";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import { toast } from "@/hooks/use-toast";
-import { LayoutDashboard, FileText, Briefcase, Settings, LogOut, Plus, Trash2, Send, Users, Eye } from "lucide-react";
+import { LayoutDashboard, FileText, Briefcase, Send, LogOut, Plus, Trash2, Eye, Pencil, X, PoundSterling } from "lucide-react";
 
 type Tab = "dashboard" | "applications" | "jobs" | "telegram";
 
 const AdminDashboard = () => {
   const navigate = useNavigate();
-  const location = useLocation();
   const [tab, setTab] = useState<Tab>("dashboard");
 
   useEffect(() => {
@@ -34,7 +34,6 @@ const AdminDashboard = () => {
 
   return (
     <div className="min-h-screen flex bg-muted">
-      {/* Sidebar */}
       <aside className="w-64 bg-hero text-hero-foreground flex flex-col shrink-0">
         <div className="p-6 border-b border-hero-foreground/10">
           <Link to="/" className="flex items-center gap-1">
@@ -66,7 +65,6 @@ const AdminDashboard = () => {
         </div>
       </aside>
 
-      {/* Main Content */}
       <main className="flex-1 p-8 overflow-auto">
         {tab === "dashboard" && <DashboardTab />}
         {tab === "applications" && <ApplicationsTab />}
@@ -85,9 +83,10 @@ function DashboardTab() {
   return (
     <div className="space-y-6 animate-fade-in">
       <h1 className="font-heading text-2xl font-bold">Dashboard</h1>
-      <div className="grid md:grid-cols-3 gap-4">
+      <div className="grid md:grid-cols-4 gap-4">
         <StatCard icon={FileText} label="Total Applications" value={apps.length} />
-        <StatCard icon={Briefcase} label="Active Jobs" value={jobs.length} />
+        <StatCard icon={Briefcase} label="Active Jobs" value={jobs.filter(j => j.isActive).length} />
+        <StatCard icon={Briefcase} label="Total Jobs" value={jobs.length} />
         <StatCard icon={Send} label="Telegram" value={telegram.botToken ? "Connected" : "Not Set"} />
       </div>
 
@@ -203,24 +202,66 @@ function ApplicationsTab() {
 function JobsTab() {
   const [jobs, setJobs] = useState<Job[]>(getJobs());
   const [showForm, setShowForm] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState({
-    title: "", socCode: "", location: "", type: "Full-time", salary: "", description: "", requirements: "",
+    title: "", socCode: "", location: "", type: "Full-time", salary: "",
+    hourlyRate: "", sponsorshipFee: "", description: "", requirements: "", isActive: true,
   });
 
-  const handleAdd = (e: React.FormEvent) => {
+  const resetForm = () => {
+    setForm({ title: "", socCode: "", location: "", type: "Full-time", salary: "", hourlyRate: "", sponsorshipFee: "", description: "", requirements: "", isActive: true });
+    setEditingId(null);
+    setShowForm(false);
+  };
+
+  const startEdit = (job: Job) => {
+    setForm({
+      title: job.title,
+      socCode: job.socCode,
+      location: job.location,
+      type: job.type,
+      salary: job.salary,
+      hourlyRate: job.hourlyRate,
+      sponsorshipFee: job.sponsorshipFee,
+      description: job.description,
+      requirements: job.requirements.join("\n"),
+      isActive: job.isActive,
+    });
+    setEditingId(job.id);
+    setShowForm(true);
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.title || !form.socCode) {
       toast({ title: "Title and SOC code are required", variant: "destructive" });
       return;
     }
-    addJob({
-      ...form,
-      requirements: form.requirements.split("\n").filter(Boolean),
-    });
+
+    if (editingId) {
+      updateJob(editingId, {
+        title: form.title,
+        socCode: form.socCode,
+        location: form.location,
+        type: form.type,
+        salary: form.salary,
+        hourlyRate: form.hourlyRate,
+        sponsorshipFee: form.sponsorshipFee,
+        description: form.description,
+        requirements: form.requirements.split("\n").filter(Boolean),
+        isActive: form.isActive,
+      });
+      toast({ title: "Job updated successfully!" });
+    } else {
+      addJob({
+        ...form,
+        requirements: form.requirements.split("\n").filter(Boolean),
+      });
+      toast({ title: "Job added successfully!" });
+    }
+
     setJobs(getJobs());
-    setForm({ title: "", socCode: "", location: "", type: "Full-time", salary: "", description: "", requirements: "" });
-    setShowForm(false);
-    toast({ title: "Job added successfully!" });
+    resetForm();
   };
 
   const handleDelete = (id: string) => {
@@ -229,45 +270,79 @@ function JobsTab() {
     toast({ title: "Job deleted" });
   };
 
+  const handleToggleActive = (id: string, active: boolean) => {
+    updateJob(id, { isActive: active });
+    setJobs(getJobs());
+    toast({ title: active ? "Job activated" : "Job deactivated" });
+  };
+
   return (
     <div className="space-y-6 animate-fade-in">
       <div className="flex items-center justify-between">
-        <h1 className="font-heading text-2xl font-bold">Manage Jobs ({jobs.length})</h1>
-        <Button onClick={() => setShowForm(!showForm)} className="bg-primary text-primary-foreground">
-          <Plus className="h-4 w-4 mr-1" /> Add Job
+        <h1 className="font-heading text-2xl font-bold">Manage Positions ({jobs.length})</h1>
+        <Button onClick={() => { resetForm(); setShowForm(!showForm); }} className="bg-primary text-primary-foreground">
+          {showForm ? <><X className="h-4 w-4 mr-1" /> Close</> : <><Plus className="h-4 w-4 mr-1" /> Add Position</>}
         </Button>
       </div>
 
       {showForm && (
-        <form onSubmit={handleAdd} className="bg-card rounded-lg border p-6 space-y-4">
+        <form onSubmit={handleSubmit} className="bg-card rounded-lg border p-6 space-y-4">
+          <h2 className="font-heading text-lg font-semibold">{editingId ? "Edit Position" : "Add New Position"}</h2>
           <div className="grid md:grid-cols-2 gap-4">
             <div><Label>Job Title *</Label><Input value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} required /></div>
             <div><Label>SOC Code *</Label><Input value={form.socCode} onChange={e => setForm(f => ({ ...f, socCode: e.target.value }))} placeholder="e.g. 6131" required /></div>
           </div>
           <div className="grid md:grid-cols-3 gap-4">
             <div><Label>Location</Label><Input value={form.location} onChange={e => setForm(f => ({ ...f, location: e.target.value }))} /></div>
-            <div><Label>Type</Label><Input value={form.type} onChange={e => setForm(f => ({ ...f, type: e.target.value }))} /></div>
-            <div><Label>Salary</Label><Input value={form.salary} onChange={e => setForm(f => ({ ...f, salary: e.target.value }))} placeholder="e.g. £25,000 – £30,000" /></div>
+            <div><Label>Employment Type</Label><Input value={form.type} onChange={e => setForm(f => ({ ...f, type: e.target.value }))} /></div>
+            <div><Label>Annual Salary Range</Label><Input value={form.salary} onChange={e => setForm(f => ({ ...f, salary: e.target.value }))} placeholder="e.g. £25,000 – £30,000" /></div>
+          </div>
+          <div className="grid md:grid-cols-2 gap-4">
+            <div>
+              <Label className="flex items-center gap-1"><PoundSterling className="h-3.5 w-3.5" /> Hourly Rate</Label>
+              <Input value={form.hourlyRate} onChange={e => setForm(f => ({ ...f, hourlyRate: e.target.value }))} placeholder="e.g. £12.50" />
+            </div>
+            <div>
+              <Label className="flex items-center gap-1"><PoundSterling className="h-3.5 w-3.5" /> Sponsorship Fee</Label>
+              <Input value={form.sponsorshipFee} onChange={e => setForm(f => ({ ...f, sponsorshipFee: e.target.value }))} placeholder="e.g. £1,500" />
+            </div>
           </div>
           <div><Label>Description</Label><Textarea value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} rows={3} /></div>
           <div><Label>Requirements (one per line)</Label><Textarea value={form.requirements} onChange={e => setForm(f => ({ ...f, requirements: e.target.value }))} rows={3} /></div>
+          <div className="flex items-center gap-2">
+            <Switch checked={form.isActive} onCheckedChange={v => setForm(f => ({ ...f, isActive: v }))} />
+            <Label>Position Active</Label>
+          </div>
           <div className="flex gap-2">
-            <Button type="submit" className="bg-primary text-primary-foreground">Save Job</Button>
-            <Button type="button" variant="outline" onClick={() => setShowForm(false)}>Cancel</Button>
+            <Button type="submit" className="bg-primary text-primary-foreground">{editingId ? "Update Position" : "Save Position"}</Button>
+            <Button type="button" variant="outline" onClick={resetForm}>Cancel</Button>
           </div>
         </form>
       )}
 
       <div className="space-y-3">
         {jobs.map(job => (
-          <div key={job.id} className="bg-card rounded-lg border p-4 flex items-center justify-between">
-            <div>
-              <h3 className="font-semibold">{job.title}</h3>
+          <div key={job.id} className={`bg-card rounded-lg border p-4 flex items-center justify-between ${!job.isActive ? "opacity-60" : ""}`}>
+            <div className="flex-1">
+              <div className="flex items-center gap-2">
+                <h3 className="font-semibold">{job.title}</h3>
+                {!job.isActive && <span className="text-xs bg-muted text-muted-foreground px-2 py-0.5 rounded">Inactive</span>}
+              </div>
               <p className="text-sm text-muted-foreground">SOC {job.socCode} · {job.location} · {job.salary}</p>
+              <div className="flex gap-4 mt-1 text-xs text-muted-foreground">
+                {job.hourlyRate && <span>Hourly: {job.hourlyRate}</span>}
+                {job.sponsorshipFee && <span>Sponsorship: {job.sponsorshipFee}</span>}
+              </div>
             </div>
-            <Button variant="ghost" size="sm" onClick={() => handleDelete(job.id)} className="text-destructive hover:text-destructive">
-              <Trash2 className="h-4 w-4" />
-            </Button>
+            <div className="flex items-center gap-1">
+              <Switch checked={job.isActive} onCheckedChange={v => handleToggleActive(job.id, v)} />
+              <Button variant="ghost" size="sm" onClick={() => startEdit(job)}>
+                <Pencil className="h-4 w-4" />
+              </Button>
+              <Button variant="ghost" size="sm" onClick={() => handleDelete(job.id)} className="text-destructive hover:text-destructive">
+                <Trash2 className="h-4 w-4" />
+              </Button>
+            </div>
           </div>
         ))}
       </div>

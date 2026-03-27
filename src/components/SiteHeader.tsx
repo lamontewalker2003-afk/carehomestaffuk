@@ -8,6 +8,9 @@ const navItems = [
   { label: "Jobs", to: "/jobs" },
   { label: "Visa Info", to: "/visa-info" },
   { label: "About", to: "/about" },
+  { label: "FAQ", to: "/faq" },
+  { label: "Testimonials", to: "/testimonials" },
+  { label: "Contact", to: "/contact" },
 ];
 
 export function SiteHeader() {
@@ -22,7 +25,7 @@ export function SiteHeader() {
           <span className="font-heading text-xl font-bold text-accent">UK</span>
         </Link>
 
-        <nav className="hidden md:flex items-center gap-8">
+        <nav className="hidden lg:flex items-center gap-6">
           {navItems.map((item) => (
             <Link
               key={item.to}
@@ -42,7 +45,7 @@ export function SiteHeader() {
         </nav>
 
         <button
-          className="md:hidden p-2"
+          className="lg:hidden p-2"
           onClick={() => setMobileOpen(!mobileOpen)}
         >
           {mobileOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
@@ -50,7 +53,7 @@ export function SiteHeader() {
       </div>
 
       {mobileOpen && (
-        <div className="md:hidden border-t bg-background p-4 space-y-3">
+        <div className="lg:hidden border-t bg-background p-4 space-y-3">
           {navItems.map((item) => (
             <Link
               key={item.to}
