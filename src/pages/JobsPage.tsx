@@ -4,7 +4,7 @@ import { JobCard } from "@/components/JobCard";
 import { getJobs } from "@/lib/store";
 
 const JobsPage = () => {
-  const jobs = getJobs();
+  const jobs = getJobs().filter(j => j.isActive);
 
   return (
     <div className="min-h-screen flex flex-col">

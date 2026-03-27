@@ -14,7 +14,7 @@ import { CheckCircle } from "lucide-react";
 const ApplyPage = () => {
   const [searchParams] = useSearchParams();
   const preselectedJob = searchParams.get("job") || "";
-  const jobs = getJobs();
+  const jobs = getJobs().filter(j => j.isActive);
 
   const [submitted, setSubmitted] = useState(false);
   const [loading, setLoading] = useState(false);
