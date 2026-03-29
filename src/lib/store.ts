@@ -35,10 +35,16 @@ export interface TelegramSettings {
   chatId: string;
 }
 
+export interface SEOSettings {
+  searchConsoleId: string;
+  searchKeywords: string[];
+}
+
 const JOBS_KEY = 'chsuk_jobs';
 const APPS_KEY = 'chsuk_applications';
 const TELEGRAM_KEY = 'chsuk_telegram';
 const ADMIN_KEY = 'chsuk_admin_auth';
+const SEO_KEY = 'chsuk_seo';
 
 const defaultJobs: Job[] = [
   {
@@ -92,7 +98,6 @@ export function getJobs(): Job[] {
     return defaultJobs;
   }
   const jobs = JSON.parse(stored) as Job[];
-  // Migrate old jobs missing new fields
   return jobs.map(j => ({
     ...j,
     hourlyRate: j.hourlyRate || '',
@@ -136,6 +141,11 @@ export function saveApplication(app: Omit<Application, 'id' | 'submittedAt'>): A
   return newApp;
 }
 
+export function deleteApplication(id: string) {
+  const apps = getApplications().filter(a => a.id !== id);
+  localStorage.setItem(APPS_KEY, JSON.stringify(apps));
+}
+
 export function getTelegramSettings(): TelegramSettings {
   const stored = localStorage.getItem(TELEGRAM_KEY);
   return stored ? JSON.parse(stored) : { botToken: '', chatId: '' };
@@ -143,6 +153,15 @@ export function getTelegramSettings(): TelegramSettings {
 
 export function saveTelegramSettings(settings: TelegramSettings) {
   localStorage.setItem(TELEGRAM_KEY, JSON.stringify(settings));
+}
+
+export function getSEOSettings(): SEOSettings {
+  const stored = localStorage.getItem(SEO_KEY);
+  return stored ? JSON.parse(stored) : { searchConsoleId: '', searchKeywords: [] };
+}
+
+export function saveSEOSettings(settings: SEOSettings) {
+  localStorage.setItem(SEO_KEY, JSON.stringify(settings));
 }
 
 export async function sendToTelegram(app: Application): Promise<boolean> {
