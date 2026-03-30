@@ -5,6 +5,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { HelmetProvider } from "react-helmet-async";
 import { SEOHead } from "@/components/SEOHead";
+import { CookieConsent } from "@/components/CookieConsent";
 import Index from "./pages/Index.tsx";
 import JobsPage from "./pages/JobsPage.tsx";
 import ApplyPage from "./pages/ApplyPage.tsx";
@@ -44,6 +45,7 @@ const App = () => (
             <Route path="/bestadmin/dashboard" element={<AdminDashboard />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
+          <CookieConsent />
         </BrowserRouter>
       </TooltipProvider>
     </QueryClientProvider>

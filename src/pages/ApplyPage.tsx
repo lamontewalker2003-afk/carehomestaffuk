@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
 import { SiteHeader } from "@/components/SiteHeader";
 import { SiteFooter } from "@/components/SiteFooter";
@@ -7,15 +7,15 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { getJobs, saveApplication, sendToTelegram } from "@/lib/store";
+import { getJobs, saveApplication, sendToTelegram, sendEmail, buildApplicationConfirmationEmail } from "@/lib/store";
+import type { Job } from "@/lib/store";
 import { toast } from "@/hooks/use-toast";
 import { CheckCircle } from "lucide-react";
 
 const ApplyPage = () => {
   const [searchParams] = useSearchParams();
   const preselectedJob = searchParams.get("job") || "";
-  const jobs = getJobs().filter(j => j.isActive);
-
+  const [jobs, setJobs] = useState<Job[]>([]);
   const [submitted, setSubmitted] = useState(false);
   const [loading, setLoading] = useState(false);
   const [form, setForm] = useState({
@@ -31,6 +31,10 @@ const ApplyPage = () => {
     coverLetter: "",
   });
 
+  useEffect(() => {
+    getJobs().then(allJobs => setJobs(allJobs.filter(j => j.isActive)));
+  }, []);
+
   const selectedJob = jobs.find(j => j.id === form.jobId);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -42,13 +46,27 @@ const ApplyPage = () => {
 
     setLoading(true);
     try {
-      const app = saveApplication({
+      const app = await saveApplication({
         ...form,
+        jobId: form.jobId,
         jobTitle: selectedJob?.title || "General Application",
         cvFileName: "",
       });
 
-      await sendToTelegram(app);
+      if (app) {
+        // Send Telegram notification (fire and forget)
+        sendToTelegram(app).then(ok => {
+          if (ok) console.log('Telegram notification sent');
+          else console.log('Telegram notification skipped or failed');
+        });
+
+        // Send confirmation email (fire and forget)
+        const emailHtml = buildApplicationConfirmationEmail(app);
+        sendEmail(app.email, "Application Received — CareHomeStaffUK", emailHtml).then(ok => {
+          if (ok) console.log('Confirmation email sent');
+          else console.log('Confirmation email skipped (SMTP may not be configured)');
+        });
+      }
 
       setSubmitted(true);
       toast({ title: "Application submitted successfully!" });
@@ -68,7 +86,7 @@ const ApplyPage = () => {
             <CheckCircle className="h-16 w-16 text-success mx-auto" />
             <h1 className="font-heading text-3xl font-bold">Application Submitted!</h1>
             <p className="text-muted-foreground max-w-md mx-auto">
-              Thank you for your application. Our team will review your details and get back to you within 3-5 working days.
+              Thank you for your application. A confirmation email has been sent to your inbox. Our team will review your details and get back to you within 3-5 working days.
             </p>
           </div>
         </main>

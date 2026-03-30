@@ -1,6 +1,5 @@
 import { Helmet } from "react-helmet-async";
 import { useLocation } from "react-router-dom";
-import { getSEOSettings } from "@/lib/store";
 
 const SITE_URL = "https://carehomestaffuk.com";
 const SITE_NAME = "CareHomeStaffUK";
@@ -50,7 +49,6 @@ const pageMeta: Record<string, { title: string; description: string }> = {
 
 export function SEOHead() {
   const { pathname } = useLocation();
-  const seo = getSEOSettings();
   const meta = pageMeta[pathname] || pageMeta["/"]!;
   const canonicalUrl = `${SITE_URL}${pathname === "/" ? "" : pathname}`;
 
@@ -78,7 +76,6 @@ export function SEOHead() {
       <meta name="description" content={meta.description} />
       <link rel="canonical" href={canonicalUrl} />
 
-      {/* Open Graph */}
       <meta property="og:title" content={meta.title} />
       <meta property="og:description" content={meta.description} />
       <meta property="og:url" content={canonicalUrl} />
@@ -86,20 +83,12 @@ export function SEOHead() {
       <meta property="og:type" content="website" />
       <meta property="og:locale" content="en_GB" />
 
-      {/* Twitter */}
       <meta name="twitter:card" content="summary_large_image" />
       <meta name="twitter:title" content={meta.title} />
       <meta name="twitter:description" content={meta.description} />
 
-      {/* Keywords */}
-      <meta name="keywords" content={`care home jobs UK, care worker jobs, nursing auxiliary jobs, senior care worker, visa sponsorship UK, Health and Care Worker visa, SOC 6131, SOC 6135, SOC 6136, care home recruitment, care home staff, ${seo.searchKeywords.join(", ")}`} />
+      <meta name="keywords" content="care home jobs UK, care worker jobs, nursing auxiliary jobs, senior care worker, visa sponsorship UK, Health and Care Worker visa, SOC 6131, SOC 6135, SOC 6136, care home recruitment, care home staff" />
 
-      {/* Search Console verification */}
-      {seo.searchConsoleId && (
-        <meta name="google-site-verification" content={seo.searchConsoleId} />
-      )}
-
-      {/* JSON-LD */}
       <script type="application/ld+json">{JSON.stringify(jsonLd)}</script>
     </Helmet>
   );
