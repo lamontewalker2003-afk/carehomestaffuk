@@ -14,7 +14,155 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      admin_settings: {
+        Row: {
+          key: string
+          updated_at: string
+          value: Json
+        }
+        Insert: {
+          key: string
+          updated_at?: string
+          value?: Json
+        }
+        Update: {
+          key?: string
+          updated_at?: string
+          value?: Json
+        }
+        Relationships: []
+      }
+      applications: {
+        Row: {
+          cover_letter: string
+          current_location: string
+          cv_file_name: string
+          email: string
+          experience: string
+          full_name: string
+          id: string
+          job_id: string | null
+          job_title: string
+          nationality: string
+          phone: string
+          qualifications: string
+          submitted_at: string
+          visa_status: string
+        }
+        Insert: {
+          cover_letter?: string
+          current_location?: string
+          cv_file_name?: string
+          email: string
+          experience?: string
+          full_name: string
+          id?: string
+          job_id?: string | null
+          job_title: string
+          nationality?: string
+          phone: string
+          qualifications?: string
+          submitted_at?: string
+          visa_status?: string
+        }
+        Update: {
+          cover_letter?: string
+          current_location?: string
+          cv_file_name?: string
+          email?: string
+          experience?: string
+          full_name?: string
+          id?: string
+          job_id?: string | null
+          job_title?: string
+          nationality?: string
+          phone?: string
+          qualifications?: string
+          submitted_at?: string
+          visa_status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "applications_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "jobs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      contact_submissions: {
+        Row: {
+          created_at: string
+          email: string
+          id: string
+          message: string
+          name: string
+          subject: string
+        }
+        Insert: {
+          created_at?: string
+          email: string
+          id?: string
+          message: string
+          name: string
+          subject?: string
+        }
+        Update: {
+          created_at?: string
+          email?: string
+          id?: string
+          message?: string
+          name?: string
+          subject?: string
+        }
+        Relationships: []
+      }
+      jobs: {
+        Row: {
+          created_at: string
+          description: string
+          hourly_rate: string
+          id: string
+          is_active: boolean
+          location: string
+          requirements: string[]
+          salary: string
+          soc_code: string
+          sponsorship_fee: string
+          title: string
+          type: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string
+          hourly_rate?: string
+          id?: string
+          is_active?: boolean
+          location?: string
+          requirements?: string[]
+          salary?: string
+          soc_code: string
+          sponsorship_fee?: string
+          title: string
+          type?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string
+          hourly_rate?: string
+          id?: string
+          is_active?: boolean
+          location?: string
+          requirements?: string[]
+          salary?: string
+          soc_code?: string
+          sponsorship_fee?: string
+          title?: string
+          type?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
