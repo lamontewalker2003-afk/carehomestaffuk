@@ -1,16 +1,17 @@
 import { useState, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
-import { isAdminLoggedIn, adminLogout, getApplications, deleteApplication, getJobs, getTelegramSettings, saveTelegramSettings, addJob, deleteJob, updateJob, getSEOSettings, saveSEOSettings } from "@/lib/store";
-import type { Application, Job, TelegramSettings, SEOSettings } from "@/lib/store";
+import { isAdminLoggedIn, adminLogout, getApplications, deleteApplication, getJobs, getTelegramSettings, saveTelegramSettings, addJob, deleteJob, updateJob, getSEOSettings, saveSEOSettings, getSMTPSettings, saveSMTPSettings } from "@/lib/store";
+import type { Application, Job, TelegramSettings, SEOSettings, SMTPSettings } from "@/lib/store";
+import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "@/hooks/use-toast";
-import { LayoutDashboard, FileText, Briefcase, Send, LogOut, Plus, Trash2, Eye, Pencil, X, PoundSterling, Search, Globe, Menu } from "lucide-react";
+import { LayoutDashboard, FileText, Briefcase, Send, LogOut, Plus, Trash2, Eye, Pencil, X, PoundSterling, Search, Globe, Menu, Mail, Server } from "lucide-react";
 
-type Tab = "dashboard" | "applications" | "jobs" | "telegram" | "seo";
+type Tab = "dashboard" | "applications" | "jobs" | "telegram" | "smtp" | "seo";
 
 const AdminDashboard = () => {
   const navigate = useNavigate();
@@ -31,17 +32,16 @@ const AdminDashboard = () => {
     { id: "applications" as Tab, label: "Applications", icon: FileText },
     { id: "jobs" as Tab, label: "Manage Jobs", icon: Briefcase },
     { id: "telegram" as Tab, label: "Telegram", icon: Send },
+    { id: "smtp" as Tab, label: "SMTP / Email", icon: Mail },
     { id: "seo" as Tab, label: "SEO & Search", icon: Globe },
   ];
 
   return (
     <div className="min-h-screen flex bg-muted">
-      {/* Mobile overlay */}
       {sidebarOpen && (
         <div className="fixed inset-0 bg-black/50 z-40 lg:hidden" onClick={() => setSidebarOpen(false)} />
       )}
 
-      {/* Sidebar */}
       <aside className={`fixed lg:static inset-y-0 left-0 z-50 w-64 bg-hero text-hero-foreground flex flex-col shrink-0 transform transition-transform lg:translate-x-0 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
         <div className="p-6 border-b border-hero-foreground/10 flex items-center justify-between">
           <Link to="/" className="flex items-center gap-1">
@@ -77,7 +77,6 @@ const AdminDashboard = () => {
       </aside>
 
       <main className="flex-1 overflow-auto">
-        {/* Mobile header */}
         <div className="lg:hidden sticky top-0 z-30 bg-background border-b px-4 py-3 flex items-center gap-3">
           <button onClick={() => setSidebarOpen(true)}>
             <Menu className="h-5 w-5" />
@@ -90,6 +89,7 @@ const AdminDashboard = () => {
           {tab === "applications" && <ApplicationsTab />}
           {tab === "jobs" && <JobsTab />}
           {tab === "telegram" && <TelegramTab />}
+          {tab === "smtp" && <SMTPTab />}
           {tab === "seo" && <SEOTab />}
         </div>
       </main>
@@ -98,9 +98,15 @@ const AdminDashboard = () => {
 };
 
 function DashboardTab() {
-  const apps = getApplications();
-  const jobs = getJobs();
-  const telegram = getTelegramSettings();
+  const [apps, setApps] = useState<Application[]>([]);
+  const [jobs, setJobs] = useState<Job[]>([]);
+  const [telegram, setTelegram] = useState<TelegramSettings>({ botToken: '', chatId: '' });
+
+  useEffect(() => {
+    getApplications().then(setApps);
+    getJobs().then(setJobs);
+    getTelegramSettings().then(setTelegram);
+  }, []);
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -128,7 +134,7 @@ function DashboardTab() {
                 </tr>
               </thead>
               <tbody>
-                {apps.slice(-5).reverse().map(app => (
+                {apps.slice(0, 5).map(app => (
                   <tr key={app.id} className="border-t">
                     <td className="p-3 whitespace-nowrap">{app.fullName}</td>
                     <td className="p-3 whitespace-nowrap">{app.jobTitle}</td>
@@ -162,9 +168,11 @@ function StatCard({ icon: Icon, label, value }: { icon: any; label: string; valu
 }
 
 function ApplicationsTab() {
-  const [apps, setApps] = useState<Application[]>(getApplications());
+  const [apps, setApps] = useState<Application[]>([]);
   const [selected, setSelected] = useState<Application | null>(null);
   const [search, setSearch] = useState("");
+
+  useEffect(() => { getApplications().then(setApps); }, []);
 
   const filteredApps = apps.filter(app => {
     if (!search) return true;
@@ -177,10 +185,11 @@ function ApplicationsTab() {
       app.currentLocation.toLowerCase().includes(s);
   });
 
-  const handleDelete = (id: string) => {
+  const handleDelete = async (id: string) => {
     if (!window.confirm("Are you sure you want to delete this application?")) return;
-    deleteApplication(id);
-    setApps(getApplications());
+    await deleteApplication(id);
+    const updated = await getApplications();
+    setApps(updated);
     if (selected?.id === id) setSelected(null);
     toast({ title: "Application deleted" });
   };
@@ -233,7 +242,7 @@ function ApplicationsTab() {
               </tr>
             </thead>
             <tbody>
-              {filteredApps.slice().reverse().map(app => (
+              {filteredApps.map(app => (
                 <tr key={app.id} className="border-t hover:bg-muted/50">
                   <td className="p-3 font-medium whitespace-nowrap">{app.fullName}</td>
                   <td className="p-3 whitespace-nowrap">{app.jobTitle}</td>
@@ -261,13 +270,17 @@ function ApplicationsTab() {
 }
 
 function JobsTab() {
-  const [jobs, setJobs] = useState<Job[]>(getJobs());
+  const [jobs, setJobs] = useState<Job[]>([]);
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState({
     title: "", socCode: "", location: "", type: "Full-time", salary: "",
     hourlyRate: "", sponsorshipFee: "", description: "", requirements: "", isActive: true,
   });
+
+  useEffect(() => { getJobs().then(setJobs); }, []);
+
+  const refreshJobs = async () => { setJobs(await getJobs()); };
 
   const resetForm = () => {
     setForm({ title: "", socCode: "", location: "", type: "Full-time", salary: "", hourlyRate: "", sponsorshipFee: "", description: "", requirements: "", isActive: true });
@@ -285,36 +298,36 @@ function JobsTab() {
     setShowForm(true);
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.title || !form.socCode) {
       toast({ title: "Title and SOC code are required", variant: "destructive" });
       return;
     }
     if (editingId) {
-      updateJob(editingId, {
+      await updateJob(editingId, {
         title: form.title, socCode: form.socCode, location: form.location, type: form.type,
         salary: form.salary, hourlyRate: form.hourlyRate, sponsorshipFee: form.sponsorshipFee,
         description: form.description, requirements: form.requirements.split("\n").filter(Boolean), isActive: form.isActive,
       });
       toast({ title: "Job updated successfully!" });
     } else {
-      addJob({ ...form, requirements: form.requirements.split("\n").filter(Boolean) });
+      await addJob({ ...form, requirements: form.requirements.split("\n").filter(Boolean) });
       toast({ title: "Job added successfully!" });
     }
-    setJobs(getJobs());
+    await refreshJobs();
     resetForm();
   };
 
-  const handleDelete = (id: string) => {
-    deleteJob(id);
-    setJobs(getJobs());
+  const handleDelete = async (id: string) => {
+    await deleteJob(id);
+    await refreshJobs();
     toast({ title: "Job deleted" });
   };
 
-  const handleToggleActive = (id: string, active: boolean) => {
-    updateJob(id, { isActive: active });
-    setJobs(getJobs());
+  const handleToggleActive = async (id: string, active: boolean) => {
+    await updateJob(id, { isActive: active });
+    await refreshJobs();
     toast({ title: active ? "Job activated" : "Job deactivated" });
   };
 
@@ -393,27 +406,34 @@ function JobsTab() {
 }
 
 function TelegramTab() {
-  const [settings, setSettings] = useState<TelegramSettings>(getTelegramSettings());
+  const [settings, setSettings] = useState<TelegramSettings>({ botToken: '', chatId: '' });
   const [testing, setTesting] = useState(false);
+  const [saving, setSaving] = useState(false);
 
-  const handleSave = () => {
-    saveTelegramSettings(settings);
+  useEffect(() => { getTelegramSettings().then(setSettings); }, []);
+
+  const handleSave = async () => {
+    setSaving(true);
+    await saveTelegramSettings(settings);
+    setSaving(false);
     toast({ title: "Telegram settings saved!" });
   };
 
   const handleTest = async () => {
     if (!settings.botToken || !settings.chatId) {
-      toast({ title: "Please enter bot token and chat ID first", variant: "destructive" });
+      toast({ title: "Please save bot token and chat ID first", variant: "destructive" });
       return;
     }
     setTesting(true);
     try {
-      const res = await fetch(`https://api.telegram.org/bot${settings.botToken}/sendMessage`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ chat_id: settings.chatId, text: "✅ CareHomeStaffUK webhook test — connection successful!" }),
+      const { data, error } = await supabase.functions.invoke('send-telegram', {
+        body: { message: "✅ CareHomeStaffUK webhook test — connection successful!" },
       });
-      toast({ title: res.ok ? "Test message sent to Telegram!" : "Failed to send. Check credentials.", variant: res.ok ? "default" : "destructive" });
+      if (error || !data?.success) {
+        toast({ title: "Failed to send. Check credentials.", variant: "destructive" });
+      } else {
+        toast({ title: "Test message sent to Telegram!" });
+      }
     } catch {
       toast({ title: "Error connecting to Telegram", variant: "destructive" });
     } finally {
@@ -437,7 +457,7 @@ function TelegramTab() {
           <p className="text-xs text-muted-foreground mt-1">Your chat or group ID where notifications will be sent</p>
         </div>
         <div className="flex gap-2 pt-2">
-          <Button onClick={handleSave} className="bg-primary text-primary-foreground">Save Settings</Button>
+          <Button onClick={handleSave} disabled={saving} className="bg-primary text-primary-foreground">{saving ? "Saving..." : "Save Settings"}</Button>
           <Button onClick={handleTest} variant="outline" disabled={testing}>{testing ? "Sending..." : "Send Test Message"}</Button>
         </div>
       </div>
@@ -445,12 +465,124 @@ function TelegramTab() {
   );
 }
 
+function SMTPTab() {
+  const [settings, setSettings] = useState<SMTPSettings>({
+    host: '', port: 587, username: '', password: '', fromEmail: '', fromName: 'CareHomeStaffUK', secure: false,
+  });
+  const [saving, setSaving] = useState(false);
+  const [testing, setTesting] = useState(false);
+
+  useEffect(() => { getSMTPSettings().then(setSettings); }, []);
+
+  const handleSave = async () => {
+    setSaving(true);
+    await saveSMTPSettings(settings);
+    setSaving(false);
+    toast({ title: "SMTP settings saved!" });
+  };
+
+  const handleTest = async () => {
+    if (!settings.host || !settings.username || !settings.fromEmail) {
+      toast({ title: "Please save SMTP settings first", variant: "destructive" });
+      return;
+    }
+    setTesting(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('send-email', {
+        body: {
+          to: settings.fromEmail,
+          subject: "SMTP Test — CareHomeStaffUK",
+          html: "<h2>SMTP Configuration Test</h2><p>If you're reading this, your SMTP settings are working correctly!</p><p>— CareHomeStaffUK Admin</p>",
+        },
+      });
+      if (error || !data?.success) {
+        toast({ title: data?.error || "SMTP test failed. Check your settings.", variant: "destructive" });
+      } else {
+        toast({ title: `Test email sent to ${settings.fromEmail}!` });
+      }
+    } catch {
+      toast({ title: "Error testing SMTP", variant: "destructive" });
+    } finally {
+      setTesting(false);
+    }
+  };
+
+  return (
+    <div className="space-y-6 animate-fade-in">
+      <h1 className="font-heading text-2xl font-bold">SMTP / Email Configuration</h1>
+      <p className="text-muted-foreground text-sm">Configure your outgoing mail server (SMTP) for sending application confirmations and contact form emails.</p>
+
+      <div className="bg-card rounded-lg border p-4 sm:p-6 space-y-4 max-w-lg">
+        <div className="flex items-center gap-2 mb-2">
+          <Server className="h-5 w-5 text-primary" />
+          <h2 className="font-heading font-semibold">SMTP Server</h2>
+        </div>
+
+        <div className="grid sm:grid-cols-2 gap-4">
+          <div>
+            <Label>SMTP Host *</Label>
+            <Input value={settings.host} onChange={e => setSettings(s => ({ ...s, host: e.target.value }))} placeholder="smtp.gmail.com" />
+          </div>
+          <div>
+            <Label>Port</Label>
+            <Input type="number" value={settings.port} onChange={e => setSettings(s => ({ ...s, port: parseInt(e.target.value) || 587 }))} placeholder="587" />
+          </div>
+        </div>
+
+        <div>
+          <Label>Username / Email *</Label>
+          <Input value={settings.username} onChange={e => setSettings(s => ({ ...s, username: e.target.value }))} placeholder="your-email@domain.com" />
+        </div>
+
+        <div>
+          <Label>Password / App Password *</Label>
+          <Input type="password" value={settings.password} onChange={e => setSettings(s => ({ ...s, password: e.target.value }))} placeholder="••••••••" />
+          <p className="text-xs text-muted-foreground mt-1">For Gmail, use an App Password (not your regular password)</p>
+        </div>
+
+        <div className="grid sm:grid-cols-2 gap-4">
+          <div>
+            <Label>From Email *</Label>
+            <Input value={settings.fromEmail} onChange={e => setSettings(s => ({ ...s, fromEmail: e.target.value }))} placeholder="noreply@carehomestaffuk.com" />
+          </div>
+          <div>
+            <Label>From Name</Label>
+            <Input value={settings.fromName} onChange={e => setSettings(s => ({ ...s, fromName: e.target.value }))} placeholder="CareHomeStaffUK" />
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <Switch checked={settings.secure} onCheckedChange={v => setSettings(s => ({ ...s, secure: v }))} />
+          <Label>Use SSL/TLS (port 465)</Label>
+        </div>
+
+        <div className="flex gap-2 pt-2">
+          <Button onClick={handleSave} disabled={saving} className="bg-primary text-primary-foreground">{saving ? "Saving..." : "Save Settings"}</Button>
+          <Button onClick={handleTest} variant="outline" disabled={testing}>{testing ? "Testing..." : "Send Test Email"}</Button>
+        </div>
+      </div>
+
+      <div className="bg-secondary rounded-lg p-4 sm:p-6 max-w-lg">
+        <h3 className="font-heading font-semibold mb-2">Common SMTP Settings</h3>
+        <div className="text-sm text-muted-foreground space-y-2">
+          <p><strong>Gmail:</strong> smtp.gmail.com / Port 587 / TLS off (STARTTLS) or Port 465 / SSL on</p>
+          <p><strong>Outlook:</strong> smtp-mail.outlook.com / Port 587 / TLS off</p>
+          <p><strong>Yahoo:</strong> smtp.mail.yahoo.com / Port 465 / SSL on</p>
+          <p><strong>Zoho:</strong> smtp.zoho.com / Port 587 / TLS off</p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function SEOTab() {
-  const [settings, setSettings] = useState<SEOSettings>(getSEOSettings());
+  const [settings, setSettings] = useState<SEOSettings>({ searchConsoleId: '', searchKeywords: [] });
   const [newKeyword, setNewKeyword] = useState("");
 
-  const handleSave = () => {
-    saveSEOSettings(settings);
+  useEffect(() => { getSEOSettings().then(setSettings); }, []);
+
+  const handleSave = async () => {
+    await saveSEOSettings(settings);
     toast({ title: "SEO settings saved!" });
   };
 
@@ -483,13 +615,13 @@ function SEOTab() {
             placeholder="e.g. abc123xyz..."
           />
           <p className="text-xs text-muted-foreground mt-1">
-            From Google Search Console → Settings → Ownership verification → HTML tag. Paste the content value.
+            From Google Search Console → Settings → Ownership verification → HTML tag.
           </p>
         </div>
 
         <div>
           <Label>Target Keywords</Label>
-          <p className="text-xs text-muted-foreground mb-2">Add SEO keywords for your site. These help track your target search terms.</p>
+          <p className="text-xs text-muted-foreground mb-2">Add SEO keywords for your site.</p>
           <div className="flex gap-2 mb-3">
             <Input value={newKeyword} onChange={e => setNewKeyword(e.target.value)} placeholder="e.g. care home jobs UK" onKeyDown={e => e.key === 'Enter' && (e.preventDefault(), addKeyword())} />
             <Button type="button" onClick={addKeyword} className="bg-primary text-primary-foreground shrink-0">Add</Button>
