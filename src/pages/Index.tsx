@@ -1,9 +1,11 @@
+import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { SiteHeader } from "@/components/SiteHeader";
 import { SiteFooter } from "@/components/SiteFooter";
 import { JobCard } from "@/components/JobCard";
 import { getJobs } from "@/lib/store";
+import type { Job } from "@/lib/store";
 import { Shield, Users, Heart, ArrowRight, Award, Building2, Globe2, CheckCircle2 } from "lucide-react";
 import heroCare from "@/assets/hero-care.jpg";
 
@@ -37,7 +39,11 @@ const whyChooseUs = [
 ];
 
 const Index = () => {
-  const jobs = getJobs().filter(j => j.isActive).slice(0, 3);
+  const [jobs, setJobs] = useState<Job[]>([]);
+
+  useEffect(() => {
+    getJobs().then(allJobs => setJobs(allJobs.filter(j => j.isActive).slice(0, 3)));
+  }, []);
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -106,7 +112,6 @@ const Index = () => {
             <h2 className="font-heading text-2xl font-bold mb-2">Trusted Across the UK Care Sector</h2>
             <p className="text-muted-foreground max-w-lg mx-auto">We work alongside leading organisations and regulatory bodies to ensure the highest standards in care recruitment.</p>
           </div>
-
           <div className="grid grid-cols-2 md:grid-cols-4 gap-6 mb-12">
             {trustedOrgs.map((org, i) => (
               <div key={i} className="flex flex-col items-center gap-3 p-6 rounded-lg border bg-card text-center">
@@ -115,7 +120,6 @@ const Index = () => {
               </div>
             ))}
           </div>
-
           <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
             {trustedStats.map((stat, i) => (
               <div key={i} className="text-center p-6 rounded-lg bg-secondary">

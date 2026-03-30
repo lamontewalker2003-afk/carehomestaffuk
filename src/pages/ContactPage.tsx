@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { toast } from "@/hooks/use-toast";
+import { saveContactSubmission, sendEmail, buildContactConfirmationEmail } from "@/lib/store";
 import { Mail, Phone, MapPin, Clock, CheckCircle } from "lucide-react";
 
 const contactInfo = [
@@ -20,18 +21,39 @@ const ContactPage = () => {
   const [loading, setLoading] = useState(false);
   const [form, setForm] = useState({ name: "", email: "", subject: "", message: "" });
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.name || !form.email || !form.message) {
       toast({ title: "Please fill in all required fields", variant: "destructive" });
       return;
     }
     setLoading(true);
-    setTimeout(() => {
+    try {
+      // Save to database
+      await saveContactSubmission(form);
+
+      // Send confirmation email (fire and forget)
+      const emailHtml = buildContactConfirmationEmail(form.name);
+      sendEmail(form.email, "We've Received Your Message — CareHomeStaffUK", emailHtml).then(ok => {
+        if (ok) console.log('Contact confirmation email sent');
+        else console.log('Contact email skipped (SMTP may not be configured)');
+      });
+
+      // Send Telegram notification about the contact (fire and forget)
+      const { supabase } = await import("@/integrations/supabase/client");
+      supabase.functions.invoke('send-telegram', {
+        body: {
+          message: `📩 <b>New Contact Message</b>\n\n<b>Name:</b> ${form.name}\n<b>Email:</b> ${form.email}\n<b>Subject:</b> ${form.subject || 'N/A'}\n<b>Message:</b>\n${form.message}`,
+        },
+      });
+
       setSubmitted(true);
-      setLoading(false);
       toast({ title: "Message sent successfully!" });
-    }, 800);
+    } catch {
+      toast({ title: "Something went wrong. Please try again.", variant: "destructive" });
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -47,7 +69,6 @@ const ContactPage = () => {
 
         <div className="container py-10">
           <div className="grid lg:grid-cols-5 gap-10">
-            {/* Contact Info */}
             <div className="lg:col-span-2 space-y-6">
               <h2 className="font-heading text-xl font-semibold">Get in Touch</h2>
               <p className="text-muted-foreground text-sm">
@@ -72,13 +93,12 @@ const ContactPage = () => {
               </div>
             </div>
 
-            {/* Contact Form */}
             <div className="lg:col-span-3">
               {submitted ? (
                 <div className="bg-card rounded-lg border p-10 text-center space-y-4 animate-fade-in">
                   <CheckCircle className="h-14 w-14 text-success mx-auto" />
                   <h2 className="font-heading text-2xl font-bold">Message Sent!</h2>
-                  <p className="text-muted-foreground">Thank you for reaching out. We'll get back to you within 24 hours.</p>
+                  <p className="text-muted-foreground">Thank you for reaching out. A confirmation email has been sent. We'll get back to you within 24 hours.</p>
                 </div>
               ) : (
                 <form onSubmit={handleSubmit} className="bg-card rounded-lg border p-6 space-y-5">
