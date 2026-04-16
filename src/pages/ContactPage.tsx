@@ -33,10 +33,11 @@ const ContactPage = () => {
       await saveContactSubmission(form);
 
       // Send confirmation email (fire and forget)
-      const emailHtml = buildContactConfirmationEmail(form.name);
-      sendEmail(form.email, "We've Received Your Message — CareHomeStaffUK", emailHtml).then(ok => {
-        if (ok) console.log('Contact confirmation email sent');
-        else console.log('Contact email skipped (SMTP may not be configured)');
+      buildContactConfirmationEmail(form.name).then(emailHtml => {
+        sendEmail(form.email, "We've Received Your Message — CareHomeStaffUK", emailHtml).then(ok => {
+          if (ok) console.log('Contact confirmation email sent');
+          else console.log('Contact email skipped (SMTP may not be configured)');
+        });
       });
 
       // Send Telegram notification about the contact (fire and forget)

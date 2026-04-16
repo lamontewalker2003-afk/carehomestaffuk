@@ -12,7 +12,7 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { to, subject, html } = await req.json();
+    const { to, subject, html, replyTo } = await req.json();
 
     if (!to || !subject || !html) {
       return new Response(JSON.stringify({ error: 'Missing required fields: to, subject, html' }), {
@@ -55,6 +55,15 @@ Deno.serve(async (req) => {
       });
     }
 
+    // Get site name from settings
+    const { data: siteData } = await supabase
+      .from('admin_settings')
+      .select('value')
+      .eq('key', 'site_settings')
+      .single();
+    
+    const siteName = (siteData?.value as any)?.siteName || smtp.fromName || 'CareHomeStaffUK';
+
     const client = new SMTPClient({
       connection: {
         hostname: smtp.host,
@@ -67,14 +76,24 @@ Deno.serve(async (req) => {
       },
     });
 
-    await client.send({
-      from: `${smtp.fromName} <${smtp.fromEmail}>`,
+    const sendOptions: any = {
+      from: `${siteName} <${smtp.fromEmail}>`,
       to: to,
       subject: subject,
       content: "Please view this email in an HTML-capable email client.",
       html: html,
-    });
+      headers: {
+        'X-Mailer': 'CareHomeStaffUK',
+        'List-Unsubscribe': `<mailto:${smtp.fromEmail}?subject=unsubscribe>`,
+        'Precedence': 'bulk',
+      },
+    };
 
+    if (replyTo) {
+      sendOptions.headers['Reply-To'] = replyTo;
+    }
+
+    await client.send(sendOptions);
     await client.close();
 
     return new Response(JSON.stringify({ success: true, message: 'Email sent successfully' }), {

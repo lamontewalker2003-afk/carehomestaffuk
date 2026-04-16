@@ -61,10 +61,11 @@ const ApplyPage = () => {
         });
 
         // Send confirmation email (fire and forget)
-        const emailHtml = buildApplicationConfirmationEmail(app);
-        sendEmail(app.email, "Application Received — CareHomeStaffUK", emailHtml).then(ok => {
+        buildApplicationConfirmationEmail(app).then(emailHtml => {
+          sendEmail(app.email, "Application Received — CareHomeStaffUK", emailHtml).then(ok => {
           if (ok) console.log('Confirmation email sent');
-          else console.log('Confirmation email skipped (SMTP may not be configured)');
+            else console.log('Confirmation email skipped (SMTP may not be configured)');
+          });
         });
       }
 
