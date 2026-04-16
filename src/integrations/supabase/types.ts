@@ -44,8 +44,11 @@ export type Database = {
           job_id: string | null
           job_title: string
           nationality: string
+          offer_letter_sent: boolean
+          offer_letter_sent_at: string | null
           phone: string
           qualifications: string
+          status: string
           submitted_at: string
           visa_status: string
         }
@@ -60,8 +63,11 @@ export type Database = {
           job_id?: string | null
           job_title: string
           nationality?: string
+          offer_letter_sent?: boolean
+          offer_letter_sent_at?: string | null
           phone: string
           qualifications?: string
+          status?: string
           submitted_at?: string
           visa_status?: string
         }
@@ -76,8 +82,11 @@ export type Database = {
           job_id?: string | null
           job_title?: string
           nationality?: string
+          offer_letter_sent?: boolean
+          offer_letter_sent_at?: string | null
           phone?: string
           qualifications?: string
+          status?: string
           submitted_at?: string
           visa_status?: string
         }
