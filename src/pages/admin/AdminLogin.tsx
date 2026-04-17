@@ -43,6 +43,11 @@ const AdminLogin = () => {
           </div>
           <Button type="submit" className="w-full bg-primary text-primary-foreground">Sign In</Button>
         </form>
+        <div className="mt-4 pt-4 border-t text-center">
+          <a href="/setup" className="text-xs text-muted-foreground hover:text-primary">
+            Self-hosting? Run the standalone setup wizard →
+          </a>
+        </div>
       </div>
     </div>
   );
