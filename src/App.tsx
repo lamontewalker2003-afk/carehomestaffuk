@@ -6,6 +6,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { HelmetProvider } from "react-helmet-async";
 import { SEOHead } from "@/components/SEOHead";
 import { CookieConsent } from "@/components/CookieConsent";
+import { WhatsAppButton } from "@/components/WhatsAppButton";
 import Index from "./pages/Index.tsx";
 import JobsPage from "./pages/JobsPage.tsx";
 import ApplyPage from "./pages/ApplyPage.tsx";
@@ -46,6 +47,7 @@ const App = () => (
             <Route path="*" element={<NotFound />} />
           </Routes>
           <CookieConsent />
+          <WhatsAppButton />
         </BrowserRouter>
       </TooltipProvider>
     </QueryClientProvider>

@@ -1,10 +1,18 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
-import { SMTPClient } from 'https://deno.land/x/denomailer@1.6.0/mod.ts';
+import nodemailer from 'npm:nodemailer@6.9.14';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
+
+// Always respond with 200 + JSON envelope so the client can parse error payloads
+function respond(success: boolean, payload: Record<string, unknown> = {}, status = 200) {
+  return new Response(JSON.stringify({ success, ...payload }), {
+    status,
+    headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+  });
+}
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -15,96 +23,92 @@ Deno.serve(async (req) => {
     const { to, subject, html, replyTo } = await req.json();
 
     if (!to || !subject || !html) {
-      return new Response(JSON.stringify({ error: 'Missing required fields: to, subject, html' }), {
-        status: 400,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
+      return respond(false, { error: 'Missing required fields: to, subject, html' });
     }
 
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    const { data: smtpData } = await supabase
+    const { data: smtpRow } = await supabase
       .from('admin_settings')
       .select('value')
       .eq('key', 'smtp')
-      .single();
+      .maybeSingle();
 
-    if (!smtpData?.value) {
-      return new Response(JSON.stringify({ error: 'SMTP not configured. Please set up SMTP in admin panel.' }), {
-        status: 400,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
+    const smtp = smtpRow?.value as {
+      host?: string;
+      port?: number;
+      username?: string;
+      password?: string;
+      fromEmail?: string;
+      fromName?: string;
+      secure?: boolean;
+    } | null;
+
+    if (!smtp || !smtp.host || !smtp.username || !smtp.password || !smtp.fromEmail) {
+      return respond(false, { error: 'SMTP not configured. Please set up SMTP in the admin panel.' });
     }
 
-    const smtp = smtpData.value as {
-      host: string;
-      port: number;
-      username: string;
-      password: string;
-      fromEmail: string;
-      fromName: string;
-      secure: boolean;
-    };
-
-    if (!smtp.host || !smtp.username || !smtp.password || !smtp.fromEmail) {
-      return new Response(JSON.stringify({ error: 'SMTP configuration incomplete' }), {
-        status: 400,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
-    }
-
-    // Get site name from settings
-    const { data: siteData } = await supabase
+    const { data: siteRow } = await supabase
       .from('admin_settings')
       .select('value')
       .eq('key', 'site_settings')
-      .single();
-    
-    const siteName = (siteData?.value as any)?.siteName || smtp.fromName || 'CareHomeStaffUK';
+      .maybeSingle();
 
-    const client = new SMTPClient({
-      connection: {
-        hostname: smtp.host,
-        port: smtp.port || 587,
-        tls: smtp.secure,
-        auth: {
-          username: smtp.username,
-          password: smtp.password,
-        },
+    const siteName = (siteRow?.value as any)?.siteName || smtp.fromName || 'CareHomeStaffUK';
+
+    const port = Number(smtp.port) || 587;
+    // Port 465 = implicit TLS (secure: true). Port 587/25 = STARTTLS (secure: false, requireTLS: true)
+    const useImplicitTLS = port === 465 || smtp.secure === true;
+
+    const transporter = nodemailer.createTransport({
+      host: smtp.host,
+      port,
+      secure: useImplicitTLS,
+      requireTLS: !useImplicitTLS,
+      auth: {
+        user: smtp.username,
+        pass: smtp.password,
       },
+      tls: {
+        // Lots of shared-hosting SMTP servers (cPanel, Plesk, mail.yourdomain.com)
+        // ship with self-signed or hostname-mismatched certs — accept them.
+        rejectUnauthorized: false,
+        minVersion: 'TLSv1.2',
+      },
+      connectionTimeout: 20000,
+      greetingTimeout: 15000,
+      socketTimeout: 30000,
     });
 
-    const sendOptions: any = {
-      from: `${siteName} <${smtp.fromEmail}>`,
-      to: to,
-      subject: subject,
-      content: "Please view this email in an HTML-capable email client.",
-      html: html,
+    // Plain-text fallback for inbox deliverability
+    const text = html
+      .replace(/<style[\s\S]*?<\/style>/gi, '')
+      .replace(/<[^>]+>/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+
+    const fromName = (smtp.fromName || siteName).replace(/[<>"]/g, '');
+
+    const info = await transporter.sendMail({
+      from: { name: fromName, address: smtp.fromEmail },
+      to,
+      subject,
+      text,
+      html,
+      replyTo: replyTo || undefined,
       headers: {
-        'X-Mailer': 'CareHomeStaffUK',
+        'X-Mailer': siteName,
         'List-Unsubscribe': `<mailto:${smtp.fromEmail}?subject=unsubscribe>`,
-        'Precedence': 'bulk',
+        'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click',
       },
-    };
-
-    if (replyTo) {
-      sendOptions.headers['Reply-To'] = replyTo;
-    }
-
-    await client.send(sendOptions);
-    await client.close();
-
-    return new Response(JSON.stringify({ success: true, message: 'Email sent successfully' }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
 
-  } catch (error) {
-    console.error('Email send error:', error);
-    return new Response(JSON.stringify({ error: error.message || 'Failed to send email' }), {
-      status: 500,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
+    console.log('Email sent:', info.messageId, 'to', to);
+    return respond(true, { messageId: info.messageId, message: 'Email sent successfully' });
+  } catch (error: any) {
+    console.error('Email send error:', error?.message || error, error?.stack);
+    return respond(false, { error: error?.message || 'Failed to send email' });
   }
 });
