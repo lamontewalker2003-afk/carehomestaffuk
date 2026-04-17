@@ -599,22 +599,22 @@ function EmailTemplatesTab() {
     applicationConfirmation: {
       label: "Application Confirmation",
       description: "Sent automatically when someone submits an application.",
-      variables: "{{fullName}}, {{jobTitle}}, {{email}}, {{phone}}, {{visaStatus}}, {{nationality}}, {{currentLocation}}",
+      variables: "{{fullName}}, {{jobTitle}}, {{email}}, {{phone}}, {{visaStatus}}, {{nationality}}, {{currentLocation}}, {{siteName}}",
     },
     applicationSuccess: {
       label: "Application Success",
       description: "Sent when admin marks an application as successful.",
-      variables: "{{fullName}}, {{jobTitle}}, {{email}}",
+      variables: "{{fullName}}, {{jobTitle}}, {{email}}, {{siteName}}",
     },
     offerLetter: {
       label: "Offer Letter",
-      description: "Default offer letter template sent to successful candidates.",
-      variables: "{{fullName}}, {{jobTitle}}, {{email}}, {{date}}",
+      description: "Default offer letter sent to successful candidates.",
+      variables: "{{fullName}}, {{jobTitle}}, {{email}}, {{date}}, {{siteName}}",
     },
     contactConfirmation: {
       label: "Contact Confirmation",
       description: "Sent when someone submits the contact form.",
-      variables: "{{name}}",
+      variables: "{{name}}, {{siteName}}, {{contactPhone}}, {{contactEmail}}",
     },
   };
 
@@ -626,11 +626,16 @@ function EmailTemplatesTab() {
   };
 
   const info = templateInfo[activeTemplate];
+  const current = templates[activeTemplate];
+
+  const updateField = <K extends keyof EmailTemplateFields>(field: K, value: EmailTemplateFields[K]) => {
+    setTemplates(t => t ? { ...t, [activeTemplate]: { ...t[activeTemplate], [field]: value } } : t);
+  };
 
   return (
     <div className="space-y-6 animate-fade-in">
       <h1 className="font-heading text-2xl font-bold">Email Templates</h1>
-      <p className="text-muted-foreground text-sm">Customise the HTML email templates sent to applicants and contacts. Use template variables for dynamic content.</p>
+      <p className="text-muted-foreground text-sm">Edit your emails using simple fields — no HTML needed. The header, footer and styling are added automatically. Use variables like {'{{fullName}}'} to personalise the message.</p>
 
       <div className="flex flex-wrap gap-2 mb-4">
         {(Object.keys(templateInfo) as (keyof EmailTemplates)[]).map(key => (
@@ -647,16 +652,47 @@ function EmailTemplatesTab() {
           <p className="text-sm text-muted-foreground">{info.description}</p>
         </div>
         <div className="bg-muted rounded-md p-3">
-          <p className="text-xs font-medium text-muted-foreground mb-1">Available Variables:</p>
-          <p className="text-xs font-mono text-foreground">{info.variables}</p>
+          <p className="text-xs font-medium text-muted-foreground mb-1">Available Variables (paste into any field):</p>
+          <p className="text-xs font-mono text-foreground break-all">{info.variables}</p>
         </div>
-        <Textarea
-          value={templates[activeTemplate]}
-          onChange={e => setTemplates(t => t ? { ...t, [activeTemplate]: e.target.value } : t)}
-          rows={16}
-          className="font-mono text-xs"
-          placeholder="Enter HTML template..."
-        />
+
+        <div>
+          <Label>Heading</Label>
+          <Input value={current.heading} onChange={e => updateField('heading', e.target.value)} placeholder="Application Received" />
+        </div>
+
+        <div>
+          <Label>Opening line / greeting</Label>
+          <Textarea value={current.intro} onChange={e => updateField('intro', e.target.value)} rows={2} placeholder="Hello {{fullName}}, thank you for applying..." />
+        </div>
+
+        <div>
+          <Label>Body paragraphs <span className="text-xs text-muted-foreground font-normal">(one paragraph per line)</span></Label>
+          <Textarea
+            value={(current.paragraphs || []).join('\n')}
+            onChange={e => updateField('paragraphs', e.target.value.split('\n').filter(Boolean))}
+            rows={6}
+            placeholder="Write each paragraph on its own line..."
+          />
+          <p className="text-xs text-muted-foreground mt-1">Each line becomes one paragraph in the email.</p>
+        </div>
+
+        <div>
+          <Label>Highlight box <span className="text-xs text-muted-foreground font-normal">(optional — appears as a callout)</span></Label>
+          <Textarea value={current.highlight || ''} onChange={e => updateField('highlight', e.target.value)} rows={2} placeholder="Welcome to the team..." />
+        </div>
+
+        <div className="grid sm:grid-cols-2 gap-4">
+          <div>
+            <Label>Sign-off</Label>
+            <Input value={current.signoff} onChange={e => updateField('signoff', e.target.value)} placeholder="Kind regards," />
+          </div>
+          <div>
+            <Label>Signature</Label>
+            <Input value={current.signature} onChange={e => updateField('signature', e.target.value)} placeholder="The Recruitment Team" />
+          </div>
+        </div>
+
         <Button onClick={handleSave} disabled={saving} className="bg-primary text-primary-foreground">
           {saving ? "Saving..." : "Save All Templates"}
         </Button>
@@ -666,7 +702,7 @@ function EmailTemplatesTab() {
 }
 
 function SiteSettingsTab() {
-  const [settings, setSettings] = useState<SiteSettings>({ siteName: 'CareHomeStaffUK' });
+  const [settings, setSettings] = useState<SiteSettings>(defaultSiteSettings);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => { getSiteSettings().then(setSettings); }, []);
@@ -678,26 +714,77 @@ function SiteSettingsTab() {
     toast({ title: "Site settings saved!" });
   };
 
+  const update = <K extends keyof SiteSettings>(field: K, value: SiteSettings[K]) => {
+    setSettings(s => ({ ...s, [field]: value }));
+  };
+
   return (
     <div className="space-y-6 animate-fade-in">
       <h1 className="font-heading text-2xl font-bold">Site Settings</h1>
-      <p className="text-muted-foreground text-sm">Configure your website name and general settings.</p>
-      <div className="bg-card rounded-lg border p-4 sm:p-6 space-y-4 max-w-lg">
-        <div>
-          <Label>Website Name</Label>
-          <Input value={settings.siteName} onChange={e => setSettings(s => ({ ...s, siteName: e.target.value }))} placeholder="CareHomeStaffUK" />
-          <p className="text-xs text-muted-foreground mt-1">This name appears in emails and across the site.</p>
+      <p className="text-muted-foreground text-sm">Control your website name, contact details and the floating WhatsApp button.</p>
+
+      <div className="bg-card rounded-lg border p-4 sm:p-6 space-y-5 max-w-2xl">
+        <h2 className="font-heading font-semibold flex items-center gap-2"><Settings className="h-4 w-4 text-primary" /> Brand</h2>
+        <div className="grid sm:grid-cols-2 gap-4">
+          <div>
+            <Label>Website Name</Label>
+            <Input value={settings.siteName} onChange={e => update('siteName', e.target.value)} placeholder="CareHomeStaffUK" />
+          </div>
+          <div>
+            <Label>Tagline</Label>
+            <Input value={settings.tagline} onChange={e => update('tagline', e.target.value)} placeholder="Health & Social Care Recruitment" />
+          </div>
         </div>
-        <Button onClick={handleSave} disabled={saving} className="bg-primary text-primary-foreground">
-          {saving ? "Saving..." : "Save Settings"}
-        </Button>
+        <div>
+          <Label>Footer Description</Label>
+          <Textarea value={settings.footerTagline} onChange={e => update('footerTagline', e.target.value)} rows={2} />
+        </div>
       </div>
+
+      <div className="bg-card rounded-lg border p-4 sm:p-6 space-y-4 max-w-2xl">
+        <h2 className="font-heading font-semibold flex items-center gap-2"><Mail className="h-4 w-4 text-primary" /> Contact Information</h2>
+        <div className="grid sm:grid-cols-2 gap-4">
+          <div>
+            <Label>Contact Email</Label>
+            <Input type="email" value={settings.contactEmail} onChange={e => update('contactEmail', e.target.value)} />
+          </div>
+          <div>
+            <Label>Contact Phone</Label>
+            <Input value={settings.contactPhone} onChange={e => update('contactPhone', e.target.value)} />
+          </div>
+          <div>
+            <Label>Address</Label>
+            <Input value={settings.contactAddress} onChange={e => update('contactAddress', e.target.value)} />
+          </div>
+          <div>
+            <Label>Office Hours</Label>
+            <Input value={settings.officeHours} onChange={e => update('officeHours', e.target.value)} />
+          </div>
+        </div>
+      </div>
+
+      <div className="bg-card rounded-lg border p-4 sm:p-6 space-y-4 max-w-2xl">
+        <h2 className="font-heading font-semibold flex items-center gap-2">
+          <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-green-500 text-white text-[10px]">W</span>
+          WhatsApp Floating Button
+        </h2>
+        <div>
+          <Label>WhatsApp Number <span className="text-xs text-muted-foreground font-normal">(country code + number, no spaces or +)</span></Label>
+          <Input value={settings.whatsappNumber} onChange={e => update('whatsappNumber', e.target.value.replace(/[^\d]/g, ''))} placeholder="441234567890" />
+          <p className="text-xs text-muted-foreground mt-1">Leave empty to hide the floating button.</p>
+        </div>
+        <div>
+          <Label>Pre-filled Message</Label>
+          <Textarea value={settings.whatsappMessage} onChange={e => update('whatsappMessage', e.target.value)} rows={2} placeholder="Hello! I'd like to enquire..." />
+        </div>
+      </div>
+
+      <Button onClick={handleSave} disabled={saving} className="bg-primary text-primary-foreground">
+        {saving ? "Saving..." : "Save All Settings"}
+      </Button>
     </div>
   );
 }
-
-function SEOTab() {
-  const [settings, setSettings] = useState<SEOSettings>({ searchConsoleId: '', searchKeywords: [] });
   const [newKeyword, setNewKeyword] = useState("");
 
   useEffect(() => { getSEOSettings().then(setSettings); }, []);
