@@ -801,6 +801,16 @@ function SiteSettingsTab() {
         </div>
       </div>
 
+      <div className="bg-card rounded-lg border p-4 sm:p-6 space-y-3 max-w-2xl">
+        <h2 className="font-heading font-semibold flex items-center gap-2"><Server className="h-4 w-4 text-primary" /> Self-Hosting / Standalone</h2>
+        <p className="text-sm text-muted-foreground">
+          Want to run this app on your own Supabase project? Use the standalone setup wizard to configure your own database connection, run the consolidated migration, and set admin credentials — all from the browser, no terminal needed.
+        </p>
+        <Button asChild variant="outline">
+          <Link to="/setup">Open Standalone Setup Wizard →</Link>
+        </Button>
+      </div>
+
       <Button onClick={handleSave} disabled={saving} className="bg-primary text-primary-foreground">
         {saving ? "Saving..." : "Save All Settings"}
       </Button>
