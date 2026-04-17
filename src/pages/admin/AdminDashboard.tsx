@@ -8,7 +8,8 @@ import {
   updateApplicationStatus, markOfferLetterSent, sendEmail,
   buildApplicationSuccessEmail, buildOfferLetterEmail,
 } from "@/lib/store";
-import type { Application, Job, TelegramSettings, SEOSettings, SMTPSettings, SiteSettings, EmailTemplates } from "@/lib/store";
+import type { Application, Job, TelegramSettings, SEOSettings, SMTPSettings, SiteSettings, EmailTemplates, EmailTemplateFields } from "@/lib/store";
+import { defaultSiteSettings } from "@/lib/store";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
