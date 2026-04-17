@@ -57,13 +57,32 @@ export interface SEOSettings {
 
 export interface SiteSettings {
   siteName: string;
+  tagline: string;
+  contactEmail: string;
+  contactPhone: string;
+  contactAddress: string;
+  officeHours: string;
+  whatsappNumber: string; // international format with no +, e.g. 441234567890
+  whatsappMessage: string;
+  footerTagline: string;
+}
+
+// A single template = an editable email built from friendly fields,
+// not raw HTML the admin has to write.
+export interface EmailTemplateFields {
+  heading: string;        // Big H2
+  intro: string;          // Greeting / opening line
+  paragraphs: string[];   // Body paragraphs
+  highlight?: string;     // Optional highlighted callout box
+  signoff: string;        // Closing line
+  signature: string;      // Sender name(s)
 }
 
 export interface EmailTemplates {
-  applicationConfirmation: string;
-  applicationSuccess: string;
-  offerLetter: string;
-  contactConfirmation: string;
+  applicationConfirmation: EmailTemplateFields;
+  applicationSuccess: EmailTemplateFields;
+  offerLetter: EmailTemplateFields;
+  contactConfirmation: EmailTemplateFields;
 }
 
 // ---- Helper to map DB row to Job interface ----
