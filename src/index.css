@@ -71,3 +71,27 @@
     font-family: var(--font-heading);
   }
 }
+
+/* react-phone-number-input integration with shadcn input styles */
+.phone-input-wrapper .PhoneInputCountry {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-right: 0.5rem;
+}
+.phone-input-wrapper .PhoneInputInput {
+  background: transparent;
+  border: 0;
+  outline: none;
+  flex: 1;
+  font-size: 0.875rem;
+  color: hsl(var(--foreground));
+}
+.phone-input-wrapper .PhoneInputCountrySelect {
+  background: transparent;
+  border: 0;
+}
+.phone-input-wrapper .PhoneInputCountryIcon {
+  width: 1.25rem;
+  height: 0.9rem;
+}

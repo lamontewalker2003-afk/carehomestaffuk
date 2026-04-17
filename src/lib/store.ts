@@ -65,6 +65,10 @@ export interface SiteSettings {
   whatsappNumber: string; // international format with no +, e.g. 441234567890
   whatsappMessage: string;
   footerTagline: string;
+  // Footer copyright controls
+  footerCompanyName: string;   // shown in © line
+  footerYear: string;          // empty = auto current year
+  footerExtraNote: string;     // optional additional line under copyright
 }
 
 // A single template = an editable email built from friendly fields,
@@ -227,6 +231,9 @@ export const defaultSiteSettings: SiteSettings = {
   whatsappNumber: '441234567890',
   whatsappMessage: 'Hello! I would like to enquire about UK care work opportunities.',
   footerTagline: 'Connecting care homes with compassionate, qualified healthcare professionals across the United Kingdom. Visa sponsorship available.',
+  footerCompanyName: 'CareHomeStaffUK',
+  footerYear: '',
+  footerExtraNote: '',
 };
 
 export async function getSiteSettings(): Promise<SiteSettings> {
@@ -271,10 +278,13 @@ export async function sendEmail(to: string, subject: string, html: string): Prom
 }
 
 // ---- ADMIN AUTH ----
+import { getAdminCredentials } from './runtime-config';
 const ADMIN_KEY = 'chsuk_admin_auth';
 export function isAdminLoggedIn(): boolean { return localStorage.getItem(ADMIN_KEY) === 'true'; }
-export function adminLogin(username: string, password: string): boolean {
-  if (username === 'admin' && password === 'admin123') { localStorage.setItem(ADMIN_KEY, 'true'); return true; }
+export async function adminLogin(username: string, password: string): Promise<boolean> {
+  const creds = await getAdminCredentials();
+  const match = creds.find(c => c.username === username && c.password === password);
+  if (match) { localStorage.setItem(ADMIN_KEY, 'true'); return true; }
   return false;
 }
 export function adminLogout() { localStorage.removeItem(ADMIN_KEY); }

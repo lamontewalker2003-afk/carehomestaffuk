@@ -12,9 +12,10 @@ const AdminLogin = () => {
   const [password, setPassword] = useState("");
   const navigate = useNavigate();
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (adminLogin(username, password)) {
+    const ok = await adminLogin(username, password);
+    if (ok) {
       navigate("/bestadmin/dashboard");
     } else {
       toast({ title: "Invalid credentials", variant: "destructive" });
@@ -42,6 +43,11 @@ const AdminLogin = () => {
           </div>
           <Button type="submit" className="w-full bg-primary text-primary-foreground">Sign In</Button>
         </form>
+        <div className="mt-4 pt-4 border-t text-center">
+          <a href="/setup" className="text-xs text-muted-foreground hover:text-primary">
+            Self-hosting? Run the standalone setup wizard →
+          </a>
+        </div>
       </div>
     </div>
   );

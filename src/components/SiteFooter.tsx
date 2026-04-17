@@ -71,7 +71,10 @@ export function SiteFooter() {
         </div>
 
         <div className="border-t border-hero-foreground/10 mt-8 pt-8 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-hero-foreground/50">
-          <p>© {new Date().getFullYear()} {site.siteName}. All rights reserved.</p>
+          <div className="text-center sm:text-left">
+            <p>© {site.footerYear || new Date().getFullYear()} {site.footerCompanyName || site.siteName}. All rights reserved.</p>
+            {site.footerExtraNote && <p className="mt-1 text-hero-foreground/40">{site.footerExtraNote}</p>}
+          </div>
           <div className="flex gap-4">
             <Link to="/privacy-policy" className="hover:text-hero-accent transition-colors">Privacy</Link>
             <Link to="/terms" className="hover:text-hero-accent transition-colors">Terms</Link>

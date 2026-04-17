@@ -7,6 +7,8 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import PhoneInput, { isValidPhoneNumber } from "react-phone-number-input";
+import "react-phone-number-input/style.css";
 import { getJobs, saveApplication, sendToTelegram, sendEmail, buildApplicationConfirmationEmail } from "@/lib/store";
 import type { Job } from "@/lib/store";
 import { toast } from "@/hooks/use-toast";
@@ -41,6 +43,10 @@ const ApplyPage = () => {
     e.preventDefault();
     if (!form.jobId || !form.fullName || !form.email || !form.phone) {
       toast({ title: "Please fill in all required fields", variant: "destructive" });
+      return;
+    }
+    if (!isValidPhoneNumber(form.phone)) {
+      toast({ title: "Please enter a valid phone number with country code", variant: "destructive" });
       return;
     }
 
@@ -137,7 +143,18 @@ const ApplyPage = () => {
             <div className="grid md:grid-cols-2 gap-4">
               <div>
                 <Label htmlFor="phone">Phone Number *</Label>
-                <Input id="phone" value={form.phone} onChange={e => setForm(f => ({ ...f, phone: e.target.value }))} required />
+                <PhoneInput
+                  id="phone"
+                  international
+                  defaultCountry="GB"
+                  countryCallingCodeEditable={false}
+                  value={form.phone}
+                  onChange={(v) => setForm(f => ({ ...f, phone: v || "" }))}
+                  className="phone-input-wrapper flex items-center gap-2 h-10 rounded-md border border-input bg-background px-3 text-sm focus-within:ring-2 focus-within:ring-ring"
+                  placeholder="Enter phone number"
+                  required
+                />
+                <p className="text-xs text-muted-foreground mt-1">Select your country, then enter your number.</p>
               </div>
               <div>
                 <Label htmlFor="nationality">Nationality</Label>

@@ -1,0 +1,19 @@
+{
+  "$schema": "https://carehomestaffuk.lovable.app/standalone-config.schema.json",
+  "_comment": "Standalone deployment config. Edit this file ONLY if pre-baking config into your build. Most users should configure via the in-app /setup wizard, which stores values in localStorage and overrides anything here.",
+  "supabase": {
+    "url": "",
+    "anonKey": ""
+  },
+  "admins": [
+    {
+      "username": "admin",
+      "password": "admin123",
+      "_comment": "Change this password immediately on first login. The password is hashed in localStorage on first use."
+    }
+  ],
+  "branding": {
+    "siteName": "CareHomeStaffUK",
+    "tagline": "Health & Social Care Recruitment"
+  }
+}
