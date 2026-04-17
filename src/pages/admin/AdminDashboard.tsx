@@ -785,6 +785,9 @@ function SiteSettingsTab() {
     </div>
   );
 }
+
+function SEOTab() {
+  const [settings, setSettings] = useState<SEOSettings>({ searchConsoleId: '', searchKeywords: [] });
   const [newKeyword, setNewKeyword] = useState("");
 
   useEffect(() => { getSEOSettings().then(setSettings); }, []);
