@@ -328,13 +328,33 @@ function ApplicationsTab() {
                   </Button>
                 ) : (
                   <div className="space-y-3">
-                    <p className="text-xs text-muted-foreground">Leave blank to use default template, or customise the offer letter content below. Use variables: {'{{fullName}}, {{jobTitle}}, {{date}}'}</p>
-                    <Textarea value={offerContent} onChange={e => setOfferContent(e.target.value)} rows={8} placeholder="Leave blank for default offer letter template..." />
+                    <p className="text-xs text-muted-foreground">Optionally override any field for this offer letter. Leave blank to use the saved template. Variables: {'{{fullName}}, {{jobTitle}}, {{date}}, {{siteName}}'}</p>
+                    <div>
+                      <Label className="text-xs">Heading (optional)</Label>
+                      <Input value={offerOverrides.heading || ''} onChange={e => setOfferOverrides(o => ({ ...o, heading: e.target.value }))} placeholder="Offer of Employment" />
+                    </div>
+                    <div>
+                      <Label className="text-xs">Opening line (optional)</Label>
+                      <Textarea value={offerOverrides.intro || ''} onChange={e => setOfferOverrides(o => ({ ...o, intro: e.target.value }))} rows={2} placeholder="Dear {{fullName}}..." />
+                    </div>
+                    <div>
+                      <Label className="text-xs">Body paragraphs (one per line, optional)</Label>
+                      <Textarea
+                        value={(offerOverrides.paragraphs || []).join('\n')}
+                        onChange={e => setOfferOverrides(o => ({ ...o, paragraphs: e.target.value.split('\n').filter(Boolean) }))}
+                        rows={6}
+                        placeholder="One paragraph per line..."
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-xs">Highlight box (optional)</Label>
+                      <Input value={offerOverrides.highlight || ''} onChange={e => setOfferOverrides(o => ({ ...o, highlight: e.target.value }))} placeholder="Welcome to the team..." />
+                    </div>
                     <div className="flex gap-2">
                       <Button size="sm" onClick={() => handleSendOfferLetter(selected)} disabled={sendingEmail} className="bg-primary text-primary-foreground">
                         {sendingEmail ? 'Sending...' : 'Send Offer Letter'}
                       </Button>
-                      <Button size="sm" variant="outline" onClick={() => setShowOfferForm(false)}>Cancel</Button>
+                      <Button size="sm" variant="outline" onClick={() => { setShowOfferForm(false); setOfferOverrides({}); }}>Cancel</Button>
                     </div>
                   </div>
                 )}
