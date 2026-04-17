@@ -59,27 +59,34 @@ Deno.serve(async (req) => {
     const siteName = (siteRow?.value as any)?.siteName || smtp.fromName || 'CareHomeStaffUK';
 
     const port = Number(smtp.port) || 587;
-    // Port 465 = implicit TLS (secure: true). Port 587/25 = STARTTLS (secure: false, requireTLS: true)
+    // Port 465 = implicit TLS (secure: true). Port 587/25 = STARTTLS (secure: false)
     const useImplicitTLS = port === 465 || smtp.secure === true;
 
-    const transporter = nodemailer.createTransport({
-      host: smtp.host,
-      port,
+    const buildTransport = (opts: { secure: boolean; requireTLS: boolean; ignoreTLS?: boolean }) =>
+      nodemailer.createTransport({
+        host: smtp.host,
+        port,
+        secure: opts.secure,
+        requireTLS: opts.requireTLS,
+        ignoreTLS: opts.ignoreTLS,
+        auth: { user: smtp.username, pass: smtp.password },
+        tls: {
+          // Shared-hosting SMTP servers (cPanel/Plesk/mail.yourdomain.com)
+          // often have self-signed or hostname-mismatched certs.
+          rejectUnauthorized: false,
+          servername: smtp.host,
+          minVersion: 'TLSv1',
+          ciphers: 'DEFAULT@SECLEVEL=0',
+        },
+        connectionTimeout: 20000,
+        greetingTimeout: 15000,
+        socketTimeout: 30000,
+      });
+
+    // Primary attempt: implicit TLS for 465, STARTTLS for everything else
+    let transporter = buildTransport({
       secure: useImplicitTLS,
       requireTLS: !useImplicitTLS,
-      auth: {
-        user: smtp.username,
-        pass: smtp.password,
-      },
-      tls: {
-        // Lots of shared-hosting SMTP servers (cPanel, Plesk, mail.yourdomain.com)
-        // ship with self-signed or hostname-mismatched certs — accept them.
-        rejectUnauthorized: false,
-        minVersion: 'TLSv1.2',
-      },
-      connectionTimeout: 20000,
-      greetingTimeout: 15000,
-      socketTimeout: 30000,
     });
 
     // Plain-text fallback for inbox deliverability
@@ -91,7 +98,7 @@ Deno.serve(async (req) => {
 
     const fromName = (smtp.fromName || siteName).replace(/[<>"]/g, '');
 
-    const info = await transporter.sendMail({
+    const mailPayload = {
       from: { name: fromName, address: smtp.fromEmail },
       to,
       subject,
@@ -103,9 +110,36 @@ Deno.serve(async (req) => {
         'List-Unsubscribe': `<mailto:${smtp.fromEmail}?subject=unsubscribe>`,
         'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click',
       },
-    });
+    };
 
-    console.log('Email sent:', info.messageId, 'to', to);
+    let info;
+    let attemptUsed = 'primary';
+    try {
+      info = await transporter.sendMail(mailPayload);
+    } catch (primaryErr: any) {
+      const msg = String(primaryErr?.message || primaryErr);
+      console.warn('Primary SMTP attempt failed:', msg);
+
+      // InvalidContentType / wrong version / SSL routines = TLS handshake mismatch.
+      // Retry strategy:
+      //  - If we tried implicit TLS (465), retry with STARTTLS on same port.
+      //  - If we tried STARTTLS (587/25), retry without TLS at all (plain auth).
+      const tlsMismatch = /InvalidContentType|wrong version|SSL routines|alert|handshake|corrupt message/i.test(msg);
+      if (!tlsMismatch) throw primaryErr;
+
+      if (useImplicitTLS) {
+        console.log('Retrying with STARTTLS instead of implicit TLS...');
+        transporter = buildTransport({ secure: false, requireTLS: true });
+        attemptUsed = 'starttls-fallback';
+      } else {
+        console.log('Retrying with plain SMTP (no STARTTLS)...');
+        transporter = buildTransport({ secure: false, requireTLS: false, ignoreTLS: true });
+        attemptUsed = 'plain-fallback';
+      }
+      info = await transporter.sendMail(mailPayload);
+    }
+
+    console.log('Email sent:', info.messageId, 'to', to, 'via', attemptUsed);
     return respond(true, { messageId: info.messageId, message: 'Email sent successfully' });
   } catch (error: any) {
     console.error('Email send error:', error?.message || error, error?.stack);
