@@ -280,49 +280,81 @@ export function adminLogin(username: string, password: string): boolean {
 export function adminLogout() { localStorage.removeItem(ADMIN_KEY); }
 
 // ---- EMAIL TEMPLATE BUILDERS ----
-function replaceVars(template: string, vars: Record<string, string>): string {
-  let result = template;
+function escapeHtml(s: string): string {
+  return (s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+function replaceVars(text: string, vars: Record<string, string>): string {
+  let result = text || '';
   for (const [key, value] of Object.entries(vars)) {
     result = result.replace(new RegExp(`\\{\\{${key}\\}\\}`, 'g'), value || '');
   }
   return result;
 }
 
+function renderTemplateBody(t: EmailTemplateFields, vars: Record<string, string>): string {
+  const heading = replaceVars(t.heading, vars);
+  const intro = replaceVars(t.intro, vars);
+  const paragraphs = (t.paragraphs || []).map(p => replaceVars(p, vars)).filter(Boolean);
+  const highlight = t.highlight ? replaceVars(t.highlight, vars) : '';
+  const signoff = replaceVars(t.signoff, vars);
+  const signature = replaceVars(t.signature, vars);
+
+  const parts: string[] = [];
+  if (heading) parts.push(`<h2 style="color:#1a3a3a;margin:0 0 16px;font-size:22px;">${escapeHtml(heading)}</h2>`);
+  if (intro) parts.push(`<p style="color:#444;font-size:15px;line-height:1.6;margin:0 0 16px;">${escapeHtml(intro)}</p>`);
+  for (const p of paragraphs) {
+    parts.push(`<p style="color:#444;font-size:14px;line-height:1.7;margin:0 0 14px;">${escapeHtml(p)}</p>`);
+  }
+  if (highlight) {
+    parts.push(`<div style="background:#f0f7f4;border-left:4px solid #1a3a3a;border-radius:6px;padding:16px 20px;margin:20px 0;color:#1a3a3a;font-size:14px;line-height:1.6;">${escapeHtml(highlight)}</div>`);
+  }
+  if (signoff) parts.push(`<p style="color:#444;font-size:14px;margin:20px 0 6px;">${escapeHtml(signoff)}</p>`);
+  if (signature) parts.push(`<p style="color:#1a3a3a;font-size:14px;font-weight:600;margin:0;">${escapeHtml(signature)}</p>`);
+  return parts.join('\n');
+}
+
 export async function buildApplicationConfirmationEmail(app: Application): Promise<string> {
   const templates = await getEmailTemplates();
-  const siteSettings = await getSiteSettings();
-  return wrapEmailTemplate(replaceVars(templates.applicationConfirmation, {
+  const site = await getSiteSettings();
+  const vars = {
     fullName: app.fullName, jobTitle: app.jobTitle, email: app.email,
     phone: app.phone, visaStatus: app.visaStatus || 'Not specified',
     nationality: app.nationality, currentLocation: app.currentLocation,
-  }), siteSettings.siteName);
+    siteName: site.siteName,
+  };
+  return wrapEmailTemplate(renderTemplateBody(templates.applicationConfirmation, vars), site);
 }
 
 export async function buildApplicationSuccessEmail(app: Application): Promise<string> {
   const templates = await getEmailTemplates();
-  const siteSettings = await getSiteSettings();
-  return wrapEmailTemplate(replaceVars(templates.applicationSuccess, {
-    fullName: app.fullName, jobTitle: app.jobTitle, email: app.email,
-  }), siteSettings.siteName);
+  const site = await getSiteSettings();
+  const vars = { fullName: app.fullName, jobTitle: app.jobTitle, email: app.email, siteName: site.siteName };
+  return wrapEmailTemplate(renderTemplateBody(templates.applicationSuccess, vars), site);
 }
 
-export async function buildOfferLetterEmail(app: Application, customContent?: string): Promise<string> {
+export async function buildOfferLetterEmail(app: Application, customFields?: Partial<EmailTemplateFields>): Promise<string> {
   const templates = await getEmailTemplates();
-  const siteSettings = await getSiteSettings();
-  const content = customContent || templates.offerLetter;
-  return wrapEmailTemplate(replaceVars(content, {
+  const site = await getSiteSettings();
+  const merged: EmailTemplateFields = { ...templates.offerLetter, ...(customFields || {}) };
+  const vars = {
     fullName: app.fullName, jobTitle: app.jobTitle, email: app.email,
+    siteName: site.siteName,
     date: new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }),
-  }), siteSettings.siteName);
+  };
+  return wrapEmailTemplate(renderTemplateBody(merged, vars), site);
 }
 
 export async function buildContactConfirmationEmail(name: string): Promise<string> {
   const templates = await getEmailTemplates();
-  const siteSettings = await getSiteSettings();
-  return wrapEmailTemplate(replaceVars(templates.contactConfirmation, { name }), siteSettings.siteName);
+  const site = await getSiteSettings();
+  const vars = { name, siteName: site.siteName, contactPhone: site.contactPhone, contactEmail: site.contactEmail };
+  return wrapEmailTemplate(renderTemplateBody(templates.contactConfirmation, vars), site);
 }
 
-function wrapEmailTemplate(body: string, siteName: string): string {
+function wrapEmailTemplate(body: string, site: SiteSettings): string {
+  const siteName = site.siteName || 'CareHomeStaffUK';
+  const headerName = siteName.replace(/UK$/i, '<span style="color:#d4a843;">UK</span>');
   return `<!DOCTYPE html>
 <html lang="en">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
@@ -331,13 +363,14 @@ function wrapEmailTemplate(body: string, siteName: string): string {
 <tr><td align="center">
 <table width="600" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 4px 20px rgba(0,0,0,0.06);">
   <tr><td style="background:#1a3a3a;padding:32px 40px;text-align:center;">
-    <h1 style="color:#ffffff;margin:0;font-size:26px;letter-spacing:-0.5px;">${siteName.replace(/UK$/i, '<span style="color:#d4a843;">UK</span>')}</h1>
-    <p style="color:rgba(255,255,255,0.6);margin:8px 0 0;font-size:13px;letter-spacing:0.5px;">Health & Social Care Recruitment</p>
+    <h1 style="color:#ffffff;margin:0;font-size:26px;letter-spacing:-0.5px;">${headerName}</h1>
+    <p style="color:rgba(255,255,255,0.6);margin:8px 0 0;font-size:13px;letter-spacing:0.5px;">${escapeHtml(site.tagline || 'Health & Social Care Recruitment')}</p>
   </td></tr>
   <tr><td style="padding:36px 40px 32px;">${body}</td></tr>
   <tr><td style="background:#f8faf9;padding:24px 40px;border-top:1px solid #e8ede9;text-align:center;">
-    <p style="color:#999;font-size:12px;margin:0;">${siteName} — Trusted UK Care Recruitment</p>
-    <p style="color:#bbb;font-size:11px;margin:8px 0 0;">© ${new Date().getFullYear()} ${siteName}. All rights reserved.</p>
+    <p style="color:#666;font-size:12px;margin:0 0 6px;">${escapeHtml(site.contactEmail)} · ${escapeHtml(site.contactPhone)}</p>
+    <p style="color:#999;font-size:12px;margin:0;">${escapeHtml(siteName)} — ${escapeHtml(site.contactAddress)}</p>
+    <p style="color:#bbb;font-size:11px;margin:8px 0 0;">© ${new Date().getFullYear()} ${escapeHtml(siteName)}. All rights reserved.</p>
   </td></tr>
 </table>
 </td></tr>
@@ -346,68 +379,54 @@ function wrapEmailTemplate(body: string, siteName: string): string {
 </html>`;
 }
 
-// ---- DEFAULT TEMPLATES ----
-const defaultApplicationConfirmationTemplate = `
-<div style="text-align:center;margin-bottom:24px;">
-  <div style="width:70px;height:70px;border-radius:50%;background:#e8f5e9;display:inline-flex;align-items:center;justify-content:center;">
-    <span style="font-size:36px;">✅</span>
-  </div>
-</div>
-<h2 style="color:#1a3a3a;margin:0 0 8px;font-size:22px;text-align:center;">Application Received!</h2>
-<p style="color:#666;font-size:14px;text-align:center;margin:0 0 24px;">Thank you for applying, <strong>{{fullName}}</strong>.</p>
-<table width="100%" style="background:#f8faf9;border-radius:8px;padding:20px;border:1px solid #e0e8e5;">
-  <tr><td style="padding:8px 16px;color:#888;font-size:11px;text-transform:uppercase;letter-spacing:1px;font-weight:600;">Application Details</td></tr>
-  <tr><td style="padding:8px 16px;border-top:1px solid #e0e8e5;"><strong style="color:#1a3a3a;">Position:</strong> <span style="color:#444;">{{jobTitle}}</span></td></tr>
-  <tr><td style="padding:8px 16px;border-top:1px solid #e0e8e5;"><strong style="color:#1a3a3a;">Email:</strong> <span style="color:#444;">{{email}}</span></td></tr>
-  <tr><td style="padding:8px 16px;border-top:1px solid #e0e8e5;"><strong style="color:#1a3a3a;">Phone:</strong> <span style="color:#444;">{{phone}}</span></td></tr>
-  <tr><td style="padding:8px 16px;border-top:1px solid #e0e8e5;"><strong style="color:#1a3a3a;">Visa Status:</strong> <span style="color:#444;">{{visaStatus}}</span></td></tr>
-</table>
-<h3 style="color:#1a3a3a;font-size:16px;margin:24px 0 12px;">What Happens Next?</h3>
-<table width="100%">
-  <tr><td style="padding:6px 0;font-size:14px;color:#444;"><span style="color:#d4a843;font-weight:bold;margin-right:8px;">1.</span> Our team will review your application within <strong>3-5 working days</strong>.</td></tr>
-  <tr><td style="padding:6px 0;font-size:14px;color:#444;"><span style="color:#d4a843;font-weight:bold;margin-right:8px;">2.</span> If shortlisted, we'll contact you for an <strong>initial telephone interview</strong>.</td></tr>
-  <tr><td style="padding:6px 0;font-size:14px;color:#444;"><span style="color:#d4a843;font-weight:bold;margin-right:8px;">3.</span> Successful candidates will be matched with <strong>care home employers</strong>.</td></tr>
-  <tr><td style="padding:6px 0;font-size:14px;color:#444;"><span style="color:#d4a843;font-weight:bold;margin-right:8px;">4.</span> We'll support you through the <strong>visa sponsorship process</strong> if applicable.</td></tr>
-</table>`;
+// ---- DEFAULT TEMPLATES (friendly fields, not raw HTML) ----
+const defaultApplicationConfirmationTemplate: EmailTemplateFields = {
+  heading: 'Application Received',
+  intro: 'Hello {{fullName}}, thank you for applying for the {{jobTitle}} position with {{siteName}}.',
+  paragraphs: [
+    'We have safely received your application and our recruitment team will review your details within 3–5 working days.',
+    'If you are shortlisted, we will contact you by email or phone to arrange an initial telephone interview.',
+    'Successful candidates will be matched with UK care home employers, and we will guide you through the visa sponsorship process where applicable.',
+  ],
+  highlight: 'Your application reference uses your email ({{email}}). Please reply to this email if any of your details change.',
+  signoff: 'Kind regards,',
+  signature: 'The {{siteName}} Recruitment Team',
+};
 
-const defaultApplicationSuccessTemplate = `
-<div style="text-align:center;margin-bottom:24px;">
-  <div style="width:70px;height:70px;border-radius:50%;background:#e8f5e9;display:inline-flex;align-items:center;justify-content:center;">
-    <span style="font-size:36px;">🎉</span>
-  </div>
-</div>
-<h2 style="color:#1a3a3a;margin:0 0 8px;font-size:22px;text-align:center;">Congratulations, {{fullName}}!</h2>
-<p style="color:#666;font-size:14px;text-align:center;margin:0 0 24px;">Your application for <strong>{{jobTitle}}</strong> has been <span style="color:#2e7d32;font-weight:bold;">approved</span>!</p>
-<div style="background:#e8f5e9;border-radius:8px;padding:20px;border-left:4px solid #2e7d32;margin-bottom:24px;">
-  <p style="color:#1b5e20;font-size:14px;margin:0;">Our recruitment team has reviewed your qualifications and experience, and we're pleased to move forward with your application.</p>
-</div>
-<h3 style="color:#1a3a3a;font-size:16px;margin:0 0 12px;">Next Steps</h3>
-<table width="100%">
-  <tr><td style="padding:6px 0;font-size:14px;color:#444;"><span style="color:#d4a843;font-weight:bold;margin-right:8px;">1.</span> You will receive a formal <strong>offer letter</strong> shortly.</td></tr>
-  <tr><td style="padding:6px 0;font-size:14px;color:#444;"><span style="color:#d4a843;font-weight:bold;margin-right:8px;">2.</span> Please prepare your <strong>identification documents</strong> and references.</td></tr>
-  <tr><td style="padding:6px 0;font-size:14px;color:#444;"><span style="color:#d4a843;font-weight:bold;margin-right:8px;">3.</span> Our team will guide you through <strong>visa sponsorship</strong> if required.</td></tr>
-</table>`;
+const defaultApplicationSuccessTemplate: EmailTemplateFields = {
+  heading: 'Congratulations, {{fullName}}!',
+  intro: 'We are delighted to let you know that your application for the {{jobTitle}} role has been successful.',
+  paragraphs: [
+    'Our team has carefully reviewed your qualifications, experience and supporting information, and we would like to move forward with the next stage of your recruitment.',
+    'You will shortly receive a formal offer of employment by email. Please prepare your identification documents, qualification certificates and two professional references.',
+    'If you require Health & Care Worker visa sponsorship, our team will initiate the Certificate of Sponsorship (CoS) process once you have accepted the offer.',
+  ],
+  highlight: 'Welcome to the {{siteName}} family — we look forward to supporting you on your journey into UK care work.',
+  signoff: 'With best wishes,',
+  signature: 'The {{siteName}} Recruitment Team',
+};
 
-const defaultOfferLetterTemplate = `
-<p style="color:#444;font-size:14px;margin:0 0 8px;">Date: {{date}}</p>
-<p style="color:#444;font-size:14px;margin:0 0 24px;">Dear <strong>{{fullName}}</strong>,</p>
-<h2 style="color:#1a3a3a;margin:0 0 16px;font-size:20px;">Offer of Employment</h2>
-<p style="color:#444;font-size:14px;line-height:1.7;margin:0 0 16px;">
-  We are pleased to offer you the position of <strong>{{jobTitle}}</strong> with our organisation. After careful review of your application, qualifications, and experience, we are confident you will be an excellent addition to our care team.
-</p>
-<div style="background:#f0f4f8;border-radius:8px;padding:20px;border-left:4px solid #1a3a3a;margin:20px 0;">
-  <p style="color:#1a3a3a;font-size:14px;margin:0 0 8px;font-weight:600;">Position Details</p>
-  <p style="color:#444;font-size:14px;margin:0;">Role: <strong>{{jobTitle}}</strong></p>
-</div>
-<p style="color:#444;font-size:14px;line-height:1.7;margin:16px 0;">
-  This offer is subject to satisfactory completion of all pre-employment checks, including DBS checks, right to work verification, and professional references. If you require visa sponsorship, we will initiate the Certificate of Sponsorship (CoS) process upon your acceptance.
-</p>
-<p style="color:#444;font-size:14px;line-height:1.7;margin:16px 0;">
-  Please confirm your acceptance by replying to this email within <strong>7 working days</strong>.
-</p>
-<p style="color:#444;font-size:14px;margin:24px 0 0;">Yours sincerely,<br/><strong>The Recruitment Team</strong></p>`;
+const defaultOfferLetterTemplate: EmailTemplateFields = {
+  heading: 'Offer of Employment',
+  intro: 'Date: {{date}}\nDear {{fullName}},',
+  paragraphs: [
+    'Following the successful review of your application, we are pleased to formally offer you the position of {{jobTitle}}.',
+    'This offer is subject to the satisfactory completion of pre-employment checks, including an enhanced DBS check, right-to-work verification and two professional references.',
+    'If you require visa sponsorship under the UK Health and Care Worker route, we will initiate the Certificate of Sponsorship (CoS) process upon your written acceptance of this offer.',
+    'Please confirm your acceptance by replying to this email within 7 working days. A member of our team will then be in touch with full contract details and onboarding information.',
+  ],
+  highlight: 'We are excited to welcome you to {{siteName}} and look forward to supporting you in your new role.',
+  signoff: 'Yours sincerely,',
+  signature: 'The {{siteName}} Recruitment Team',
+};
 
-const defaultContactConfirmationTemplate = `
-<h2 style="color:#1a3a3a;margin:0 0 12px;text-align:center;">Thank You, {{name}}!</h2>
-<p style="color:#666;font-size:14px;line-height:1.6;text-align:center;">We've received your message and our team will get back to you within <strong>24 hours</strong>.</p>
-<p style="color:#666;font-size:14px;margin-top:16px;text-align:center;">If your enquiry is urgent, please call us at <strong>+44 (0) 123 456 7890</strong>.</p>`;
+const defaultContactConfirmationTemplate: EmailTemplateFields = {
+  heading: 'Thank you for getting in touch, {{name}}',
+  intro: 'We have received your message and one of our advisors will get back to you within 24 working hours.',
+  paragraphs: [
+    'In the meantime, feel free to browse our latest care worker vacancies on the website, or read our visa information pages for guidance on the UK Health and Care Worker route.',
+    'If your enquiry is urgent, please call us on {{contactPhone}} or email {{contactEmail}}.',
+  ],
+  signoff: 'Warm regards,',
+  signature: 'The {{siteName}} Team',
+};
