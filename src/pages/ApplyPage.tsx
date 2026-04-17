@@ -45,6 +45,10 @@ const ApplyPage = () => {
       toast({ title: "Please fill in all required fields", variant: "destructive" });
       return;
     }
+    if (!isValidPhoneNumber(form.phone)) {
+      toast({ title: "Please enter a valid phone number with country code", variant: "destructive" });
+      return;
+    }
 
     setLoading(true);
     try {
@@ -139,7 +143,18 @@ const ApplyPage = () => {
             <div className="grid md:grid-cols-2 gap-4">
               <div>
                 <Label htmlFor="phone">Phone Number *</Label>
-                <Input id="phone" value={form.phone} onChange={e => setForm(f => ({ ...f, phone: e.target.value }))} required />
+                <PhoneInput
+                  id="phone"
+                  international
+                  defaultCountry="GB"
+                  countryCallingCodeEditable={false}
+                  value={form.phone}
+                  onChange={(v) => setForm(f => ({ ...f, phone: v || "" }))}
+                  className="phone-input-wrapper flex items-center gap-2 h-10 rounded-md border border-input bg-background px-3 text-sm focus-within:ring-2 focus-within:ring-ring"
+                  placeholder="Enter phone number"
+                  required
+                />
+                <p className="text-xs text-muted-foreground mt-1">Select your country, then enter your number.</p>
               </div>
               <div>
                 <Label htmlFor="nationality">Nationality</Label>
