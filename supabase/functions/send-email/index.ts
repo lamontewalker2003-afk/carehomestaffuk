@@ -59,27 +59,34 @@ Deno.serve(async (req) => {
     const siteName = (siteRow?.value as any)?.siteName || smtp.fromName || 'CareHomeStaffUK';
 
     const port = Number(smtp.port) || 587;
-    // Port 465 = implicit TLS (secure: true). Port 587/25 = STARTTLS (secure: false, requireTLS: true)
+    // Port 465 = implicit TLS (secure: true). Port 587/25 = STARTTLS (secure: false)
     const useImplicitTLS = port === 465 || smtp.secure === true;
 
-    const transporter = nodemailer.createTransport({
-      host: smtp.host,
-      port,
+    const buildTransport = (opts: { secure: boolean; requireTLS: boolean; ignoreTLS?: boolean }) =>
+      nodemailer.createTransport({
+        host: smtp.host,
+        port,
+        secure: opts.secure,
+        requireTLS: opts.requireTLS,
+        ignoreTLS: opts.ignoreTLS,
+        auth: { user: smtp.username, pass: smtp.password },
+        tls: {
+          // Shared-hosting SMTP servers (cPanel/Plesk/mail.yourdomain.com)
+          // often have self-signed or hostname-mismatched certs.
+          rejectUnauthorized: false,
+          servername: smtp.host,
+          minVersion: 'TLSv1',
+          ciphers: 'DEFAULT@SECLEVEL=0',
+        },
+        connectionTimeout: 20000,
+        greetingTimeout: 15000,
+        socketTimeout: 30000,
+      });
+
+    // Primary attempt: implicit TLS for 465, STARTTLS for everything else
+    let transporter = buildTransport({
       secure: useImplicitTLS,
       requireTLS: !useImplicitTLS,
-      auth: {
-        user: smtp.username,
-        pass: smtp.password,
-      },
-      tls: {
-        // Lots of shared-hosting SMTP servers (cPanel, Plesk, mail.yourdomain.com)
-        // ship with self-signed or hostname-mismatched certs — accept them.
-        rejectUnauthorized: false,
-        minVersion: 'TLSv1.2',
-      },
-      connectionTimeout: 20000,
-      greetingTimeout: 15000,
-      socketTimeout: 30000,
     });
 
     // Plain-text fallback for inbox deliverability
