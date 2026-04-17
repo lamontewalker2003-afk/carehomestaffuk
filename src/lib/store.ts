@@ -217,19 +217,31 @@ export async function getSEOSettings(): Promise<SEOSettings> {
 }
 export async function saveSEOSettings(settings: SEOSettings) { await saveSetting('seo', settings); }
 
+export const defaultSiteSettings: SiteSettings = {
+  siteName: 'CareHomeStaffUK',
+  tagline: 'Health & Social Care Recruitment',
+  contactEmail: 'info@carehomestaffuk.com',
+  contactPhone: '+44 (0) 123 456 7890',
+  contactAddress: 'London, United Kingdom',
+  officeHours: 'Mon–Fri 9:00 AM – 5:30 PM',
+  whatsappNumber: '441234567890',
+  whatsappMessage: 'Hello! I would like to enquire about UK care work opportunities.',
+  footerTagline: 'Connecting care homes with compassionate, qualified healthcare professionals across the United Kingdom. Visa sponsorship available.',
+};
+
 export async function getSiteSettings(): Promise<SiteSettings> {
   const value = await getSetting('site_settings');
-  return value || { siteName: 'CareHomeStaffUK' };
+  return { ...defaultSiteSettings, ...(value || {}) };
 }
 export async function saveSiteSettings(settings: SiteSettings) { await saveSetting('site_settings', settings); }
 
 export async function getEmailTemplates(): Promise<EmailTemplates> {
   const value = await getSetting('email_templates');
-  return value || {
-    applicationConfirmation: defaultApplicationConfirmationTemplate,
-    applicationSuccess: defaultApplicationSuccessTemplate,
-    offerLetter: defaultOfferLetterTemplate,
-    contactConfirmation: defaultContactConfirmationTemplate,
+  return {
+    applicationConfirmation: { ...defaultApplicationConfirmationTemplate, ...(value?.applicationConfirmation || {}) },
+    applicationSuccess: { ...defaultApplicationSuccessTemplate, ...(value?.applicationSuccess || {}) },
+    offerLetter: { ...defaultOfferLetterTemplate, ...(value?.offerLetter || {}) },
+    contactConfirmation: { ...defaultContactConfirmationTemplate, ...(value?.contactConfirmation || {}) },
   };
 }
 export async function saveEmailTemplates(templates: EmailTemplates) { await saveSetting('email_templates', templates); }
