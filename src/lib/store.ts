@@ -170,8 +170,9 @@ export async function saveContactSubmission(contact: { name: string; email: stri
 
 // ---- ADMIN SETTINGS ----
 async function getSetting(key: string): Promise<any> {
-  const { data } = await supabase.from('admin_settings').select('value').eq('key', key).single();
-  return data?.value || null;
+  const { data, error } = await supabase.from('admin_settings').select('value').eq('key', key).maybeSingle();
+  if (error) console.error(`Error fetching setting ${key}:`, error);
+  return data?.value ?? null;
 }
 
 async function saveSetting(key: string, value: any) {
