@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { SiteHeader } from "@/components/SiteHeader";
 import { SiteFooter } from "@/components/SiteFooter";
 import { Button } from "@/components/ui/button";
@@ -6,20 +6,24 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { toast } from "@/hooks/use-toast";
-import { saveContactSubmission, sendEmail, buildContactConfirmationEmail } from "@/lib/store";
+import { saveContactSubmission, sendEmail, buildContactConfirmationEmail, getSiteSettings, defaultSiteSettings } from "@/lib/store";
+import type { SiteSettings } from "@/lib/store";
 import { Mail, Phone, MapPin, Clock, CheckCircle } from "lucide-react";
-
-const contactInfo = [
-  { icon: Mail, label: "Email", value: "info@carehomestaffuk.com", href: "mailto:info@carehomestaffuk.com" },
-  { icon: Phone, label: "Phone", value: "+44 (0) 123 456 7890", href: "tel:+441234567890" },
-  { icon: MapPin, label: "Address", value: "London, United Kingdom", href: undefined },
-  { icon: Clock, label: "Office Hours", value: "Mon–Fri 9:00 AM – 5:30 PM", href: undefined },
-];
 
 const ContactPage = () => {
   const [submitted, setSubmitted] = useState(false);
   const [loading, setLoading] = useState(false);
   const [form, setForm] = useState({ name: "", email: "", subject: "", message: "" });
+  const [site, setSite] = useState<SiteSettings>(defaultSiteSettings);
+
+  useEffect(() => { getSiteSettings().then(setSite); }, []);
+
+  const contactInfo = [
+    { icon: Mail, label: "Email", value: site.contactEmail, href: `mailto:${site.contactEmail}` },
+    { icon: Phone, label: "Phone", value: site.contactPhone, href: `tel:${site.contactPhone.replace(/[^\d+]/g, '')}` },
+    { icon: MapPin, label: "Address", value: site.contactAddress, href: undefined },
+    { icon: Clock, label: "Office Hours", value: site.officeHours, href: undefined },
+  ].filter(i => i.value);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
