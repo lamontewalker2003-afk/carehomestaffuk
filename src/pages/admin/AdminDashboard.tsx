@@ -179,7 +179,7 @@ function ApplicationsTab() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [sendingEmail, setSendingEmail] = useState(false);
-  const [offerContent, setOfferContent] = useState("");
+  const [offerOverrides, setOfferOverrides] = useState<Partial<EmailTemplateFields>>({});
   const [showOfferForm, setShowOfferForm] = useState(false);
 
   useEffect(() => { getApplications().then(setApps); }, []);
