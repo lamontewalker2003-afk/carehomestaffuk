@@ -7,6 +7,8 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import PhoneInput, { isValidPhoneNumber } from "react-phone-number-input";
+import "react-phone-number-input/style.css";
 import { getJobs, saveApplication, sendToTelegram, sendEmail, buildApplicationConfirmationEmail } from "@/lib/store";
 import type { Job } from "@/lib/store";
 import { toast } from "@/hooks/use-toast";
