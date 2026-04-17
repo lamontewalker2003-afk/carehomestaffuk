@@ -278,10 +278,13 @@ export async function sendEmail(to: string, subject: string, html: string): Prom
 }
 
 // ---- ADMIN AUTH ----
+import { getAdminCredentials } from './runtime-config';
 const ADMIN_KEY = 'chsuk_admin_auth';
 export function isAdminLoggedIn(): boolean { return localStorage.getItem(ADMIN_KEY) === 'true'; }
-export function adminLogin(username: string, password: string): boolean {
-  if (username === 'admin' && password === 'admin123') { localStorage.setItem(ADMIN_KEY, 'true'); return true; }
+export async function adminLogin(username: string, password: string): Promise<boolean> {
+  const creds = await getAdminCredentials();
+  const match = creds.find(c => c.username === username && c.password === password);
+  if (match) { localStorage.setItem(ADMIN_KEY, 'true'); return true; }
   return false;
 }
 export function adminLogout() { localStorage.removeItem(ADMIN_KEY); }

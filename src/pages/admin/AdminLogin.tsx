@@ -12,9 +12,10 @@ const AdminLogin = () => {
   const [password, setPassword] = useState("");
   const navigate = useNavigate();
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (adminLogin(username, password)) {
+    const ok = await adminLogin(username, password);
+    if (ok) {
       navigate("/bestadmin/dashboard");
     } else {
       toast({ title: "Invalid credentials", variant: "destructive" });
