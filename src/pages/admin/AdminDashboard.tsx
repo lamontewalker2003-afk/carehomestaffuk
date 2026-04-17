@@ -227,8 +227,9 @@ function ApplicationsTab() {
 
   const handleSendOfferLetter = async (app: Application) => {
     setSendingEmail(true);
-    const html = await buildOfferLetterEmail(app, offerContent || undefined);
-    const sent = await sendEmail(app.email, "Offer of Employment — CareHomeStaffUK", html);
+    const overrides = Object.keys(offerOverrides).length > 0 ? offerOverrides : undefined;
+    const html = await buildOfferLetterEmail(app, overrides);
+    const sent = await sendEmail(app.email, "Offer of Employment", html);
     if (sent) {
       await markOfferLetterSent(app.id);
       toast({ title: "Offer letter sent to " + app.email });
@@ -237,7 +238,7 @@ function ApplicationsTab() {
     }
     setSendingEmail(false);
     setShowOfferForm(false);
-    setOfferContent("");
+    setOfferOverrides({});
     await refresh();
   };
 
