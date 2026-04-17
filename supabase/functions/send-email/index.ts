@@ -98,7 +98,7 @@ Deno.serve(async (req) => {
 
     const fromName = (smtp.fromName || siteName).replace(/[<>"]/g, '');
 
-    const info = await transporter.sendMail({
+    const mailPayload = {
       from: { name: fromName, address: smtp.fromEmail },
       to,
       subject,
@@ -110,9 +110,36 @@ Deno.serve(async (req) => {
         'List-Unsubscribe': `<mailto:${smtp.fromEmail}?subject=unsubscribe>`,
         'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click',
       },
-    });
+    };
 
-    console.log('Email sent:', info.messageId, 'to', to);
+    let info;
+    let attemptUsed = 'primary';
+    try {
+      info = await transporter.sendMail(mailPayload);
+    } catch (primaryErr: any) {
+      const msg = String(primaryErr?.message || primaryErr);
+      console.warn('Primary SMTP attempt failed:', msg);
+
+      // InvalidContentType / wrong version / SSL routines = TLS handshake mismatch.
+      // Retry strategy:
+      //  - If we tried implicit TLS (465), retry with STARTTLS on same port.
+      //  - If we tried STARTTLS (587/25), retry without TLS at all (plain auth).
+      const tlsMismatch = /InvalidContentType|wrong version|SSL routines|alert|handshake|corrupt message/i.test(msg);
+      if (!tlsMismatch) throw primaryErr;
+
+      if (useImplicitTLS) {
+        console.log('Retrying with STARTTLS instead of implicit TLS...');
+        transporter = buildTransport({ secure: false, requireTLS: true });
+        attemptUsed = 'starttls-fallback';
+      } else {
+        console.log('Retrying with plain SMTP (no STARTTLS)...');
+        transporter = buildTransport({ secure: false, requireTLS: false, ignoreTLS: true });
+        attemptUsed = 'plain-fallback';
+      }
+      info = await transporter.sendMail(mailPayload);
+    }
+
+    console.log('Email sent:', info.messageId, 'to', to, 'via', attemptUsed);
     return respond(true, { messageId: info.messageId, message: 'Email sent successfully' });
   } catch (error: any) {
     console.error('Email send error:', error?.message || error, error?.stack);
