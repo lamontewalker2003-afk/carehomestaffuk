@@ -65,6 +65,10 @@ export interface SiteSettings {
   whatsappNumber: string; // international format with no +, e.g. 441234567890
   whatsappMessage: string;
   footerTagline: string;
+  // Footer copyright controls
+  footerCompanyName: string;   // shown in © line
+  footerYear: string;          // empty = auto current year
+  footerExtraNote: string;     // optional additional line under copyright
 }
 
 // A single template = an editable email built from friendly fields,
@@ -227,6 +231,9 @@ export const defaultSiteSettings: SiteSettings = {
   whatsappNumber: '441234567890',
   whatsappMessage: 'Hello! I would like to enquire about UK care work opportunities.',
   footerTagline: 'Connecting care homes with compassionate, qualified healthcare professionals across the United Kingdom. Visa sponsorship available.',
+  footerCompanyName: 'CareHomeStaffUK',
+  footerYear: '',
+  footerExtraNote: '',
 };
 
 export async function getSiteSettings(): Promise<SiteSettings> {

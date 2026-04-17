@@ -742,6 +742,28 @@ function SiteSettingsTab() {
       </div>
 
       <div className="bg-card rounded-lg border p-4 sm:p-6 space-y-4 max-w-2xl">
+        <h2 className="font-heading font-semibold flex items-center gap-2"><FileText className="h-4 w-4 text-primary" /> Footer Copyright</h2>
+        <div className="grid sm:grid-cols-2 gap-4">
+          <div>
+            <Label>Company name (in © line)</Label>
+            <Input value={settings.footerCompanyName} onChange={e => update('footerCompanyName', e.target.value)} placeholder="CareHomeStaffUK" />
+          </div>
+          <div>
+            <Label>Year <span className="text-xs text-muted-foreground font-normal">(blank = auto current year)</span></Label>
+            <Input value={settings.footerYear} onChange={e => update('footerYear', e.target.value)} placeholder={new Date().getFullYear().toString()} />
+          </div>
+        </div>
+        <div>
+          <Label>Extra footer note <span className="text-xs text-muted-foreground font-normal">(optional, e.g. company number, regulator)</span></Label>
+          <Input value={settings.footerExtraNote} onChange={e => update('footerExtraNote', e.target.value)} placeholder="Registered in England & Wales" />
+        </div>
+        <div className="bg-muted rounded-md p-3 text-xs">
+          <span className="text-muted-foreground">Preview:</span>{' '}
+          © {settings.footerYear || new Date().getFullYear()} {settings.footerCompanyName || settings.siteName}. All rights reserved.
+        </div>
+      </div>
+
+      <div className="bg-card rounded-lg border p-4 sm:p-6 space-y-4 max-w-2xl">
         <h2 className="font-heading font-semibold flex items-center gap-2"><Mail className="h-4 w-4 text-primary" /> Contact Information</h2>
         <div className="grid sm:grid-cols-2 gap-4">
           <div>
