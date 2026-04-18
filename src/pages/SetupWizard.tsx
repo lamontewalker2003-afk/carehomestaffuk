@@ -28,8 +28,11 @@ const SetupWizard = () => {
 
   // Step 2: Migration
   const [migrationSql, setMigrationSql] = useState("");
-  const [migrationStatus, setMigrationStatus] = useState<{ ok: boolean; message: string } | null>(null);
+  const [bootstrapSql, setBootstrapSql] = useState("");
+  const [migrationStatus, setMigrationStatus] = useState<{ ok: boolean; message: string; needsBootstrap?: boolean } | null>(null);
   const [migrating, setMigrating] = useState(false);
+  const [testingRpc, setTestingRpc] = useState(false);
+  const [rpcStatus, setRpcStatus] = useState<{ installed: boolean; message: string } | null>(null);
 
   // Step 3: Admins
   const [admins, setAdmins] = useState<AdminCredential[]>([{ username: "admin", password: "" }]);
@@ -39,6 +42,7 @@ const SetupWizard = () => {
     setSupabaseUrl(cfg.supabaseUrl);
     setSupabaseAnonKey(cfg.supabaseAnonKey);
     fetch("/standalone-migration.sql").then(r => r.text()).then(setMigrationSql).catch(() => {});
+    fetch("/bootstrap-exec-sql.sql").then(r => r.text()).then(setBootstrapSql).catch(() => {});
     getAdminCredentials().then(a => { if (a.length) setAdmins(a); });
   }, []);
 
