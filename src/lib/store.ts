@@ -89,6 +89,51 @@ export interface EmailTemplates {
   contactConfirmation: EmailTemplateFields;
 }
 
+// ---- BANK ACCOUNTS (UK) ----
+export interface BankAccount {
+  id: string;             // local uuid
+  label: string;          // e.g. "Main GBP Account"
+  bankName: string;
+  accountName: string;
+  sortCode: string;       // formatted xx-xx-xx
+  accountNumber: string;  // 8 digits
+  iban?: string;
+  swift?: string;         // BIC
+  reference?: string;     // payment reference instructions
+  isDefault: boolean;
+}
+
+// ---- INVOICE TEMPLATE ----
+// Dynamic blocks (admin can add/remove freely) PLUS standard fields.
+export interface InvoiceBlock {
+  id: string;
+  heading?: string;       // optional small subheading
+  body: string;           // paragraph text — supports {{variables}}
+}
+
+export interface InvoiceLineItem {
+  id: string;
+  description: string;
+  amount: number;         // in selected currency
+}
+
+export interface InvoiceTemplate {
+  // Branding / standard fields
+  title: string;          // e.g. "Sponsorship Invoice"
+  invoicePrefix: string;  // e.g. "INV-"
+  currency: string;       // e.g. "GBP", "USD"
+  currencySymbol: string; // e.g. "£"
+  paymentTermsDays: number;
+  // Dynamic blocks (paragraphs)
+  introBlocks: InvoiceBlock[];   // shown above the line items
+  outroBlocks: InvoiceBlock[];   // shown below the line items (terms, thanks)
+  // Default line items used when sending — admin can edit per-invoice too
+  defaultLineItems: InvoiceLineItem[];
+  // Footer
+  signoff: string;
+  signature: string;
+}
+
 // ---- Helper to map DB row to Job interface ----
 function mapDbJob(row: any): Job {
   return {
