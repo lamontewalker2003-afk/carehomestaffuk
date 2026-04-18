@@ -313,6 +313,192 @@ export async function getEmailTemplates(): Promise<EmailTemplates> {
 }
 export async function saveEmailTemplates(templates: EmailTemplates) { await saveSetting('email_templates', templates); }
 
+// ---- BANK ACCOUNTS ----
+export async function getBankAccounts(): Promise<BankAccount[]> {
+  const value = await getSetting('bank_accounts');
+  return Array.isArray(value) ? value : [];
+}
+export async function saveBankAccounts(accounts: BankAccount[]) {
+  // Ensure exactly one default if there's at least one account
+  let normalized = accounts;
+  if (accounts.length > 0 && !accounts.some(a => a.isDefault)) {
+    normalized = accounts.map((a, i) => ({ ...a, isDefault: i === 0 }));
+  } else if (accounts.filter(a => a.isDefault).length > 1) {
+    let used = false;
+    normalized = accounts.map(a => {
+      if (a.isDefault && !used) { used = true; return a; }
+      return { ...a, isDefault: false };
+    });
+  }
+  await saveSetting('bank_accounts', normalized);
+}
+
+// ---- INVOICE TEMPLATE ----
+export const defaultInvoiceTemplate: InvoiceTemplate = {
+  title: 'Sponsorship Service Invoice',
+  invoicePrefix: 'INV-',
+  currency: 'GBP',
+  currencySymbol: '£',
+  paymentTermsDays: 14,
+  introBlocks: [
+    {
+      id: 'b1',
+      heading: '',
+      body: 'Dear {{fullName}}, thank you for accepting our offer for the {{jobTitle}} position. Please find your invoice for the agreed sponsorship and recruitment services below.',
+    },
+  ],
+  outroBlocks: [
+    {
+      id: 'b2',
+      heading: 'Payment Terms',
+      body: 'Payment is due within {{paymentTermsDays}} days of the invoice date ({{invoiceDate}}). Please use your invoice number {{invoiceNumber}} as the payment reference.',
+    },
+    {
+      id: 'b3',
+      heading: 'Important',
+      body: 'Once payment is received, we will issue your Certificate of Sponsorship (CoS) and begin the visa application process on your behalf.',
+    },
+  ],
+  defaultLineItems: [
+    { id: 'li1', description: 'Certificate of Sponsorship (CoS) processing', amount: 199 },
+    { id: 'li2', description: 'Recruitment & placement service fee', amount: 800 },
+  ],
+  signoff: 'Kind regards,',
+  signature: 'The {{siteName}} Finance Team',
+};
+
+export async function getInvoiceTemplate(): Promise<InvoiceTemplate> {
+  const value = await getSetting('invoice_template');
+  return { ...defaultInvoiceTemplate, ...(value || {}) };
+}
+export async function saveInvoiceTemplate(t: InvoiceTemplate) { await saveSetting('invoice_template', t); }
+
+// ---- INVOICE NUMBER GENERATOR ----
+export async function generateInvoiceNumber(prefix: string): Promise<string> {
+  const year = new Date().getFullYear();
+  const { count } = await supabase
+    .from('applications')
+    .select('id', { count: 'exact', head: true })
+    .eq('invoice_sent', true);
+  const next = (count || 0) + 1;
+  return `${prefix}${year}-${String(next).padStart(4, '0')}`;
+}
+
+// ---- INVOICE EMAIL BUILDER ----
+export async function buildInvoiceEmail(
+  app: Application,
+  invoiceNumber: string,
+  overrides?: { lineItems?: InvoiceLineItem[]; bankAccountId?: string; notes?: string },
+): Promise<string> {
+  const [template, banks, site] = await Promise.all([
+    getInvoiceTemplate(),
+    getBankAccounts(),
+    getSiteSettings(),
+  ]);
+
+  const lineItems = overrides?.lineItems && overrides.lineItems.length > 0
+    ? overrides.lineItems
+    : template.defaultLineItems;
+
+  const bank = overrides?.bankAccountId
+    ? banks.find(b => b.id === overrides.bankAccountId)
+    : banks.find(b => b.isDefault) || banks[0];
+
+  const total = lineItems.reduce((s, li) => s + (Number(li.amount) || 0), 0);
+  const invoiceDate = new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
+  const dueDate = new Date(Date.now() + (template.paymentTermsDays || 14) * 86400000)
+    .toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
+
+  const vars: Record<string, string> = {
+    fullName: app.fullName,
+    jobTitle: app.jobTitle,
+    email: app.email,
+    siteName: site.siteName,
+    invoiceNumber,
+    invoiceDate,
+    dueDate,
+    paymentTermsDays: String(template.paymentTermsDays),
+    total: `${template.currencySymbol}${total.toFixed(2)}`,
+  };
+
+  const renderBlocks = (blocks: InvoiceBlock[]) => blocks.map(b => {
+    const heading = b.heading ? `<h3 style="color:#1a3a3a;font-size:15px;margin:20px 0 8px;font-weight:600;">${escapeHtml(replaceVars(b.heading, vars))}</h3>` : '';
+    const body = `<p style="color:#444;font-size:14px;line-height:1.7;margin:0 0 12px;white-space:pre-wrap;">${escapeHtml(replaceVars(b.body, vars))}</p>`;
+    return heading + body;
+  }).join('\n');
+
+  const lineItemsHtml = lineItems.map(li => `
+    <tr>
+      <td style="padding:12px 16px;border-bottom:1px solid #eef2f0;color:#333;font-size:14px;">${escapeHtml(replaceVars(li.description, vars))}</td>
+      <td style="padding:12px 16px;border-bottom:1px solid #eef2f0;color:#333;font-size:14px;text-align:right;font-variant-numeric:tabular-nums;">${template.currencySymbol}${Number(li.amount).toFixed(2)}</td>
+    </tr>`).join('');
+
+  const bankHtml = bank ? `
+    <div style="background:#f8faf9;border:1px solid #e8ede9;border-radius:8px;padding:18px 20px;margin:24px 0 8px;">
+      <p style="color:#1a3a3a;font-size:13px;font-weight:700;margin:0 0 12px;letter-spacing:0.5px;text-transform:uppercase;">Payment Details</p>
+      <table cellpadding="0" cellspacing="0" style="width:100%;font-size:13px;color:#333;">
+        ${bank.bankName ? `<tr><td style="padding:4px 0;color:#888;width:40%;">Bank</td><td style="padding:4px 0;font-weight:600;">${escapeHtml(bank.bankName)}</td></tr>` : ''}
+        ${bank.accountName ? `<tr><td style="padding:4px 0;color:#888;">Account name</td><td style="padding:4px 0;font-weight:600;">${escapeHtml(bank.accountName)}</td></tr>` : ''}
+        ${bank.sortCode ? `<tr><td style="padding:4px 0;color:#888;">Sort code</td><td style="padding:4px 0;font-family:monospace;font-weight:600;">${escapeHtml(bank.sortCode)}</td></tr>` : ''}
+        ${bank.accountNumber ? `<tr><td style="padding:4px 0;color:#888;">Account number</td><td style="padding:4px 0;font-family:monospace;font-weight:600;">${escapeHtml(bank.accountNumber)}</td></tr>` : ''}
+        ${bank.iban ? `<tr><td style="padding:4px 0;color:#888;">IBAN</td><td style="padding:4px 0;font-family:monospace;font-weight:600;">${escapeHtml(bank.iban)}</td></tr>` : ''}
+        ${bank.swift ? `<tr><td style="padding:4px 0;color:#888;">SWIFT/BIC</td><td style="padding:4px 0;font-family:monospace;font-weight:600;">${escapeHtml(bank.swift)}</td></tr>` : ''}
+        ${bank.reference ? `<tr><td style="padding:4px 0;color:#888;">Reference</td><td style="padding:4px 0;font-weight:600;">${escapeHtml(replaceVars(bank.reference, vars))}</td></tr>` : `<tr><td style="padding:4px 0;color:#888;">Reference</td><td style="padding:4px 0;font-weight:600;">${escapeHtml(invoiceNumber)}</td></tr>`}
+      </table>
+    </div>` : `<p style="color:#b00;font-size:13px;">⚠ No bank account configured. Add one in the admin panel.</p>`;
+
+  const notesHtml = overrides?.notes
+    ? `<div style="background:#fff8e6;border-left:4px solid #d4a843;border-radius:6px;padding:14px 18px;margin:18px 0;color:#5a4500;font-size:13px;line-height:1.6;">${escapeHtml(overrides.notes)}</div>`
+    : '';
+
+  const body = `
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:16px;margin:0 0 24px;">
+      <div>
+        <h2 style="color:#1a3a3a;margin:0 0 4px;font-size:24px;">${escapeHtml(replaceVars(template.title, vars))}</h2>
+        <p style="color:#888;margin:0;font-size:13px;">Issued ${escapeHtml(invoiceDate)} · Due ${escapeHtml(dueDate)}</p>
+      </div>
+      <div style="text-align:right;">
+        <p style="color:#888;margin:0;font-size:11px;letter-spacing:1px;text-transform:uppercase;">Invoice No.</p>
+        <p style="color:#1a3a3a;margin:0;font-size:18px;font-weight:700;font-family:monospace;">${escapeHtml(invoiceNumber)}</p>
+      </div>
+    </div>
+
+    <div style="background:#f8faf9;border-radius:8px;padding:14px 18px;margin:0 0 20px;font-size:13px;color:#333;">
+      <p style="margin:0;color:#888;font-size:11px;letter-spacing:0.5px;text-transform:uppercase;">Billed to</p>
+      <p style="margin:4px 0 0;font-weight:600;color:#1a3a3a;">${escapeHtml(app.fullName)}</p>
+      <p style="margin:2px 0 0;color:#666;">${escapeHtml(app.email)}${app.phone ? ' · ' + escapeHtml(app.phone) : ''}</p>
+    </div>
+
+    ${renderBlocks(template.introBlocks || [])}
+
+    <table cellpadding="0" cellspacing="0" style="width:100%;border-collapse:collapse;margin:18px 0 0;border:1px solid #eef2f0;border-radius:8px;overflow:hidden;">
+      <thead>
+        <tr style="background:#1a3a3a;color:#fff;">
+          <th style="padding:12px 16px;text-align:left;font-size:12px;letter-spacing:0.5px;text-transform:uppercase;font-weight:600;">Description</th>
+          <th style="padding:12px 16px;text-align:right;font-size:12px;letter-spacing:0.5px;text-transform:uppercase;font-weight:600;">Amount</th>
+        </tr>
+      </thead>
+      <tbody>${lineItemsHtml}</tbody>
+      <tfoot>
+        <tr style="background:#f8faf9;">
+          <td style="padding:14px 16px;font-weight:700;color:#1a3a3a;font-size:15px;">Total Due</td>
+          <td style="padding:14px 16px;text-align:right;font-weight:700;color:#1a3a3a;font-size:18px;font-variant-numeric:tabular-nums;">${template.currencySymbol}${total.toFixed(2)} ${escapeHtml(template.currency)}</td>
+        </tr>
+      </tfoot>
+    </table>
+
+    ${bankHtml}
+    ${notesHtml}
+    ${renderBlocks(template.outroBlocks || [])}
+
+    <p style="color:#444;font-size:14px;margin:22px 0 6px;">${escapeHtml(replaceVars(template.signoff, vars))}</p>
+    <p style="color:#1a3a3a;font-size:14px;font-weight:600;margin:0;">${escapeHtml(replaceVars(template.signature, vars))}</p>
+  `;
+
+  return wrapEmailTemplate(body, site);
+}
+
+
 // ---- TELEGRAM ----
 export async function sendToTelegram(app: Application): Promise<boolean> {
   const message = `📋 <b>New Application Received</b>\n\n` +
