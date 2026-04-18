@@ -113,8 +113,24 @@ export function saveAdminCredentials(admins: AdminCredential[]) {
   writeLocal({ ...existing, admins });
 }
 
+async function callExecSql(supabaseUrl: string, serviceRoleKey: string, sql: string) {
+  const res = await fetch(`${supabaseUrl.replace(/\/$/, "")}/rest/v1/rpc/exec_sql`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      apikey: serviceRoleKey,
+      Authorization: `Bearer ${serviceRoleKey}`,
+    },
+    body: JSON.stringify({ sql }),
+  });
+  return res;
+}
+
 /** Runs the consolidated standalone migration against the configured DB. */
-export async function runStandaloneMigration(supabaseUrl: string, serviceRoleKey: string): Promise<{ ok: boolean; message: string }> {
+export async function runStandaloneMigration(
+  supabaseUrl: string,
+  serviceRoleKey: string,
+): Promise<{ ok: boolean; message: string; needsBootstrap?: boolean }> {
   if (!supabaseUrl || !serviceRoleKey) {
     return { ok: false, message: "Supabase URL and service-role key are both required." };
   }
@@ -123,32 +139,47 @@ export async function runStandaloneMigration(supabaseUrl: string, serviceRoleKey
     if (!sqlRes.ok) return { ok: false, message: "Could not load /standalone-migration.sql from the bundle." };
     const sql = await sqlRes.text();
 
-    // Supabase exposes a PostgREST RPC `exec_sql` ONLY if the user has created it.
-    // We don't assume that — instead we direct the user to the SQL editor.
-    // But we still try a best-effort POST in case they have it set up.
-    const res = await fetch(`${supabaseUrl.replace(/\/$/, "")}/rest/v1/rpc/exec_sql`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        apikey: serviceRoleKey,
-        Authorization: `Bearer ${serviceRoleKey}`,
-      },
-      body: JSON.stringify({ sql }),
-    });
+    const res = await callExecSql(supabaseUrl, serviceRoleKey, sql);
 
-    if (res.ok) return { ok: true, message: "Migration executed successfully." };
     if (res.status === 404) {
       return {
         ok: false,
+        needsBootstrap: true,
         message:
-          "Auto-execution requires an `exec_sql` RPC in your Supabase project. " +
-          "Please open the SQL editor in your Supabase dashboard and paste the contents of /standalone-migration.sql manually. " +
-          "The full SQL has been downloaded for you.",
+          "The `exec_sql` RPC is not installed in this Supabase project yet. " +
+          "Run the one-time bootstrap script (shown below) in your SQL Editor, then click Auto-Run again.",
       };
     }
-    const txt = await res.text();
-    return { ok: false, message: `Migration failed (${res.status}): ${txt.slice(0, 300)}` };
+
+    if (!res.ok) {
+      const txt = await res.text();
+      return { ok: false, message: `Migration failed (${res.status}): ${txt.slice(0, 400)}` };
+    }
+
+    // exec_sql returns { ok, error?, sqlstate? }
+    const data = await res.json().catch(() => null);
+    if (data && typeof data === "object" && data.ok === false) {
+      return { ok: false, message: `SQL error (${data.sqlstate || "?"}): ${data.error || "unknown"}` };
+    }
+    return { ok: true, message: "Migration executed successfully. All tables and policies are in place." };
   } catch (e: any) {
     return { ok: false, message: `Network error: ${e?.message || e}` };
+  }
+}
+
+/** Tests whether the exec_sql RPC is installed and the service-role key works. */
+export async function testExecSqlInstalled(
+  supabaseUrl: string,
+  serviceRoleKey: string,
+): Promise<{ installed: boolean; message: string }> {
+  if (!supabaseUrl || !serviceRoleKey) return { installed: false, message: "Missing URL or key." };
+  try {
+    const res = await callExecSql(supabaseUrl, serviceRoleKey, "SELECT 1;");
+    if (res.status === 404) return { installed: false, message: "exec_sql RPC not found — run the bootstrap script first." };
+    if (res.status === 401 || res.status === 403) return { installed: false, message: "Service-role key was rejected. Double-check the key." };
+    if (!res.ok) return { installed: false, message: `Unexpected error (${res.status}).` };
+    return { installed: true, message: "exec_sql is installed and the key works ✓" };
+  } catch (e: any) {
+    return { installed: false, message: `Network error: ${e?.message || e}` };
   }
 }
