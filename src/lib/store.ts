@@ -239,6 +239,8 @@ export async function markInvoiceSent(id: string, invoiceNumber: string) {
   }).eq('id', id);
   if (error) console.error('Error marking invoice sent:', error);
 }
+
+export async function deleteApplication(id: string) {
   const { error } = await supabase.from('applications').delete().eq('id', id);
   if (error) console.error('Error deleting application:', error);
 }
