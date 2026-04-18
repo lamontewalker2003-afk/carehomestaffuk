@@ -33,6 +33,9 @@ export interface Application {
   status: string;
   offerLetterSent: boolean;
   offerLetterSentAt: string | null;
+  invoiceSent: boolean;
+  invoiceSentAt: string | null;
+  invoiceNumber: string | null;
 }
 
 export interface TelegramSettings {
@@ -153,6 +156,9 @@ function mapDbApp(row: any): Application {
     coverLetter: row.cover_letter, cvFileName: row.cv_file_name, submittedAt: row.submitted_at,
     status: row.status || 'pending', offerLetterSent: row.offer_letter_sent || false,
     offerLetterSentAt: row.offer_letter_sent_at || null,
+    invoiceSent: row.invoice_sent || false,
+    invoiceSentAt: row.invoice_sent_at || null,
+    invoiceNumber: row.invoice_number || null,
   };
 }
 
