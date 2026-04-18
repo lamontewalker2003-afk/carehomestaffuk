@@ -162,51 +162,104 @@ const SetupWizard = () => {
 
         {/* Step 2 */}
         {step === 2 && (
-          <div className="bg-card rounded-lg border p-6 space-y-4">
+          <div className="bg-card rounded-lg border p-6 space-y-5">
             <h2 className="font-heading text-xl font-semibold flex items-center gap-2">
               <RefreshCw className="h-5 w-5 text-primary" /> Step 2: Run Database Migration
             </h2>
             <p className="text-sm text-muted-foreground">
-              This creates all tables (jobs, applications, contact submissions, admin settings) and Row-Level Security policies. <strong>One file. Zero dependencies.</strong>
+              Creates all tables (jobs, applications, contact submissions, admin settings) and Row-Level Security policies.
+              Use the <strong>one-time bootstrap</strong> below to enable one-click migrations forever after.
             </p>
 
-            <div className="bg-muted rounded-md p-4 space-y-2">
-              <p className="text-sm font-medium flex items-center gap-2">
-                <AlertCircle className="h-4 w-4 text-accent" /> Recommended: Manual run (always works)
-              </p>
-              <ol className="text-xs text-muted-foreground space-y-1 list-decimal pl-4">
-                <li>Click <strong>Download SQL</strong> or <strong>Copy SQL</strong> below</li>
-                <li>Open your Supabase project → <strong>SQL Editor</strong> → <strong>New query</strong></li>
-                <li>Paste the SQL and click <strong>Run</strong></li>
-              </ol>
-              <div className="flex gap-2 pt-2">
-                <Button variant="outline" size="sm" onClick={handleDownloadSql}><Download className="h-4 w-4 mr-1" /> Download SQL</Button>
-                <Button variant="outline" size="sm" onClick={handleCopySql}><Copy className="h-4 w-4 mr-1" /> Copy SQL</Button>
+            {/* Bootstrap (one time) */}
+            <div className="border-2 border-primary/30 bg-primary/5 rounded-md p-4 space-y-3">
+              <div className="flex items-start gap-3">
+                <div className="h-8 w-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center font-bold text-sm shrink-0">1</div>
+                <div className="flex-1">
+                  <p className="font-semibold text-sm">One-time bootstrap (30 seconds, only once per Supabase project)</p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Installs a tiny <code className="bg-muted px-1 rounded">exec_sql</code> RPC so this wizard (and future schema updates) can run with one click — no more dashboard copy-paste.
+                  </p>
+                  <ol className="text-xs text-muted-foreground space-y-1 list-decimal pl-4 mt-2">
+                    <li>Click <strong>Copy bootstrap SQL</strong> below</li>
+                    <li>Open Supabase → <strong>SQL Editor</strong> → <strong>New query</strong> → paste → <strong>Run</strong></li>
+                    <li>Come back here and click <strong>Test connection</strong></li>
+                  </ol>
+                  <div className="flex flex-wrap gap-2 pt-3">
+                    <Button variant="outline" size="sm" onClick={handleCopyBootstrap}>
+                      <Copy className="h-4 w-4 mr-1" /> Copy bootstrap SQL
+                    </Button>
+                    <Button variant="outline" size="sm" onClick={handleDownloadBootstrap}>
+                      <Download className="h-4 w-4 mr-1" /> Download
+                    </Button>
+                  </div>
+                </div>
               </div>
             </div>
 
-            <div className="border-t pt-4 space-y-3">
-              <p className="text-sm font-medium">Optional: Auto-run with service-role key</p>
-              <p className="text-xs text-muted-foreground">
-                Requires an <code className="bg-muted px-1 rounded">exec_sql</code> RPC in your project. Skip this if you ran the SQL manually above.
-              </p>
-              <div>
-                <Label className="text-xs">Service Role Key (kept in memory only — never stored)</Label>
-                <Input type="password" value={serviceRoleKey} onChange={e => setServiceRoleKey(e.target.value)} placeholder="eyJhbGciOi..." className="font-mono text-xs" />
-              </div>
-              <Button variant="outline" onClick={handleRunMigration} disabled={migrating || !serviceRoleKey}>
-                {migrating ? "Running..." : "Try Auto-Run"}
-              </Button>
-              {migrationStatus && (
-                <div className={`text-sm rounded-md p-3 ${migrationStatus.ok ? "bg-green-50 text-green-800 border border-green-200" : "bg-yellow-50 text-yellow-800 border border-yellow-200"}`}>
-                  {migrationStatus.message}
+            {/* Auto-run */}
+            <div className="border-2 border-accent/30 bg-accent/5 rounded-md p-4 space-y-3">
+              <div className="flex items-start gap-3">
+                <div className="h-8 w-8 rounded-full bg-accent text-accent-foreground flex items-center justify-center font-bold text-sm shrink-0">2</div>
+                <div className="flex-1 space-y-3">
+                  <p className="font-semibold text-sm flex items-center gap-2">
+                    <Zap className="h-4 w-4" /> One-click auto-run
+                  </p>
+                  <div>
+                    <Label className="text-xs">Service Role Key (in-memory only — never stored)</Label>
+                    <Input
+                      type="password"
+                      value={serviceRoleKey}
+                      onChange={e => setServiceRoleKey(e.target.value)}
+                      placeholder="eyJhbGciOi..."
+                      className="font-mono text-xs"
+                    />
+                    <p className="text-[10px] text-muted-foreground mt-1">
+                      Find it in Supabase → <strong>Project Settings → API → service_role</strong> (secret).
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    <Button variant="outline" size="sm" onClick={handleTestRpc} disabled={testingRpc || !serviceRoleKey}>
+                      {testingRpc ? "Testing..." : "Test connection"}
+                    </Button>
+                    <Button onClick={handleRunMigration} disabled={migrating || !serviceRoleKey} className="bg-primary text-primary-foreground">
+                      <Zap className="h-4 w-4 mr-1" />
+                      {migrating ? "Running migration..." : "Auto-Run Migration"}
+                    </Button>
+                  </div>
+                  {rpcStatus && (
+                    <div className={`text-xs rounded-md p-2 ${rpcStatus.installed ? "bg-primary/10 text-primary border border-primary/20" : "bg-destructive/10 text-destructive border border-destructive/20"}`}>
+                      {rpcStatus.message}
+                    </div>
+                  )}
+                  {migrationStatus && (
+                    <div className={`text-sm rounded-md p-3 ${migrationStatus.ok ? "bg-primary/10 text-primary border border-primary/20" : "bg-destructive/10 text-destructive border border-destructive/20"}`}>
+                      {migrationStatus.message}
+                    </div>
+                  )}
                 </div>
-              )}
+              </div>
             </div>
+
+            {/* Manual fallback */}
+            <details className="bg-muted rounded-md p-4">
+              <summary className="text-sm font-medium cursor-pointer flex items-center gap-2">
+                <AlertCircle className="h-4 w-4" /> Prefer to run manually? (fallback)
+              </summary>
+              <div className="pt-3 space-y-2">
+                <p className="text-xs text-muted-foreground">
+                  Skip the bootstrap. Just paste the full schema directly into Supabase SQL Editor.
+                </p>
+                <div className="flex gap-2">
+                  <Button variant="outline" size="sm" onClick={handleDownloadSql}><Download className="h-4 w-4 mr-1" /> Download schema</Button>
+                  <Button variant="outline" size="sm" onClick={handleCopySql}><Copy className="h-4 w-4 mr-1" /> Copy schema</Button>
+                </div>
+              </div>
+            </details>
 
             <div className="flex gap-2 justify-between pt-4 border-t">
               <Button variant="ghost" onClick={() => setStep(1)}>← Back</Button>
-              <Button onClick={() => setStep(3)} className="bg-primary text-primary-foreground">I've run the migration →</Button>
+              <Button onClick={() => setStep(3)} className="bg-primary text-primary-foreground">Continue to admin setup →</Button>
             </div>
           </div>
         )}
