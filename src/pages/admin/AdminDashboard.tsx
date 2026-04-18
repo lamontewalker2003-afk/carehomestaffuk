@@ -187,12 +187,23 @@ function ApplicationsTab() {
   const [apps, setApps] = useState<Application[]>([]);
   const [selected, setSelected] = useState<Application | null>(null);
   const [search, setSearch] = useState("");
+  const [phoneSearch, setPhoneSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [sendingEmail, setSendingEmail] = useState(false);
   const [offerOverrides, setOfferOverrides] = useState<Partial<EmailTemplateFields>>({});
   const [showOfferForm, setShowOfferForm] = useState(false);
+  const [showInvoiceForm, setShowInvoiceForm] = useState(false);
+  const [invoiceTemplate, setInvoiceTemplateState] = useState<InvoiceTemplate | null>(null);
+  const [banks, setBanks] = useState<BankAccount[]>([]);
+  const [invoiceLineItems, setInvoiceLineItems] = useState<InvoiceLineItem[]>([]);
+  const [invoiceBankId, setInvoiceBankId] = useState<string>("");
+  const [invoiceNotes, setInvoiceNotes] = useState("");
 
-  useEffect(() => { getApplications().then(setApps); }, []);
+  useEffect(() => {
+    getApplications().then(setApps);
+    getInvoiceTemplate().then(t => { setInvoiceTemplateState(t); setInvoiceLineItems(t.defaultLineItems); });
+    getBankAccounts().then(b => { setBanks(b); const def = b.find(x => x.isDefault) || b[0]; if (def) setInvoiceBankId(def.id); });
+  }, []);
 
   const refresh = async () => {
     const updated = await getApplications();
@@ -202,6 +213,12 @@ function ApplicationsTab() {
 
   const filteredApps = apps.filter(app => {
     if (statusFilter !== "all" && app.status !== statusFilter) return false;
+    if (phoneSearch.trim()) {
+      // Normalise: match any digits the admin types, optionally starting with +
+      const target = phoneSearch.trim().replace(/\s|-/g, '');
+      const phone = (app.phone || '').replace(/\s|-/g, '');
+      if (!phone.includes(target)) return false;
+    }
     if (!search) return true;
     const s = search.toLowerCase();
     return app.fullName.toLowerCase().includes(s) || app.email.toLowerCase().includes(s) ||
