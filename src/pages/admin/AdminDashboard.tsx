@@ -332,15 +332,8 @@ function ApplicationsTab() {
           </select>
         </div>
       </div>
-            className="h-10 rounded-md border border-input bg-background px-3 text-sm">
-            <option value="all">All Status</option>
-            <option value="pending">Pending</option>
-            <option value="reviewed">Reviewed</option>
-            <option value="successful">Successful</option>
-            <option value="rejected">Rejected</option>
-          </select>
-        </div>
-      </div>
+
+
 
       {selected ? (
         <div className="bg-card rounded-lg border p-4 sm:p-6 space-y-5">
