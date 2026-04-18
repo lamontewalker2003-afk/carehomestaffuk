@@ -41,6 +41,9 @@ export type Database = {
           experience: string
           full_name: string
           id: string
+          invoice_number: string | null
+          invoice_sent: boolean
+          invoice_sent_at: string | null
           job_id: string | null
           job_title: string
           nationality: string
@@ -60,6 +63,9 @@ export type Database = {
           experience?: string
           full_name: string
           id?: string
+          invoice_number?: string | null
+          invoice_sent?: boolean
+          invoice_sent_at?: string | null
           job_id?: string | null
           job_title: string
           nationality?: string
@@ -79,6 +85,9 @@ export type Database = {
           experience?: string
           full_name?: string
           id?: string
+          invoice_number?: string | null
+          invoice_sent?: boolean
+          invoice_sent_at?: string | null
           job_id?: string | null
           job_title?: string
           nationality?: string

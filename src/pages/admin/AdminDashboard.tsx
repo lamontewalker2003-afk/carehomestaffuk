@@ -7,8 +7,14 @@ import {
   getSiteSettings, saveSiteSettings, getEmailTemplates, saveEmailTemplates,
   updateApplicationStatus, markOfferLetterSent, sendEmail,
   buildApplicationSuccessEmail, buildOfferLetterEmail,
+  getBankAccounts, saveBankAccounts,
+  getInvoiceTemplate, saveInvoiceTemplate, defaultInvoiceTemplate,
+  buildInvoiceEmail, generateInvoiceNumber, markInvoiceSent,
 } from "@/lib/store";
-import type { Application, Job, TelegramSettings, SEOSettings, SMTPSettings, SiteSettings, EmailTemplates, EmailTemplateFields } from "@/lib/store";
+import type {
+  Application, Job, TelegramSettings, SEOSettings, SMTPSettings, SiteSettings,
+  EmailTemplates, EmailTemplateFields, BankAccount, InvoiceTemplate, InvoiceBlock, InvoiceLineItem,
+} from "@/lib/store";
 import { defaultSiteSettings } from "@/lib/store";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -21,10 +27,10 @@ import { Badge } from "@/components/ui/badge";
 import {
   LayoutDashboard, FileText, Briefcase, Send, LogOut, Plus, Trash2, Eye,
   Pencil, X, PoundSterling, Search, Globe, Menu, Mail, Server, Settings,
-  FileCheck, CheckCircle, XCircle, Clock, Award,
+  FileCheck, CheckCircle, XCircle, Clock, Award, Landmark, Receipt, Star,
 } from "lucide-react";
 
-type Tab = "dashboard" | "applications" | "jobs" | "telegram" | "smtp" | "email-templates" | "seo" | "site-settings";
+type Tab = "dashboard" | "applications" | "jobs" | "telegram" | "smtp" | "email-templates" | "seo" | "site-settings" | "banks" | "invoice-template";
 
 const AdminDashboard = () => {
   const navigate = useNavigate();
@@ -41,6 +47,8 @@ const AdminDashboard = () => {
     { id: "dashboard" as Tab, label: "Dashboard", icon: LayoutDashboard },
     { id: "applications" as Tab, label: "Applications", icon: FileText },
     { id: "jobs" as Tab, label: "Manage Jobs", icon: Briefcase },
+    { id: "banks" as Tab, label: "Bank Accounts", icon: Landmark },
+    { id: "invoice-template" as Tab, label: "Invoice Template", icon: Receipt },
     { id: "telegram" as Tab, label: "Telegram", icon: Send },
     { id: "smtp" as Tab, label: "SMTP / Email", icon: Mail },
     { id: "email-templates" as Tab, label: "Email Templates", icon: FileCheck },
@@ -84,6 +92,8 @@ const AdminDashboard = () => {
           {tab === "dashboard" && <DashboardTab />}
           {tab === "applications" && <ApplicationsTab />}
           {tab === "jobs" && <JobsTab />}
+          {tab === "banks" && <BanksTab />}
+          {tab === "invoice-template" && <InvoiceTemplateTab />}
           {tab === "telegram" && <TelegramTab />}
           {tab === "smtp" && <SMTPTab />}
           {tab === "email-templates" && <EmailTemplatesTab />}
@@ -177,12 +187,23 @@ function ApplicationsTab() {
   const [apps, setApps] = useState<Application[]>([]);
   const [selected, setSelected] = useState<Application | null>(null);
   const [search, setSearch] = useState("");
+  const [phoneSearch, setPhoneSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [sendingEmail, setSendingEmail] = useState(false);
   const [offerOverrides, setOfferOverrides] = useState<Partial<EmailTemplateFields>>({});
   const [showOfferForm, setShowOfferForm] = useState(false);
+  const [showInvoiceForm, setShowInvoiceForm] = useState(false);
+  const [invoiceTemplate, setInvoiceTemplateState] = useState<InvoiceTemplate | null>(null);
+  const [banks, setBanks] = useState<BankAccount[]>([]);
+  const [invoiceLineItems, setInvoiceLineItems] = useState<InvoiceLineItem[]>([]);
+  const [invoiceBankId, setInvoiceBankId] = useState<string>("");
+  const [invoiceNotes, setInvoiceNotes] = useState("");
 
-  useEffect(() => { getApplications().then(setApps); }, []);
+  useEffect(() => {
+    getApplications().then(setApps);
+    getInvoiceTemplate().then(t => { setInvoiceTemplateState(t); setInvoiceLineItems(t.defaultLineItems); });
+    getBankAccounts().then(b => { setBanks(b); const def = b.find(x => x.isDefault) || b[0]; if (def) setInvoiceBankId(def.id); });
+  }, []);
 
   const refresh = async () => {
     const updated = await getApplications();
@@ -192,6 +213,12 @@ function ApplicationsTab() {
 
   const filteredApps = apps.filter(app => {
     if (statusFilter !== "all" && app.status !== statusFilter) return false;
+    if (phoneSearch.trim()) {
+      // Normalise: match any digits the admin types, optionally starting with +
+      const target = phoneSearch.trim().replace(/\s|-/g, '');
+      const phone = (app.phone || '').replace(/\s|-/g, '');
+      if (!phone.includes(target)) return false;
+    }
     if (!search) return true;
     const s = search.toLowerCase();
     return app.fullName.toLowerCase().includes(s) || app.email.toLowerCase().includes(s) ||
@@ -242,14 +269,58 @@ function ApplicationsTab() {
     await refresh();
   };
 
+  const handleSendInvoice = async (app: Application) => {
+    if (banks.length === 0) {
+      toast({ title: "Add at least one bank account first (Bank Accounts tab)", variant: "destructive" });
+      return;
+    }
+    if (invoiceLineItems.length === 0 || invoiceLineItems.every(li => !li.description.trim() || !li.amount)) {
+      toast({ title: "Add at least one line item with a description and amount", variant: "destructive" });
+      return;
+    }
+    setSendingEmail(true);
+    const tpl = invoiceTemplate || defaultInvoiceTemplate;
+    const invoiceNumber = await generateInvoiceNumber(tpl.invoicePrefix || "INV-");
+    const html = await buildInvoiceEmail(app, invoiceNumber, {
+      lineItems: invoiceLineItems,
+      bankAccountId: invoiceBankId,
+      notes: invoiceNotes,
+    });
+    const sent = await sendEmail(app.email, `${tpl.title} ${invoiceNumber}`, html);
+    if (sent) {
+      await markInvoiceSent(app.id, invoiceNumber);
+      toast({ title: `Invoice ${invoiceNumber} sent to ${app.email}` });
+    } else {
+      toast({ title: "Failed to send invoice. Check SMTP settings.", variant: "destructive" });
+    }
+    setSendingEmail(false);
+    setShowInvoiceForm(false);
+    setInvoiceNotes("");
+    await refresh();
+  };
+
+  const updateLineItem = (id: string, updates: Partial<InvoiceLineItem>) => {
+    setInvoiceLineItems(items => items.map(li => li.id === id ? { ...li, ...updates } : li));
+  };
+  const addLineItem = () => {
+    setInvoiceLineItems(items => [...items, { id: `li-${Date.now()}`, description: "", amount: 0 }]);
+  };
+  const removeLineItem = (id: string) => {
+    setInvoiceLineItems(items => items.filter(li => li.id !== id));
+  };
+  const invoiceTotal = invoiceLineItems.reduce((s, li) => s + (Number(li.amount) || 0), 0);
+
   return (
     <div className="space-y-6 animate-fade-in">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <h1 className="font-heading text-2xl font-bold">Applications ({apps.length})</h1>
         <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
-          <div className="relative flex-1 sm:w-64">
+          <div className="relative flex-1 sm:w-56">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input placeholder="Search..." value={search} onChange={e => setSearch(e.target.value)} className="pl-10" />
+            <Input placeholder="Search name, email, role..." value={search} onChange={e => setSearch(e.target.value)} className="pl-10" />
+          </div>
+          <div className="relative sm:w-40">
+            <Input placeholder="+44, +234..." value={phoneSearch} onChange={e => setPhoneSearch(e.target.value)} className="pl-3 font-mono" />
           </div>
           <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)}
             className="h-10 rounded-md border border-input bg-background px-3 text-sm">
@@ -261,6 +332,8 @@ function ApplicationsTab() {
           </select>
         </div>
       </div>
+
+
 
       {selected ? (
         <div className="bg-card rounded-lg border p-4 sm:p-6 space-y-5">
@@ -360,10 +433,75 @@ function ApplicationsTab() {
                 )}
               </div>
             )}
+
+            {/* Invoice section */}
+            {selected.status === 'successful' && (
+              <div className="bg-muted rounded-lg p-4 space-y-3">
+                <div className="flex items-center justify-between">
+                  <h4 className="font-heading font-semibold text-sm flex items-center gap-2">
+                    <Receipt className="h-4 w-4 text-primary" /> Invoice
+                  </h4>
+                  {selected.invoiceSent && selected.invoiceNumber && (
+                    <span className="text-xs text-primary font-medium">
+                      ✓ {selected.invoiceNumber} sent {selected.invoiceSentAt ? new Date(selected.invoiceSentAt).toLocaleDateString() : ''}
+                    </span>
+                  )}
+                </div>
+                {!showInvoiceForm ? (
+                  <Button size="sm" onClick={() => setShowInvoiceForm(true)} className="bg-primary text-primary-foreground">
+                    <Mail className="h-4 w-4 mr-1" /> {selected.invoiceSent ? 'Resend Invoice' : 'Send Invoice'}
+                  </Button>
+                ) : (
+                  <div className="space-y-3">
+                    {banks.length === 0 ? (
+                      <p className="text-xs text-destructive">⚠ Add a bank account in the Bank Accounts tab first.</p>
+                    ) : (
+                      <div>
+                        <Label className="text-xs">Bank account</Label>
+                        <select value={invoiceBankId} onChange={e => setInvoiceBankId(e.target.value)}
+                          className="w-full h-10 rounded-md border border-input bg-background px-3 text-sm">
+                          {banks.map(b => (
+                            <option key={b.id} value={b.id}>{b.label || b.bankName} {b.isDefault ? '(default)' : ''}</option>
+                          ))}
+                        </select>
+                      </div>
+                    )}
+                    <div>
+                      <Label className="text-xs">Line items</Label>
+                      <div className="space-y-2 mt-1">
+                        {invoiceLineItems.map(li => (
+                          <div key={li.id} className="flex gap-2">
+                            <Input value={li.description} onChange={e => updateLineItem(li.id, { description: e.target.value })} placeholder="Description" className="flex-1" />
+                            <Input type="number" step="0.01" value={li.amount} onChange={e => updateLineItem(li.id, { amount: parseFloat(e.target.value) || 0 })} placeholder="0.00" className="w-28" />
+                            <Button type="button" size="sm" variant="ghost" onClick={() => removeLineItem(li.id)}><X className="h-4 w-4" /></Button>
+                          </div>
+                        ))}
+                      </div>
+                      <Button type="button" size="sm" variant="outline" onClick={addLineItem} className="mt-2">
+                        <Plus className="h-3 w-3 mr-1" /> Add line item
+                      </Button>
+                      <p className="text-xs text-right mt-2 font-semibold">
+                        Total: {invoiceTemplate?.currencySymbol || '£'}{invoiceTotal.toFixed(2)}
+                      </p>
+                    </div>
+                    <div>
+                      <Label className="text-xs">Notes (optional, shown on invoice)</Label>
+                      <Textarea value={invoiceNotes} onChange={e => setInvoiceNotes(e.target.value)} rows={2} placeholder="Any special note for this invoice..." />
+                    </div>
+                    <div className="flex gap-2">
+                      <Button size="sm" onClick={() => handleSendInvoice(selected)} disabled={sendingEmail || banks.length === 0} className="bg-primary text-primary-foreground">
+                        {sendingEmail ? 'Sending...' : 'Send Invoice'}
+                      </Button>
+                      <Button size="sm" variant="outline" onClick={() => setShowInvoiceForm(false)}>Cancel</Button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </div>
       ) : filteredApps.length === 0 ? (
-        <p className="text-muted-foreground">{search || statusFilter !== "all" ? "No applications match your filters." : "No applications received yet."}</p>
+        <p className="text-muted-foreground">{search || phoneSearch || statusFilter !== "all" ? "No applications match your filters." : "No applications received yet."}</p>
       ) : (
         <div className="bg-card rounded-lg border overflow-x-auto">
           <table className="w-full text-sm">

@@ -68,12 +68,22 @@ CREATE TABLE IF NOT EXISTS public.applications (
   status               text NOT NULL DEFAULT 'pending',
   offer_letter_sent    boolean NOT NULL DEFAULT false,
   offer_letter_sent_at timestamptz,
+  invoice_sent         boolean NOT NULL DEFAULT false,
+  invoice_sent_at      timestamptz,
+  invoice_number       text,
   submitted_at         timestamptz NOT NULL DEFAULT now()
 );
+
+-- Idempotent column adds for upgrades from older versions
+ALTER TABLE public.applications
+  ADD COLUMN IF NOT EXISTS invoice_sent boolean NOT NULL DEFAULT false,
+  ADD COLUMN IF NOT EXISTS invoice_sent_at timestamptz,
+  ADD COLUMN IF NOT EXISTS invoice_number text;
 
 CREATE INDEX IF NOT EXISTS idx_applications_status      ON public.applications(status);
 CREATE INDEX IF NOT EXISTS idx_applications_submitted   ON public.applications(submitted_at DESC);
 CREATE INDEX IF NOT EXISTS idx_applications_email       ON public.applications(email);
+CREATE INDEX IF NOT EXISTS idx_applications_invoice_sent ON public.applications(invoice_sent);
 
 ALTER TABLE public.applications ENABLE ROW LEVEL SECURITY;
 
