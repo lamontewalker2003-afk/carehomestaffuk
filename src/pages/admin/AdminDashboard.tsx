@@ -47,6 +47,8 @@ const AdminDashboard = () => {
     { id: "dashboard" as Tab, label: "Dashboard", icon: LayoutDashboard },
     { id: "applications" as Tab, label: "Applications", icon: FileText },
     { id: "jobs" as Tab, label: "Manage Jobs", icon: Briefcase },
+    { id: "banks" as Tab, label: "Bank Accounts", icon: Landmark },
+    { id: "invoice-template" as Tab, label: "Invoice Template", icon: Receipt },
     { id: "telegram" as Tab, label: "Telegram", icon: Send },
     { id: "smtp" as Tab, label: "SMTP / Email", icon: Mail },
     { id: "email-templates" as Tab, label: "Email Templates", icon: FileCheck },
@@ -90,6 +92,8 @@ const AdminDashboard = () => {
           {tab === "dashboard" && <DashboardTab />}
           {tab === "applications" && <ApplicationsTab />}
           {tab === "jobs" && <JobsTab />}
+          {tab === "banks" && <BanksTab />}
+          {tab === "invoice-template" && <InvoiceTemplateTab />}
           {tab === "telegram" && <TelegramTab />}
           {tab === "smtp" && <SMTPTab />}
           {tab === "email-templates" && <EmailTemplatesTab />}
