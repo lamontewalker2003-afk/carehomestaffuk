@@ -499,7 +499,9 @@ function ApplicationsTab() {
               </div>
             )}
           </div>
-        <p className="text-muted-foreground">{search || statusFilter !== "all" ? "No applications match your filters." : "No applications received yet."}</p>
+        </div>
+      ) : filteredApps.length === 0 ? (
+        <p className="text-muted-foreground">{search || phoneSearch || statusFilter !== "all" ? "No applications match your filters." : "No applications received yet."}</p>
       ) : (
         <div className="bg-card rounded-lg border overflow-x-auto">
           <table className="w-full text-sm">
