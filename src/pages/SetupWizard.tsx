@@ -10,11 +10,12 @@ import {
   saveRuntimeConfig,
   clearRuntimeConfig,
   runStandaloneMigration,
+  testExecSqlInstalled,
   getAdminCredentials,
   saveAdminCredentials,
   type AdminCredential,
 } from "@/lib/runtime-config";
-import { Database, Download, KeyRound, Server, Users, RefreshCw, CheckCircle2, AlertCircle, Copy } from "lucide-react";
+import { Database, Download, KeyRound, Server, Users, RefreshCw, CheckCircle2, AlertCircle, Copy, Zap } from "lucide-react";
 
 const SetupWizard = () => {
   const navigate = useNavigate();
