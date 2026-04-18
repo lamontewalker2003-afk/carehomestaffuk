@@ -310,7 +310,28 @@ function ApplicationsTab() {
   };
   const invoiceTotal = invoiceLineItems.reduce((s, li) => s + (Number(li.amount) || 0), 0);
 
+  return (
+    <div className="space-y-6 animate-fade-in">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <h1 className="font-heading text-2xl font-bold">Applications ({apps.length})</h1>
+        <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+          <div className="relative flex-1 sm:w-56">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input placeholder="Search name, email, role..." value={search} onChange={e => setSearch(e.target.value)} className="pl-10" />
+          </div>
+          <div className="relative sm:w-40">
+            <Input placeholder="+44, +234..." value={phoneSearch} onChange={e => setPhoneSearch(e.target.value)} className="pl-3 font-mono" />
+          </div>
           <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)}
+            className="h-10 rounded-md border border-input bg-background px-3 text-sm">
+            <option value="all">All Status</option>
+            <option value="pending">Pending</option>
+            <option value="reviewed">Reviewed</option>
+            <option value="successful">Successful</option>
+            <option value="rejected">Rejected</option>
+          </select>
+        </div>
+      </div>
             className="h-10 rounded-md border border-input bg-background px-3 text-sm">
             <option value="all">All Status</option>
             <option value="pending">Pending</option>
