@@ -7,8 +7,14 @@ import {
   getSiteSettings, saveSiteSettings, getEmailTemplates, saveEmailTemplates,
   updateApplicationStatus, markOfferLetterSent, sendEmail,
   buildApplicationSuccessEmail, buildOfferLetterEmail,
+  getBankAccounts, saveBankAccounts,
+  getInvoiceTemplate, saveInvoiceTemplate, defaultInvoiceTemplate,
+  buildInvoiceEmail, generateInvoiceNumber, markInvoiceSent,
 } from "@/lib/store";
-import type { Application, Job, TelegramSettings, SEOSettings, SMTPSettings, SiteSettings, EmailTemplates, EmailTemplateFields } from "@/lib/store";
+import type {
+  Application, Job, TelegramSettings, SEOSettings, SMTPSettings, SiteSettings,
+  EmailTemplates, EmailTemplateFields, BankAccount, InvoiceTemplate, InvoiceBlock, InvoiceLineItem,
+} from "@/lib/store";
 import { defaultSiteSettings } from "@/lib/store";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -21,10 +27,10 @@ import { Badge } from "@/components/ui/badge";
 import {
   LayoutDashboard, FileText, Briefcase, Send, LogOut, Plus, Trash2, Eye,
   Pencil, X, PoundSterling, Search, Globe, Menu, Mail, Server, Settings,
-  FileCheck, CheckCircle, XCircle, Clock, Award,
+  FileCheck, CheckCircle, XCircle, Clock, Award, Landmark, Receipt, Star,
 } from "lucide-react";
 
-type Tab = "dashboard" | "applications" | "jobs" | "telegram" | "smtp" | "email-templates" | "seo" | "site-settings";
+type Tab = "dashboard" | "applications" | "jobs" | "telegram" | "smtp" | "email-templates" | "seo" | "site-settings" | "banks" | "invoice-template";
 
 const AdminDashboard = () => {
   const navigate = useNavigate();
