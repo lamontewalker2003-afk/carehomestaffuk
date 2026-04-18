@@ -4,11 +4,11 @@
 -- Run this ONE file against any fresh Supabase project to bootstrap
 -- the entire backend (tables, RLS, triggers).
 --
--- Usage:
---   1. Create a new Supabase project at https://supabase.com
---   2. Open SQL Editor
---   3. Paste this file in full and click "Run"
---   4. Copy your project URL and anon key into the app's /setup page
+-- Two ways to run it:
+--   A) ONE-CLICK (recommended): First paste /bootstrap-exec-sql.sql once
+--      into your Supabase SQL Editor. Then return to /setup and click
+--      "Auto-Run Migration" — this file will be executed automatically.
+--   B) MANUAL: Paste this entire file into the SQL Editor and click Run.
 --
 -- This migration is idempotent (safe to run multiple times).
 -- =====================================================================

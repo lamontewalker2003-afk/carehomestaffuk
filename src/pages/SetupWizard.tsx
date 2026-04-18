@@ -306,7 +306,7 @@ const SetupWizard = () => {
         {/* Step 4 - Done */}
         {step === 4 && (
           <div className="bg-card rounded-lg border p-6 space-y-4 text-center">
-            <CheckCircle2 className="h-14 w-14 text-green-600 mx-auto" />
+            <CheckCircle2 className="h-14 w-14 text-primary mx-auto" />
             <h2 className="font-heading text-xl font-semibold">Setup Complete</h2>
             <p className="text-sm text-muted-foreground">
               Your standalone deployment is ready. Reload the app for the new Supabase connection to take effect, then sign in to the admin panel.
