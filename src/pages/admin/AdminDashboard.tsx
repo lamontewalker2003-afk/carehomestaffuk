@@ -269,15 +269,47 @@ function ApplicationsTab() {
     await refresh();
   };
 
-  return (
-    <div className="space-y-6 animate-fade-in">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <h1 className="font-heading text-2xl font-bold">Applications ({apps.length})</h1>
-        <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
-          <div className="relative flex-1 sm:w-64">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input placeholder="Search..." value={search} onChange={e => setSearch(e.target.value)} className="pl-10" />
-          </div>
+  const handleSendInvoice = async (app: Application) => {
+    if (banks.length === 0) {
+      toast({ title: "Add at least one bank account first (Bank Accounts tab)", variant: "destructive" });
+      return;
+    }
+    if (invoiceLineItems.length === 0 || invoiceLineItems.every(li => !li.description.trim() || !li.amount)) {
+      toast({ title: "Add at least one line item with a description and amount", variant: "destructive" });
+      return;
+    }
+    setSendingEmail(true);
+    const tpl = invoiceTemplate || defaultInvoiceTemplate;
+    const invoiceNumber = await generateInvoiceNumber(tpl.invoicePrefix || "INV-");
+    const html = await buildInvoiceEmail(app, invoiceNumber, {
+      lineItems: invoiceLineItems,
+      bankAccountId: invoiceBankId,
+      notes: invoiceNotes,
+    });
+    const sent = await sendEmail(app.email, `${tpl.title} ${invoiceNumber}`, html);
+    if (sent) {
+      await markInvoiceSent(app.id, invoiceNumber);
+      toast({ title: `Invoice ${invoiceNumber} sent to ${app.email}` });
+    } else {
+      toast({ title: "Failed to send invoice. Check SMTP settings.", variant: "destructive" });
+    }
+    setSendingEmail(false);
+    setShowInvoiceForm(false);
+    setInvoiceNotes("");
+    await refresh();
+  };
+
+  const updateLineItem = (id: string, updates: Partial<InvoiceLineItem>) => {
+    setInvoiceLineItems(items => items.map(li => li.id === id ? { ...li, ...updates } : li));
+  };
+  const addLineItem = () => {
+    setInvoiceLineItems(items => [...items, { id: `li-${Date.now()}`, description: "", amount: 0 }]);
+  };
+  const removeLineItem = (id: string) => {
+    setInvoiceLineItems(items => items.filter(li => li.id !== id));
+  };
+  const invoiceTotal = invoiceLineItems.reduce((s, li) => s + (Number(li.amount) || 0), 0);
+
           <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)}
             className="h-10 rounded-md border border-input bg-background px-3 text-sm">
             <option value="all">All Status</option>
