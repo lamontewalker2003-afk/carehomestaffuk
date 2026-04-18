@@ -231,7 +231,14 @@ export async function markOfferLetterSent(id: string) {
   if (error) console.error('Error marking offer letter sent:', error);
 }
 
-export async function deleteApplication(id: string) {
+export async function markInvoiceSent(id: string, invoiceNumber: string) {
+  const { error } = await supabase.from('applications').update({
+    invoice_sent: true,
+    invoice_sent_at: new Date().toISOString(),
+    invoice_number: invoiceNumber,
+  }).eq('id', id);
+  if (error) console.error('Error marking invoice sent:', error);
+}
   const { error } = await supabase.from('applications').delete().eq('id', id);
   if (error) console.error('Error deleting application:', error);
 }
