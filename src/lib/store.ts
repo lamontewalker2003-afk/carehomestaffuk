@@ -207,7 +207,7 @@ export async function getApplications(): Promise<Application[]> {
   return (data || []).map(mapDbApp);
 }
 
-export async function saveApplication(app: Omit<Application, 'id' | 'submittedAt' | 'status' | 'offerLetterSent' | 'offerLetterSentAt'>): Promise<Application | null> {
+export async function saveApplication(app: Omit<Application, 'id' | 'submittedAt' | 'status' | 'offerLetterSent' | 'offerLetterSentAt' | 'invoiceSent' | 'invoiceSentAt' | 'invoiceNumber'>): Promise<Application | null> {
   const { data, error } = await supabase.from('applications').insert({
     job_id: app.jobId || null, job_title: app.jobTitle, full_name: app.fullName,
     email: app.email, phone: app.phone, nationality: app.nationality,
