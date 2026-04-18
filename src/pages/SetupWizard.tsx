@@ -62,22 +62,38 @@ const SetupWizard = () => {
     const result = await runStandaloneMigration(supabaseUrl, serviceRoleKey);
     setMigrationStatus(result);
     setMigrating(false);
-    if (result.ok) toast({ title: "Migration completed!" });
+    if (result.ok) toast({ title: "Migration completed!", description: "All tables and policies are live." });
   };
 
-  const handleDownloadSql = () => {
-    const blob = new Blob([migrationSql], { type: "text/plain" });
+  const handleTestRpc = async () => {
+    setTestingRpc(true);
+    setRpcStatus(null);
+    const result = await testExecSqlInstalled(supabaseUrl, serviceRoleKey);
+    setRpcStatus(result);
+    setTestingRpc(false);
+  };
+
+  const downloadFile = (content: string, filename: string) => {
+    const blob = new Blob([content], { type: "text/plain" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = "carehomestaffuk-schema.sql";
+    a.download = filename;
     a.click();
     URL.revokeObjectURL(url);
   };
 
+  const handleDownloadSql = () => downloadFile(migrationSql, "carehomestaffuk-schema.sql");
+  const handleDownloadBootstrap = () => downloadFile(bootstrapSql, "bootstrap-exec-sql.sql");
+
   const handleCopySql = async () => {
     await navigator.clipboard.writeText(migrationSql);
-    toast({ title: "SQL copied to clipboard" });
+    toast({ title: "Schema SQL copied to clipboard" });
+  };
+
+  const handleCopyBootstrap = async () => {
+    await navigator.clipboard.writeText(bootstrapSql);
+    toast({ title: "Bootstrap SQL copied to clipboard" });
   };
 
   const handleSaveAdmins = () => {
