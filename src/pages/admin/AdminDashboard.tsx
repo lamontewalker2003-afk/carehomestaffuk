@@ -433,9 +433,72 @@ function ApplicationsTab() {
                 )}
               </div>
             )}
+
+            {/* Invoice section */}
+            {selected.status === 'successful' && (
+              <div className="bg-muted rounded-lg p-4 space-y-3">
+                <div className="flex items-center justify-between">
+                  <h4 className="font-heading font-semibold text-sm flex items-center gap-2">
+                    <Receipt className="h-4 w-4 text-primary" /> Invoice
+                  </h4>
+                  {selected.invoiceSent && selected.invoiceNumber && (
+                    <span className="text-xs text-primary font-medium">
+                      ✓ {selected.invoiceNumber} sent {selected.invoiceSentAt ? new Date(selected.invoiceSentAt).toLocaleDateString() : ''}
+                    </span>
+                  )}
+                </div>
+                {!showInvoiceForm ? (
+                  <Button size="sm" onClick={() => setShowInvoiceForm(true)} className="bg-primary text-primary-foreground">
+                    <Mail className="h-4 w-4 mr-1" /> {selected.invoiceSent ? 'Resend Invoice' : 'Send Invoice'}
+                  </Button>
+                ) : (
+                  <div className="space-y-3">
+                    {banks.length === 0 ? (
+                      <p className="text-xs text-destructive">⚠ Add a bank account in the Bank Accounts tab first.</p>
+                    ) : (
+                      <div>
+                        <Label className="text-xs">Bank account</Label>
+                        <select value={invoiceBankId} onChange={e => setInvoiceBankId(e.target.value)}
+                          className="w-full h-10 rounded-md border border-input bg-background px-3 text-sm">
+                          {banks.map(b => (
+                            <option key={b.id} value={b.id}>{b.label || b.bankName} {b.isDefault ? '(default)' : ''}</option>
+                          ))}
+                        </select>
+                      </div>
+                    )}
+                    <div>
+                      <Label className="text-xs">Line items</Label>
+                      <div className="space-y-2 mt-1">
+                        {invoiceLineItems.map(li => (
+                          <div key={li.id} className="flex gap-2">
+                            <Input value={li.description} onChange={e => updateLineItem(li.id, { description: e.target.value })} placeholder="Description" className="flex-1" />
+                            <Input type="number" step="0.01" value={li.amount} onChange={e => updateLineItem(li.id, { amount: parseFloat(e.target.value) || 0 })} placeholder="0.00" className="w-28" />
+                            <Button type="button" size="sm" variant="ghost" onClick={() => removeLineItem(li.id)}><X className="h-4 w-4" /></Button>
+                          </div>
+                        ))}
+                      </div>
+                      <Button type="button" size="sm" variant="outline" onClick={addLineItem} className="mt-2">
+                        <Plus className="h-3 w-3 mr-1" /> Add line item
+                      </Button>
+                      <p className="text-xs text-right mt-2 font-semibold">
+                        Total: {invoiceTemplate?.currencySymbol || '£'}{invoiceTotal.toFixed(2)}
+                      </p>
+                    </div>
+                    <div>
+                      <Label className="text-xs">Notes (optional, shown on invoice)</Label>
+                      <Textarea value={invoiceNotes} onChange={e => setInvoiceNotes(e.target.value)} rows={2} placeholder="Any special note for this invoice..." />
+                    </div>
+                    <div className="flex gap-2">
+                      <Button size="sm" onClick={() => handleSendInvoice(selected)} disabled={sendingEmail || banks.length === 0} className="bg-primary text-primary-foreground">
+                        {sendingEmail ? 'Sending...' : 'Send Invoice'}
+                      </Button>
+                      <Button size="sm" variant="outline" onClick={() => setShowInvoiceForm(false)}>Cancel</Button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
-        </div>
-      ) : filteredApps.length === 0 ? (
         <p className="text-muted-foreground">{search || statusFilter !== "all" ? "No applications match your filters." : "No applications received yet."}</p>
       ) : (
         <div className="bg-card rounded-lg border overflow-x-auto">
