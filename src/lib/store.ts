@@ -92,17 +92,24 @@ export interface EmailTemplates {
   contactConfirmation: EmailTemplateFields;
 }
 
-// ---- BANK ACCOUNTS (UK) ----
+// ---- BANK ACCOUNTS (UK + flexible custom fields) ----
+export interface BankCustomField {
+  id: string;
+  label: string;          // e.g. "Roll number", "Building Society Ref", "Routing"
+  value: string;
+  monospace?: boolean;    // render in monospace on invoice (good for numbers/codes)
+}
 export interface BankAccount {
   id: string;             // local uuid
   label: string;          // e.g. "Main GBP Account"
-  bankName: string;
-  accountName: string;
-  sortCode: string;       // formatted xx-xx-xx
-  accountNumber: string;  // 8 digits
+  bankName?: string;
+  accountName: string;    // payee name — always required
+  sortCode?: string;      // formatted xx-xx-xx
+  accountNumber?: string; // 8 digits
   iban?: string;
   swift?: string;         // BIC
   reference?: string;     // payment reference instructions
+  customFields?: BankCustomField[]; // free-form extras (e.g. Roll number, Routing)
   isDefault: boolean;
 }
 
@@ -443,6 +450,7 @@ export async function buildInvoiceEmail(
         ${bank.accountNumber ? `<tr><td style="padding:4px 0;color:#888;">Account number</td><td style="padding:4px 0;font-family:monospace;font-weight:600;">${escapeHtml(bank.accountNumber)}</td></tr>` : ''}
         ${bank.iban ? `<tr><td style="padding:4px 0;color:#888;">IBAN</td><td style="padding:4px 0;font-family:monospace;font-weight:600;">${escapeHtml(bank.iban)}</td></tr>` : ''}
         ${bank.swift ? `<tr><td style="padding:4px 0;color:#888;">SWIFT/BIC</td><td style="padding:4px 0;font-family:monospace;font-weight:600;">${escapeHtml(bank.swift)}</td></tr>` : ''}
+        ${(bank.customFields || []).filter(f => f.label && f.value).map(f => `<tr><td style="padding:4px 0;color:#888;">${escapeHtml(f.label)}</td><td style="padding:4px 0;font-weight:600;${f.monospace ? 'font-family:monospace;' : ''}">${escapeHtml(replaceVars(f.value, vars))}</td></tr>`).join('')}
         ${bank.reference ? `<tr><td style="padding:4px 0;color:#888;">Reference</td><td style="padding:4px 0;font-weight:600;">${escapeHtml(replaceVars(bank.reference, vars))}</td></tr>` : `<tr><td style="padding:4px 0;color:#888;">Reference</td><td style="padding:4px 0;font-weight:600;">${escapeHtml(invoiceNumber)}</td></tr>`}
       </table>
     </div>` : `<p style="color:#b00;font-size:13px;">⚠ No bank account configured. Add one in the admin panel.</p>`;
