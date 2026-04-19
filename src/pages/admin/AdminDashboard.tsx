@@ -1109,20 +1109,20 @@ function BanksTab() {
                   <Input value={acc.label} onChange={e => updateAccount(acc.id, { label: e.target.value })} placeholder="Main GBP Account" />
                 </div>
                 <div>
-                  <Label>Bank Name *</Label>
-                  <Input value={acc.bankName} onChange={e => updateAccount(acc.id, { bankName: e.target.value })} placeholder="Barclays Bank PLC" />
+                  <Label>Bank Name</Label>
+                  <Input value={acc.bankName || ''} onChange={e => updateAccount(acc.id, { bankName: e.target.value })} placeholder="Barclays Bank PLC (optional)" />
                 </div>
                 <div className="sm:col-span-2">
                   <Label>Account Name *</Label>
-                  <Input value={acc.accountName} onChange={e => updateAccount(acc.id, { accountName: e.target.value })} placeholder="CareHomeStaffUK Ltd" />
+                  <Input value={acc.accountName} onChange={e => updateAccount(acc.id, { accountName: e.target.value })} placeholder="Adrian Bolocan / Company Ltd" />
                 </div>
                 <div>
-                  <Label>Sort Code *</Label>
-                  <Input value={acc.sortCode} onChange={e => updateAccount(acc.id, { sortCode: e.target.value })} placeholder="00-00-00" />
+                  <Label>Sort Code</Label>
+                  <Input value={acc.sortCode || ''} onChange={e => updateAccount(acc.id, { sortCode: e.target.value })} placeholder="04-00-03 or 040003" />
                 </div>
                 <div>
-                  <Label>Account Number *</Label>
-                  <Input value={acc.accountNumber} onChange={e => updateAccount(acc.id, { accountNumber: e.target.value })} placeholder="12345678" />
+                  <Label>Account Number</Label>
+                  <Input value={acc.accountNumber || ''} onChange={e => updateAccount(acc.id, { accountNumber: e.target.value })} placeholder="88679349" />
                 </div>
                 <div>
                   <Label>IBAN</Label>
@@ -1136,6 +1136,50 @@ function BanksTab() {
                   <Label>Payment Reference Instructions</Label>
                   <Input value={acc.reference || ''} onChange={e => updateAccount(acc.id, { reference: e.target.value })} placeholder="Use invoice number as reference" />
                 </div>
+              </div>
+
+              {/* Custom fields — admin can add anything (Roll number, Routing, Building Society Ref, etc.) */}
+              <div className="border-t pt-4 space-y-3">
+                <div className="flex items-center justify-between flex-wrap gap-2">
+                  <div>
+                    <Label className="text-sm font-semibold">Custom Fields</Label>
+                    <p className="text-xs text-muted-foreground">Add any extra detail that should appear on the invoice (e.g. Roll number, Routing, BSB).</p>
+                  </div>
+                  <Button size="sm" variant="outline" onClick={() => addCustomField(acc.id)}>
+                    <Plus className="h-3 w-3 mr-1" /> Add Field
+                  </Button>
+                </div>
+                {(acc.customFields || []).length === 0 ? (
+                  <p className="text-xs text-muted-foreground italic">No custom fields.</p>
+                ) : (
+                  <div className="space-y-2">
+                    {(acc.customFields || []).map(f => (
+                      <div key={f.id} className="grid grid-cols-1 sm:grid-cols-12 gap-2 items-end bg-muted/30 p-3 rounded-md">
+                        <div className="sm:col-span-4">
+                          <Label className="text-xs">Field Label</Label>
+                          <Input value={f.label} onChange={e => updateCustomField(acc.id, f.id, { label: e.target.value })} placeholder="Roll number" />
+                        </div>
+                        <div className="sm:col-span-6">
+                          <Label className="text-xs">Value</Label>
+                          <Input value={f.value} onChange={e => updateCustomField(acc.id, f.id, { value: e.target.value })} placeholder="123456789" />
+                        </div>
+                        <div className="sm:col-span-2 flex items-center justify-between gap-2">
+                          <label className="flex items-center gap-1 text-xs cursor-pointer" title="Render in monospace (best for numbers/codes)">
+                            <input
+                              type="checkbox"
+                              checked={!!f.monospace}
+                              onChange={e => updateCustomField(acc.id, f.id, { monospace: e.target.checked })}
+                            />
+                            <span>123</span>
+                          </label>
+                          <Button size="sm" variant="ghost" onClick={() => removeCustomField(acc.id, f.id)} className="text-destructive">
+                            <Trash2 className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
           ))}
