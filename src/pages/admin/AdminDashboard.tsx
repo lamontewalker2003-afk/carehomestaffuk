@@ -13,7 +13,7 @@ import {
 } from "@/lib/store";
 import type {
   Application, Job, TelegramSettings, SEOSettings, SMTPSettings, SiteSettings,
-  EmailTemplates, EmailTemplateFields, BankAccount, InvoiceTemplate, InvoiceBlock, InvoiceLineItem,
+  EmailTemplates, EmailTemplateFields, BankAccount, BankCustomField, InvoiceTemplate, InvoiceBlock, InvoiceLineItem,
 } from "@/lib/store";
 import { defaultSiteSettings } from "@/lib/store";
 import { supabase } from "@/integrations/supabase/client";
