@@ -1023,6 +1023,7 @@ function BanksTab() {
       iban: '',
       swift: '',
       reference: '',
+      customFields: [],
       isDefault: accounts.length === 0,
     };
     setAccounts(a => [...a, newAcc]);
@@ -1030,6 +1031,23 @@ function BanksTab() {
 
   const updateAccount = (id: string, patch: Partial<BankAccount>) => {
     setAccounts(a => a.map(acc => acc.id === id ? { ...acc, ...patch } : acc));
+  };
+
+  const addCustomField = (accId: string) => {
+    const f: BankCustomField = { id: crypto.randomUUID(), label: '', value: '', monospace: false };
+    setAccounts(a => a.map(acc => acc.id === accId ? { ...acc, customFields: [...(acc.customFields || []), f] } : acc));
+  };
+  const updateCustomField = (accId: string, fId: string, patch: Partial<BankCustomField>) => {
+    setAccounts(a => a.map(acc => acc.id === accId
+      ? { ...acc, customFields: (acc.customFields || []).map(f => f.id === fId ? { ...f, ...patch } : f) }
+      : acc
+    ));
+  };
+  const removeCustomField = (accId: string, fId: string) => {
+    setAccounts(a => a.map(acc => acc.id === accId
+      ? { ...acc, customFields: (acc.customFields || []).filter(f => f.id !== fId) }
+      : acc
+    ));
   };
 
   const removeAccount = (id: string) => {
@@ -1042,10 +1060,18 @@ function BanksTab() {
   };
 
   const handleSave = async () => {
-    // Basic validation
+    // Flexible validation: require label + accountName, AND at least one identifying detail
+    // (sort code+account number, OR IBAN, OR a populated custom field).
     for (const a of accounts) {
-      if (!a.label || !a.bankName || !a.accountName || !a.sortCode || !a.accountNumber) {
-        toast({ title: `"${a.label || 'Account'}" is missing required fields`, variant: "destructive" });
+      if (!a.label || !a.accountName) {
+        toast({ title: `"${a.label || 'Account'}" needs a label and account name`, variant: "destructive" });
+        return;
+      }
+      const hasUk = a.sortCode && a.accountNumber;
+      const hasIban = !!a.iban;
+      const hasCustom = (a.customFields || []).some(f => f.label && f.value);
+      if (!hasUk && !hasIban && !hasCustom) {
+        toast({ title: `"${a.label}" needs sort code + account number, an IBAN, or a custom field`, variant: "destructive" });
         return;
       }
     }
