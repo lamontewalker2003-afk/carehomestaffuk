@@ -1002,4 +1002,336 @@ function SEOTab() {
   );
 }
 
+// ============================================================
+// BANK ACCOUNTS TAB — manage multiple UK bank accounts
+// ============================================================
+function BanksTab() {
+  const [accounts, setAccounts] = useState<BankAccount[]>([]);
+  const [saving, setSaving] = useState(false);
+  const [loaded, setLoaded] = useState(false);
+
+  useEffect(() => { getBankAccounts().then(a => { setAccounts(a); setLoaded(true); }); }, []);
+
+  const addAccount = () => {
+    const newAcc: BankAccount = {
+      id: crypto.randomUUID(),
+      label: 'New Account',
+      bankName: '',
+      accountName: '',
+      sortCode: '',
+      accountNumber: '',
+      iban: '',
+      swift: '',
+      reference: '',
+      isDefault: accounts.length === 0,
+    };
+    setAccounts(a => [...a, newAcc]);
+  };
+
+  const updateAccount = (id: string, patch: Partial<BankAccount>) => {
+    setAccounts(a => a.map(acc => acc.id === id ? { ...acc, ...patch } : acc));
+  };
+
+  const removeAccount = (id: string) => {
+    if (!confirm('Delete this bank account?')) return;
+    setAccounts(a => a.filter(acc => acc.id !== id));
+  };
+
+  const setDefault = (id: string) => {
+    setAccounts(a => a.map(acc => ({ ...acc, isDefault: acc.id === id })));
+  };
+
+  const handleSave = async () => {
+    // Basic validation
+    for (const a of accounts) {
+      if (!a.label || !a.bankName || !a.accountName || !a.sortCode || !a.accountNumber) {
+        toast({ title: `"${a.label || 'Account'}" is missing required fields`, variant: "destructive" });
+        return;
+      }
+    }
+    setSaving(true);
+    await saveBankAccounts(accounts);
+    const fresh = await getBankAccounts();
+    setAccounts(fresh);
+    setSaving(false);
+    toast({ title: "Bank accounts saved!" });
+  };
+
+  if (!loaded) return <p>Loading...</p>;
+
+  return (
+    <div className="space-y-6 animate-fade-in">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h1 className="font-heading text-2xl font-bold">Bank Accounts</h1>
+          <p className="text-muted-foreground text-sm">Manage UK bank accounts used on invoices. Mark one as default.</p>
+        </div>
+        <Button onClick={addAccount} className="bg-primary text-primary-foreground">
+          <Plus className="h-4 w-4 mr-2" /> Add Account
+        </Button>
+      </div>
+
+      {accounts.length === 0 ? (
+        <div className="bg-card rounded-lg border p-8 text-center">
+          <Landmark className="h-10 w-10 mx-auto text-muted-foreground mb-3" />
+          <p className="text-muted-foreground mb-4">No bank accounts yet. Add one to enable invoicing.</p>
+          <Button onClick={addAccount} className="bg-primary text-primary-foreground">
+            <Plus className="h-4 w-4 mr-2" /> Add Your First Account
+          </Button>
+        </div>
+      ) : (
+        <div className="space-y-4">
+          {accounts.map(acc => (
+            <div key={acc.id} className="bg-card rounded-lg border p-4 sm:p-6 space-y-4">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div className="flex items-center gap-2">
+                  <Landmark className="h-5 w-5 text-primary" />
+                  <h2 className="font-heading font-semibold">{acc.label || 'Untitled Account'}</h2>
+                  {acc.isDefault && (
+                    <Badge className="bg-primary text-primary-foreground"><Star className="h-3 w-3 mr-1" /> Default</Badge>
+                  )}
+                </div>
+                <div className="flex gap-2">
+                  {!acc.isDefault && (
+                    <Button size="sm" variant="outline" onClick={() => setDefault(acc.id)}>
+                      <Star className="h-3 w-3 mr-1" /> Set Default
+                    </Button>
+                  )}
+                  <Button size="sm" variant="outline" onClick={() => removeAccount(acc.id)} className="text-destructive">
+                    <Trash2 className="h-3 w-3" />
+                  </Button>
+                </div>
+              </div>
+
+              <div className="grid sm:grid-cols-2 gap-4">
+                <div>
+                  <Label>Label *</Label>
+                  <Input value={acc.label} onChange={e => updateAccount(acc.id, { label: e.target.value })} placeholder="Main GBP Account" />
+                </div>
+                <div>
+                  <Label>Bank Name *</Label>
+                  <Input value={acc.bankName} onChange={e => updateAccount(acc.id, { bankName: e.target.value })} placeholder="Barclays Bank PLC" />
+                </div>
+                <div className="sm:col-span-2">
+                  <Label>Account Name *</Label>
+                  <Input value={acc.accountName} onChange={e => updateAccount(acc.id, { accountName: e.target.value })} placeholder="CareHomeStaffUK Ltd" />
+                </div>
+                <div>
+                  <Label>Sort Code *</Label>
+                  <Input value={acc.sortCode} onChange={e => updateAccount(acc.id, { sortCode: e.target.value })} placeholder="00-00-00" />
+                </div>
+                <div>
+                  <Label>Account Number *</Label>
+                  <Input value={acc.accountNumber} onChange={e => updateAccount(acc.id, { accountNumber: e.target.value })} placeholder="12345678" />
+                </div>
+                <div>
+                  <Label>IBAN</Label>
+                  <Input value={acc.iban || ''} onChange={e => updateAccount(acc.id, { iban: e.target.value })} placeholder="GB29 NWBK 6016 1331 9268 19" />
+                </div>
+                <div>
+                  <Label>SWIFT / BIC</Label>
+                  <Input value={acc.swift || ''} onChange={e => updateAccount(acc.id, { swift: e.target.value })} placeholder="BARCGB22" />
+                </div>
+                <div className="sm:col-span-2">
+                  <Label>Payment Reference Instructions</Label>
+                  <Input value={acc.reference || ''} onChange={e => updateAccount(acc.id, { reference: e.target.value })} placeholder="Use invoice number as reference" />
+                </div>
+              </div>
+            </div>
+          ))}
+
+          <Button onClick={handleSave} disabled={saving} className="bg-primary text-primary-foreground">
+            {saving ? "Saving..." : "Save All Accounts"}
+          </Button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ============================================================
+// INVOICE TEMPLATE TAB — dynamic blocks + line items + branding
+// ============================================================
+function InvoiceTemplateTab() {
+  const [tmpl, setTmpl] = useState<InvoiceTemplate | null>(null);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => { getInvoiceTemplate().then(setTmpl); }, []);
+
+  if (!tmpl) return <p>Loading...</p>;
+
+  const update = (patch: Partial<InvoiceTemplate>) => setTmpl(t => t ? { ...t, ...patch } : t);
+
+  const addBlock = (which: 'introBlocks' | 'outroBlocks') => {
+    const newBlock: InvoiceBlock = { id: crypto.randomUUID(), heading: '', body: '' };
+    update({ [which]: [...tmpl[which], newBlock] } as Partial<InvoiceTemplate>);
+  };
+  const updateBlock = (which: 'introBlocks' | 'outroBlocks', id: string, patch: Partial<InvoiceBlock>) => {
+    update({ [which]: tmpl[which].map(b => b.id === id ? { ...b, ...patch } : b) } as Partial<InvoiceTemplate>);
+  };
+  const removeBlock = (which: 'introBlocks' | 'outroBlocks', id: string) => {
+    update({ [which]: tmpl[which].filter(b => b.id !== id) } as Partial<InvoiceTemplate>);
+  };
+
+  const addLineItem = () => {
+    const newItem: InvoiceLineItem = { id: crypto.randomUUID(), description: '', amount: 0 };
+    update({ defaultLineItems: [...tmpl.defaultLineItems, newItem] });
+  };
+  const updateLineItem = (id: string, patch: Partial<InvoiceLineItem>) => {
+    update({ defaultLineItems: tmpl.defaultLineItems.map(li => li.id === id ? { ...li, ...patch } : li) });
+  };
+  const removeLineItem = (id: string) => {
+    update({ defaultLineItems: tmpl.defaultLineItems.filter(li => li.id !== id) });
+  };
+
+  const handleSave = async () => {
+    setSaving(true);
+    await saveInvoiceTemplate(tmpl);
+    setSaving(false);
+    toast({ title: "Invoice template saved!" });
+  };
+
+  const handleReset = async () => {
+    if (!confirm('Reset to default template? Your changes will be lost.')) return;
+    setTmpl(defaultInvoiceTemplate);
+    toast({ title: "Reset to defaults — click Save to apply." });
+  };
+
+  const renderBlocks = (which: 'introBlocks' | 'outroBlocks', label: string) => (
+    <div className="bg-card rounded-lg border p-4 sm:p-6 space-y-3">
+      <div className="flex items-center justify-between">
+        <h2 className="font-heading font-semibold">{label}</h2>
+        <Button size="sm" variant="outline" onClick={() => addBlock(which)}>
+          <Plus className="h-3 w-3 mr-1" /> Add Block
+        </Button>
+      </div>
+      {tmpl[which].length === 0 && <p className="text-sm text-muted-foreground">No blocks yet.</p>}
+      {tmpl[which].map((block, i) => (
+        <div key={block.id} className="border rounded-md p-3 space-y-2 bg-muted/30">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-medium text-muted-foreground">Block {i + 1}</span>
+            <Button size="sm" variant="ghost" onClick={() => removeBlock(which, block.id)} className="text-destructive h-7">
+              <Trash2 className="h-3 w-3" />
+            </Button>
+          </div>
+          <Input
+            placeholder="Heading (optional)"
+            value={block.heading || ''}
+            onChange={e => updateBlock(which, block.id, { heading: e.target.value })}
+          />
+          <Textarea
+            placeholder="Body text. Use {{fullName}}, {{jobTitle}}, {{invoiceNumber}}, {{invoiceDate}}, {{dueDate}}, {{paymentTermsDays}}, {{siteName}}"
+            value={block.body}
+            rows={3}
+            onChange={e => updateBlock(which, block.id, { body: e.target.value })}
+          />
+        </div>
+      ))}
+    </div>
+  );
+
+  const total = tmpl.defaultLineItems.reduce((s, li) => s + (Number(li.amount) || 0), 0);
+
+  return (
+    <div className="space-y-6 animate-fade-in">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h1 className="font-heading text-2xl font-bold">Invoice Template</h1>
+          <p className="text-muted-foreground text-sm">Customize the invoice sent to applicants. Bank details are pulled from the default account.</p>
+        </div>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={handleReset}>Reset</Button>
+          <Button onClick={handleSave} disabled={saving} className="bg-primary text-primary-foreground">
+            {saving ? "Saving..." : "Save Template"}
+          </Button>
+        </div>
+      </div>
+
+      {/* Branding */}
+      <div className="bg-card rounded-lg border p-4 sm:p-6 space-y-4">
+        <div className="flex items-center gap-2"><Receipt className="h-5 w-5 text-primary" /><h2 className="font-heading font-semibold">Branding & Settings</h2></div>
+        <div className="grid sm:grid-cols-2 gap-4">
+          <div>
+            <Label>Invoice Title *</Label>
+            <Input value={tmpl.title} onChange={e => update({ title: e.target.value })} />
+          </div>
+          <div>
+            <Label>Invoice Number Prefix *</Label>
+            <Input value={tmpl.invoicePrefix} onChange={e => update({ invoicePrefix: e.target.value })} placeholder="INV-" />
+          </div>
+          <div>
+            <Label>Currency Code</Label>
+            <Input value={tmpl.currency} onChange={e => update({ currency: e.target.value.toUpperCase() })} placeholder="GBP" />
+          </div>
+          <div>
+            <Label>Currency Symbol</Label>
+            <Input value={tmpl.currencySymbol} onChange={e => update({ currencySymbol: e.target.value })} placeholder="£" />
+          </div>
+          <div>
+            <Label>Payment Terms (days)</Label>
+            <Input type="number" value={tmpl.paymentTermsDays} onChange={e => update({ paymentTermsDays: parseInt(e.target.value) || 14 })} />
+          </div>
+        </div>
+      </div>
+
+      {/* Intro blocks */}
+      {renderBlocks('introBlocks', 'Intro Blocks (above line items)')}
+
+      {/* Default Line items */}
+      <div className="bg-card rounded-lg border p-4 sm:p-6 space-y-3">
+        <div className="flex items-center justify-between">
+          <h2 className="font-heading font-semibold">Default Line Items</h2>
+          <Button size="sm" variant="outline" onClick={addLineItem}>
+            <Plus className="h-3 w-3 mr-1" /> Add Item
+          </Button>
+        </div>
+        <p className="text-xs text-muted-foreground">These appear by default when sending an invoice. Admin can edit per-application.</p>
+        {tmpl.defaultLineItems.length === 0 && <p className="text-sm text-muted-foreground">No line items.</p>}
+        {tmpl.defaultLineItems.map(li => (
+          <div key={li.id} className="grid grid-cols-[1fr_120px_auto] gap-2 items-end border rounded-md p-3 bg-muted/30">
+            <div>
+              <Label className="text-xs">Description</Label>
+              <Input value={li.description} onChange={e => updateLineItem(li.id, { description: e.target.value })} />
+            </div>
+            <div>
+              <Label className="text-xs">Amount ({tmpl.currencySymbol})</Label>
+              <Input type="number" step="0.01" value={li.amount} onChange={e => updateLineItem(li.id, { amount: parseFloat(e.target.value) || 0 })} />
+            </div>
+            <Button size="sm" variant="ghost" onClick={() => removeLineItem(li.id)} className="text-destructive">
+              <Trash2 className="h-3 w-3" />
+            </Button>
+          </div>
+        ))}
+        <div className="flex justify-end pt-2 border-t">
+          <p className="font-semibold">Total: {tmpl.currencySymbol}{total.toFixed(2)}</p>
+        </div>
+      </div>
+
+      {/* Outro blocks */}
+      {renderBlocks('outroBlocks', 'Outro Blocks (below line items — terms, thanks)')}
+
+      {/* Signoff */}
+      <div className="bg-card rounded-lg border p-4 sm:p-6 space-y-4">
+        <h2 className="font-heading font-semibold">Sign-off</h2>
+        <div className="grid sm:grid-cols-2 gap-4">
+          <div>
+            <Label>Sign-off line</Label>
+            <Input value={tmpl.signoff} onChange={e => update({ signoff: e.target.value })} placeholder="Kind regards," />
+          </div>
+          <div>
+            <Label>Signature</Label>
+            <Input value={tmpl.signature} onChange={e => update({ signature: e.target.value })} placeholder="The {{siteName}} Team" />
+          </div>
+        </div>
+      </div>
+
+      <div className="flex justify-end">
+        <Button onClick={handleSave} disabled={saving} className="bg-primary text-primary-foreground">
+          {saving ? "Saving..." : "Save Template"}
+        </Button>
+      </div>
+    </div>
+  );
+}
+
 export default AdminDashboard;
