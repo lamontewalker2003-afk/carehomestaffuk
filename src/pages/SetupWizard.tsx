@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -13,29 +13,48 @@ import {
   testExecSqlInstalled,
   getAdminCredentials,
   saveAdminCredentials,
+  pingSupabaseAnon,
+  checkSchemaInstalled,
+  exportConfig,
+  importConfig,
+  getWizardStep,
+  saveWizardStep,
   type AdminCredential,
 } from "@/lib/runtime-config";
-import { Database, Download, KeyRound, Server, Users, RefreshCw, CheckCircle2, AlertCircle, Copy, Zap } from "lucide-react";
+import {
+  Database, Download, KeyRound, Server, Users, RefreshCw, CheckCircle2,
+  AlertCircle, Copy, Zap, Upload, FileDown, Loader2, ShieldCheck, Eye, EyeOff,
+} from "lucide-react";
+
+type Status = { ok: boolean; message: string } | null;
 
 const SetupWizard = () => {
   const navigate = useNavigate();
-  const [step, setStep] = useState(1);
+  const [step, setStep] = useState(getWizardStep());
 
-  // Step 1: Supabase config
+  // Step 1
   const [supabaseUrl, setSupabaseUrl] = useState("");
   const [supabaseAnonKey, setSupabaseAnonKey] = useState("");
-  const [serviceRoleKey, setServiceRoleKey] = useState("");
+  const [showAnon, setShowAnon] = useState(false);
+  const [pingStatus, setPingStatus] = useState<Status>(null);
+  const [pinging, setPinging] = useState(false);
 
-  // Step 2: Migration
+  // Step 2
   const [migrationSql, setMigrationSql] = useState("");
   const [bootstrapSql, setBootstrapSql] = useState("");
-  const [migrationStatus, setMigrationStatus] = useState<{ ok: boolean; message: string; needsBootstrap?: boolean } | null>(null);
+  const [serviceRoleKey, setServiceRoleKey] = useState("");
+  const [showService, setShowService] = useState(false);
+  const [migrationStatus, setMigrationStatus] = useState<Status & { needsBootstrap?: boolean }>(null);
   const [migrating, setMigrating] = useState(false);
   const [testingRpc, setTestingRpc] = useState(false);
   const [rpcStatus, setRpcStatus] = useState<{ installed: boolean; message: string } | null>(null);
+  const [schemaCheck, setSchemaCheck] = useState<{ installed: boolean; missing: string[]; message: string } | null>(null);
+  const [checkingSchema, setCheckingSchema] = useState(false);
 
-  // Step 3: Admins
+  // Step 3
   const [admins, setAdmins] = useState<AdminCredential[]>([{ username: "admin", password: "" }]);
+
+  const importInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     const cfg = getRuntimeConfigSync();
@@ -46,14 +65,49 @@ const SetupWizard = () => {
     getAdminCredentials().then(a => { if (a.length) setAdmins(a); });
   }, []);
 
-  const handleSaveSupabase = () => {
+  // Persist step every time it changes.
+  useEffect(() => { saveWizardStep(step); }, [step]);
+
+  // Auto-check schema when arriving at step 2 with valid creds.
+  useEffect(() => {
+    if (step === 2 && supabaseUrl && supabaseAnonKey && !schemaCheck) {
+      void runSchemaCheck();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [step]);
+
+  const goStep = (n: number) => setStep(n);
+
+  // ---------- Step 1 actions ----------
+  const handlePing = async () => {
+    setPinging(true);
+    setPingStatus(null);
+    const r = await pingSupabaseAnon(supabaseUrl.trim(), supabaseAnonKey.trim());
+    setPingStatus(r);
+    setPinging(false);
+    return r.ok;
+  };
+
+  const handleSaveSupabase = async () => {
     if (!supabaseUrl || !supabaseAnonKey) {
       toast({ title: "Both URL and anon key are required", variant: "destructive" });
       return;
     }
+    const ok = await handlePing();
+    if (!ok) {
+      toast({ title: "Connection check failed", description: "Saving anyway — fix details on next step if migration fails.", variant: "destructive" });
+    }
     saveRuntimeConfig(supabaseUrl, supabaseAnonKey);
-    toast({ title: "Supabase config saved", description: "Reload the app to apply." });
-    setStep(2);
+    toast({ title: "Supabase config saved" });
+    goStep(2);
+  };
+
+  // ---------- Step 2 actions ----------
+  const runSchemaCheck = async () => {
+    setCheckingSchema(true);
+    const r = await checkSchemaInstalled(supabaseUrl, supabaseAnonKey);
+    setSchemaCheck(r);
+    setCheckingSchema(false);
   };
 
   const handleRunMigration = async () => {
@@ -62,7 +116,10 @@ const SetupWizard = () => {
     const result = await runStandaloneMigration(supabaseUrl, serviceRoleKey);
     setMigrationStatus(result);
     setMigrating(false);
-    if (result.ok) toast({ title: "Migration completed!", description: "All tables and policies are live." });
+    if (result.ok) {
+      toast({ title: "Migration completed!", description: "Verifying tables..." });
+      await runSchemaCheck();
+    }
   };
 
   const handleTestRpc = async () => {
@@ -73,8 +130,8 @@ const SetupWizard = () => {
     setTestingRpc(false);
   };
 
-  const downloadFile = (content: string, filename: string) => {
-    const blob = new Blob([content], { type: "text/plain" });
+  const downloadFile = (content: string, filename: string, mime = "text/plain") => {
+    const blob = new Blob([content], { type: mime });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
@@ -85,17 +142,12 @@ const SetupWizard = () => {
 
   const handleDownloadSql = () => downloadFile(migrationSql, "carehomestaffuk-schema.sql");
   const handleDownloadBootstrap = () => downloadFile(bootstrapSql, "bootstrap-exec-sql.sql");
-
-  const handleCopySql = async () => {
-    await navigator.clipboard.writeText(migrationSql);
-    toast({ title: "Schema SQL copied to clipboard" });
+  const copyText = async (text: string, label: string) => {
+    await navigator.clipboard.writeText(text);
+    toast({ title: `${label} copied to clipboard` });
   };
 
-  const handleCopyBootstrap = async () => {
-    await navigator.clipboard.writeText(bootstrapSql);
-    toast({ title: "Bootstrap SQL copied to clipboard" });
-  };
-
+  // ---------- Step 3 actions ----------
   const handleSaveAdmins = () => {
     const valid = admins.filter(a => a.username.trim() && a.password.trim());
     if (!valid.length) {
@@ -104,15 +156,39 @@ const SetupWizard = () => {
     }
     saveAdminCredentials(valid);
     toast({ title: "Admin credentials saved" });
-    setStep(4);
+    goStep(4);
   };
 
+  // ---------- Global actions ----------
   const handleReset = () => {
-    if (!confirm("Clear all standalone configuration and revert to bundled defaults?")) return;
+    if (!confirm("Clear ALL standalone configuration (Supabase + admins) and revert to bundled defaults?")) return;
     clearRuntimeConfig();
     toast({ title: "Configuration cleared" });
-    window.location.reload();
+    setTimeout(() => window.location.reload(), 400);
   };
+
+  const handleExportConfig = () => {
+    const json = exportConfig();
+    downloadFile(json, `carehomestaffuk-config-${new Date().toISOString().slice(0, 10)}.json`, "application/json");
+    toast({ title: "Configuration exported", description: "Keep this file safe — it contains your admin passwords." });
+  };
+
+  const handleImportClick = () => importInputRef.current?.click();
+  const handleImportFile = async (file: File) => {
+    const text = await file.text();
+    const r = importConfig(text);
+    if (!r.ok) {
+      toast({ title: "Import failed", description: r.message, variant: "destructive" });
+      return;
+    }
+    toast({
+      title: "Configuration imported",
+      description: `URL: ${r.imported?.url ? "✓" : "—"}, Admins: ${r.imported?.admins || 0}`,
+    });
+    setTimeout(() => window.location.reload(), 600);
+  };
+
+  const allSchemaOk = schemaCheck?.installed === true;
 
   return (
     <div className="min-h-screen bg-muted py-10 px-4">
@@ -122,19 +198,41 @@ const SetupWizard = () => {
             <Server className="h-7 w-7 text-primary" />
           </div>
           <h1 className="font-heading text-3xl font-bold">Standalone Setup Wizard</h1>
-          <p className="text-muted-foreground mt-2">Connect this app to your own Supabase project in 3 steps.</p>
+          <p className="text-muted-foreground mt-2">Connect this app to your own Supabase project in a few clicks.</p>
         </div>
 
         {/* Stepper */}
-        <div className="flex items-center justify-center gap-2 mb-8">
+        <div className="flex items-center justify-center gap-2 mb-4">
           {[1, 2, 3, 4].map((n) => (
-            <div key={n} className="flex items-center">
-              <div className={`h-8 w-8 rounded-full flex items-center justify-center text-sm font-semibold ${step >= n ? "bg-primary text-primary-foreground" : "bg-card border text-muted-foreground"}`}>
+            <button
+              key={n}
+              onClick={() => goStep(n)}
+              className="flex items-center"
+              aria-label={`Go to step ${n}`}
+            >
+              <div className={`h-8 w-8 rounded-full flex items-center justify-center text-sm font-semibold transition ${step >= n ? "bg-primary text-primary-foreground" : "bg-card border text-muted-foreground hover:border-primary"}`}>
                 {step > n ? <CheckCircle2 className="h-4 w-4" /> : n}
               </div>
               {n < 4 && <div className={`h-0.5 w-8 sm:w-16 ${step > n ? "bg-primary" : "bg-border"}`} />}
-            </div>
+            </button>
           ))}
+        </div>
+
+        {/* Quick actions */}
+        <div className="flex flex-wrap items-center justify-center gap-2 mb-6">
+          <Button variant="outline" size="sm" onClick={handleExportConfig}>
+            <FileDown className="h-4 w-4 mr-1" /> Export config
+          </Button>
+          <Button variant="outline" size="sm" onClick={handleImportClick}>
+            <Upload className="h-4 w-4 mr-1" /> Import config
+          </Button>
+          <input
+            ref={importInputRef}
+            type="file"
+            accept="application/json,.json"
+            className="hidden"
+            onChange={(e) => { const f = e.target.files?.[0]; if (f) handleImportFile(f); e.target.value = ""; }}
+          />
         </div>
 
         {/* Step 1 */}
@@ -148,13 +246,39 @@ const SetupWizard = () => {
             </p>
             <div>
               <Label>Supabase Project URL *</Label>
-              <Input value={supabaseUrl} onChange={e => setSupabaseUrl(e.target.value)} placeholder="https://your-project.supabase.co" />
+              <Input value={supabaseUrl} onChange={e => { setSupabaseUrl(e.target.value); setPingStatus(null); }} placeholder="https://your-project.supabase.co" />
             </div>
             <div>
               <Label>Anon (public) Key *</Label>
-              <Textarea value={supabaseAnonKey} onChange={e => setSupabaseAnonKey(e.target.value)} rows={3} placeholder="eyJhbGciOi..." className="font-mono text-xs" />
+              <div className="relative">
+                <Textarea
+                  value={supabaseAnonKey}
+                  onChange={e => { setSupabaseAnonKey(e.target.value); setPingStatus(null); }}
+                  rows={3}
+                  placeholder="eyJhbGciOi..."
+                  className={`font-mono text-xs pr-9 ${showAnon ? "" : "[-webkit-text-security:disc] [text-security:disc]"}`}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowAnon(s => !s)}
+                  className="absolute top-2 right-2 text-muted-foreground hover:text-foreground"
+                  aria-label="Toggle visibility"
+                >
+                  {showAnon ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </button>
+              </div>
             </div>
+
+            {pingStatus && (
+              <div className={`text-xs rounded-md p-2 ${pingStatus.ok ? "bg-primary/10 text-primary border border-primary/20" : "bg-destructive/10 text-destructive border border-destructive/20"}`}>
+                {pingStatus.message}
+              </div>
+            )}
+
             <div className="flex gap-2 justify-end">
+              <Button variant="outline" onClick={handlePing} disabled={pinging || !supabaseUrl || !supabaseAnonKey}>
+                {pinging ? <><Loader2 className="h-4 w-4 mr-1 animate-spin" /> Testing...</> : <><ShieldCheck className="h-4 w-4 mr-1" /> Test connection</>}
+              </Button>
               <Button onClick={handleSaveSupabase} className="bg-primary text-primary-foreground">Save & Continue →</Button>
             </div>
           </div>
@@ -164,102 +288,138 @@ const SetupWizard = () => {
         {step === 2 && (
           <div className="bg-card rounded-lg border p-6 space-y-5">
             <h2 className="font-heading text-xl font-semibold flex items-center gap-2">
-              <RefreshCw className="h-5 w-5 text-primary" /> Step 2: Run Database Migration
+              <RefreshCw className="h-5 w-5 text-primary" /> Step 2: Database Migration
             </h2>
             <p className="text-sm text-muted-foreground">
-              Creates all tables (jobs, applications, contact submissions, admin settings) and Row-Level Security policies.
-              Use the <strong>one-time bootstrap</strong> below to enable one-click migrations forever after.
+              Creates all tables (jobs, applications, contact submissions, admin settings, bank accounts, invoice template) and Row-Level Security policies. The migration is idempotent — safe to re-run.
             </p>
 
-            {/* Bootstrap (one time) */}
-            <div className="border-2 border-primary/30 bg-primary/5 rounded-md p-4 space-y-3">
-              <div className="flex items-start gap-3">
-                <div className="h-8 w-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center font-bold text-sm shrink-0">1</div>
-                <div className="flex-1">
-                  <p className="font-semibold text-sm">One-time bootstrap (30 seconds, only once per Supabase project)</p>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Installs a tiny <code className="bg-muted px-1 rounded">exec_sql</code> RPC so this wizard (and future schema updates) can run with one click — no more dashboard copy-paste.
-                  </p>
-                  <ol className="text-xs text-muted-foreground space-y-1 list-decimal pl-4 mt-2">
-                    <li>Click <strong>Copy bootstrap SQL</strong> below</li>
-                    <li>Open Supabase → <strong>SQL Editor</strong> → <strong>New query</strong> → paste → <strong>Run</strong></li>
-                    <li>Come back here and click <strong>Test connection</strong></li>
-                  </ol>
-                  <div className="flex flex-wrap gap-2 pt-3">
-                    <Button variant="outline" size="sm" onClick={handleCopyBootstrap}>
-                      <Copy className="h-4 w-4 mr-1" /> Copy bootstrap SQL
-                    </Button>
-                    <Button variant="outline" size="sm" onClick={handleDownloadBootstrap}>
-                      <Download className="h-4 w-4 mr-1" /> Download
-                    </Button>
-                  </div>
-                </div>
+            {/* Live schema status */}
+            <div className={`rounded-md p-3 border flex items-start gap-3 ${allSchemaOk ? "bg-primary/10 border-primary/20" : "bg-muted border-border"}`}>
+              <div className="mt-0.5">
+                {checkingSchema
+                  ? <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                  : allSchemaOk
+                    ? <CheckCircle2 className="h-5 w-5 text-primary" />
+                    : <AlertCircle className="h-5 w-5 text-muted-foreground" />}
               </div>
-            </div>
-
-            {/* Auto-run */}
-            <div className="border-2 border-accent/30 bg-accent/5 rounded-md p-4 space-y-3">
-              <div className="flex items-start gap-3">
-                <div className="h-8 w-8 rounded-full bg-accent text-accent-foreground flex items-center justify-center font-bold text-sm shrink-0">2</div>
-                <div className="flex-1 space-y-3">
-                  <p className="font-semibold text-sm flex items-center gap-2">
-                    <Zap className="h-4 w-4" /> One-click auto-run
-                  </p>
-                  <div>
-                    <Label className="text-xs">Service Role Key (in-memory only — never stored)</Label>
-                    <Input
-                      type="password"
-                      value={serviceRoleKey}
-                      onChange={e => setServiceRoleKey(e.target.value)}
-                      placeholder="eyJhbGciOi..."
-                      className="font-mono text-xs"
-                    />
-                    <p className="text-[10px] text-muted-foreground mt-1">
-                      Find it in Supabase → <strong>Project Settings → API → service_role</strong> (secret).
-                    </p>
-                  </div>
-                  <div className="flex flex-wrap gap-2">
-                    <Button variant="outline" size="sm" onClick={handleTestRpc} disabled={testingRpc || !serviceRoleKey}>
-                      {testingRpc ? "Testing..." : "Test connection"}
-                    </Button>
-                    <Button onClick={handleRunMigration} disabled={migrating || !serviceRoleKey} className="bg-primary text-primary-foreground">
-                      <Zap className="h-4 w-4 mr-1" />
-                      {migrating ? "Running migration..." : "Auto-Run Migration"}
-                    </Button>
-                  </div>
-                  {rpcStatus && (
-                    <div className={`text-xs rounded-md p-2 ${rpcStatus.installed ? "bg-primary/10 text-primary border border-primary/20" : "bg-destructive/10 text-destructive border border-destructive/20"}`}>
-                      {rpcStatus.message}
-                    </div>
-                  )}
-                  {migrationStatus && (
-                    <div className={`text-sm rounded-md p-3 ${migrationStatus.ok ? "bg-primary/10 text-primary border border-primary/20" : "bg-destructive/10 text-destructive border border-destructive/20"}`}>
-                      {migrationStatus.message}
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-
-            {/* Manual fallback */}
-            <details className="bg-muted rounded-md p-4">
-              <summary className="text-sm font-medium cursor-pointer flex items-center gap-2">
-                <AlertCircle className="h-4 w-4" /> Prefer to run manually? (fallback)
-              </summary>
-              <div className="pt-3 space-y-2">
-                <p className="text-xs text-muted-foreground">
-                  Skip the bootstrap. Just paste the full schema directly into Supabase SQL Editor.
+              <div className="flex-1 text-sm">
+                <p className="font-semibold">
+                  {checkingSchema ? "Checking schema..." : allSchemaOk ? "Schema is installed" : "Schema not detected"}
                 </p>
-                <div className="flex gap-2">
-                  <Button variant="outline" size="sm" onClick={handleDownloadSql}><Download className="h-4 w-4 mr-1" /> Download schema</Button>
-                  <Button variant="outline" size="sm" onClick={handleCopySql}><Copy className="h-4 w-4 mr-1" /> Copy schema</Button>
-                </div>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  {schemaCheck?.message || "We'll auto-check the moment you load this step."}
+                </p>
               </div>
-            </details>
+              <Button variant="ghost" size="sm" onClick={runSchemaCheck} disabled={checkingSchema}>
+                <RefreshCw className={`h-4 w-4 ${checkingSchema ? "animate-spin" : ""}`} />
+              </Button>
+            </div>
+
+            {!allSchemaOk && (
+              <>
+                {/* Bootstrap */}
+                <div className="border-2 border-primary/30 bg-primary/5 rounded-md p-4 space-y-3">
+                  <div className="flex items-start gap-3">
+                    <div className="h-8 w-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center font-bold text-sm shrink-0">1</div>
+                    <div className="flex-1">
+                      <p className="font-semibold text-sm">One-time bootstrap (~30 seconds, only once per Supabase project)</p>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Installs a tiny <code className="bg-muted px-1 rounded">exec_sql</code> RPC so this wizard (and future schema updates) can run with one click — no more dashboard copy-paste.
+                      </p>
+                      <ol className="text-xs text-muted-foreground space-y-1 list-decimal pl-4 mt-2">
+                        <li>Click <strong>Copy bootstrap SQL</strong></li>
+                        <li>Open Supabase → <strong>SQL Editor</strong> → <strong>New query</strong> → paste → <strong>Run</strong></li>
+                        <li>Come back, paste your service-role key below, and click <strong>Test connection</strong></li>
+                      </ol>
+                      <div className="flex flex-wrap gap-2 pt-3">
+                        <Button variant="outline" size="sm" onClick={() => copyText(bootstrapSql, "Bootstrap SQL")}>
+                          <Copy className="h-4 w-4 mr-1" /> Copy bootstrap SQL
+                        </Button>
+                        <Button variant="outline" size="sm" onClick={handleDownloadBootstrap}>
+                          <Download className="h-4 w-4 mr-1" /> Download
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Auto-run */}
+                <div className="border-2 border-accent/30 bg-accent/5 rounded-md p-4 space-y-3">
+                  <div className="flex items-start gap-3">
+                    <div className="h-8 w-8 rounded-full bg-accent text-accent-foreground flex items-center justify-center font-bold text-sm shrink-0">2</div>
+                    <div className="flex-1 space-y-3">
+                      <p className="font-semibold text-sm flex items-center gap-2">
+                        <Zap className="h-4 w-4" /> One-click auto-run
+                      </p>
+                      <div>
+                        <Label className="text-xs">Service Role Key (in-memory only — never stored)</Label>
+                        <div className="relative">
+                          <Input
+                            type={showService ? "text" : "password"}
+                            value={serviceRoleKey}
+                            onChange={e => setServiceRoleKey(e.target.value)}
+                            placeholder="eyJhbGciOi..."
+                            className="font-mono text-xs pr-9"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setShowService(s => !s)}
+                            className="absolute top-1/2 -translate-y-1/2 right-2 text-muted-foreground hover:text-foreground"
+                            aria-label="Toggle visibility"
+                          >
+                            {showService ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                          </button>
+                        </div>
+                        <p className="text-[10px] text-muted-foreground mt-1">
+                          Find it in Supabase → <strong>Project Settings → API → service_role</strong> (secret). Never commit this key.
+                        </p>
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        <Button variant="outline" size="sm" onClick={handleTestRpc} disabled={testingRpc || !serviceRoleKey}>
+                          {testingRpc ? <><Loader2 className="h-4 w-4 mr-1 animate-spin" />Testing...</> : "Test connection"}
+                        </Button>
+                        <Button onClick={handleRunMigration} disabled={migrating || !serviceRoleKey} className="bg-primary text-primary-foreground">
+                          {migrating ? <><Loader2 className="h-4 w-4 mr-1 animate-spin" />Running...</> : <><Zap className="h-4 w-4 mr-1" />Auto-Run Migration</>}
+                        </Button>
+                      </div>
+                      {rpcStatus && (
+                        <div className={`text-xs rounded-md p-2 ${rpcStatus.installed ? "bg-primary/10 text-primary border border-primary/20" : "bg-destructive/10 text-destructive border border-destructive/20"}`}>
+                          {rpcStatus.message}
+                        </div>
+                      )}
+                      {migrationStatus && (
+                        <div className={`text-sm rounded-md p-3 ${migrationStatus.ok ? "bg-primary/10 text-primary border border-primary/20" : "bg-destructive/10 text-destructive border border-destructive/20"}`}>
+                          {migrationStatus.message}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Manual fallback */}
+                <details className="bg-muted rounded-md p-4">
+                  <summary className="text-sm font-medium cursor-pointer flex items-center gap-2">
+                    <AlertCircle className="h-4 w-4" /> Prefer to run manually? (fallback)
+                  </summary>
+                  <div className="pt-3 space-y-2">
+                    <p className="text-xs text-muted-foreground">
+                      Skip the bootstrap. Just paste the full schema directly into Supabase SQL Editor.
+                    </p>
+                    <div className="flex gap-2">
+                      <Button variant="outline" size="sm" onClick={handleDownloadSql}><Download className="h-4 w-4 mr-1" />Download schema</Button>
+                      <Button variant="outline" size="sm" onClick={() => copyText(migrationSql, "Schema SQL")}><Copy className="h-4 w-4 mr-1" />Copy schema</Button>
+                    </div>
+                  </div>
+                </details>
+              </>
+            )}
 
             <div className="flex gap-2 justify-between pt-4 border-t">
-              <Button variant="ghost" onClick={() => setStep(1)}>← Back</Button>
-              <Button onClick={() => setStep(3)} className="bg-primary text-primary-foreground">Continue to admin setup →</Button>
+              <Button variant="ghost" onClick={() => goStep(1)}>← Back</Button>
+              <Button onClick={() => goStep(3)} className="bg-primary text-primary-foreground">
+                {allSchemaOk ? "Continue →" : "Skip & continue →"}
+              </Button>
             </div>
           </div>
         )}
@@ -271,7 +431,7 @@ const SetupWizard = () => {
               <Users className="h-5 w-5 text-primary" /> Step 3: Admin Accounts
             </h2>
             <p className="text-sm text-muted-foreground">
-              Set the username/password pairs that can sign in to <code className="bg-muted px-1 rounded">/bestadmin</code>. Stored in your browser's localStorage — change anytime.
+              Set the username/password pairs that can sign in to <code className="bg-muted px-1 rounded">/bestadmin</code>. Stored locally in your browser — change anytime.
             </p>
 
             {admins.map((a, i) => (
@@ -297,13 +457,13 @@ const SetupWizard = () => {
             </Button>
 
             <div className="flex gap-2 justify-between pt-4 border-t">
-              <Button variant="ghost" onClick={() => setStep(2)}>← Back</Button>
+              <Button variant="ghost" onClick={() => goStep(2)}>← Back</Button>
               <Button onClick={handleSaveAdmins} className="bg-primary text-primary-foreground">Save & Finish →</Button>
             </div>
           </div>
         )}
 
-        {/* Step 4 - Done */}
+        {/* Step 4 */}
         {step === 4 && (
           <div className="bg-card rounded-lg border p-6 space-y-4 text-center">
             <CheckCircle2 className="h-14 w-14 text-primary mx-auto" />
@@ -311,12 +471,20 @@ const SetupWizard = () => {
             <p className="text-sm text-muted-foreground">
               Your standalone deployment is ready. Reload the app for the new Supabase connection to take effect, then sign in to the admin panel.
             </p>
-            <div className="flex gap-2 justify-center pt-2">
+            <div className="bg-muted rounded-md p-3 text-left text-xs space-y-1">
+              <p><strong>URL:</strong> <span className="font-mono break-all">{supabaseUrl || "—"}</span></p>
+              <p><strong>Admins:</strong> {admins.filter(a => a.username && a.password).map(a => a.username).join(", ") || "—"}</p>
+              <p><strong>Schema:</strong> {allSchemaOk ? "✓ verified" : "not verified — run migration if you haven't"}</p>
+            </div>
+            <div className="flex flex-wrap gap-2 justify-center pt-2">
               <Button onClick={() => window.location.reload()} className="bg-primary text-primary-foreground">
                 <RefreshCw className="h-4 w-4 mr-1" /> Reload App
               </Button>
               <Button variant="outline" onClick={() => navigate("/bestadmin")}>
                 <KeyRound className="h-4 w-4 mr-1" /> Go to Admin Login
+              </Button>
+              <Button variant="outline" onClick={handleExportConfig}>
+                <FileDown className="h-4 w-4 mr-1" /> Backup config
               </Button>
             </div>
           </div>
