@@ -92,6 +92,16 @@ export interface EmailTemplates {
   contactConfirmation: EmailTemplateFields;
 }
 
+// ---- CUSTOM EMAILS ----
+// Admin-created reusable email templates that can be sent manually
+// from any application. Each has a subject + standard friendly body fields.
+export interface CustomEmailTemplate {
+  id: string;
+  name: string;          // admin-facing label, e.g. "Interview Invite"
+  subject: string;       // supports {{variables}}
+  fields: EmailTemplateFields;
+}
+
 // ---- BANK ACCOUNTS (UK + flexible custom fields) ----
 export interface BankCustomField {
   id: string;
