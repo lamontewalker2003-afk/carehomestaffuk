@@ -435,9 +435,18 @@ function ApplicationsTab() {
             <option value="successful">Successful</option>
             <option value="rejected">Rejected</option>
           </select>
+          <Button
+            type="button"
+            variant={groupByEmail ? "default" : "outline"}
+            size="sm"
+            onClick={() => setGroupByEmail(g => !g)}
+            className={groupByEmail ? "bg-primary text-primary-foreground" : ""}
+          >
+            <Users className="h-4 w-4 mr-1" />
+            {groupByEmail ? "Grouped" : "Group by email"}
+          </Button>
         </div>
       </div>
-
 
 
       {selected ? (
