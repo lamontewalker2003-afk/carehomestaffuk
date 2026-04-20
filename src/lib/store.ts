@@ -330,6 +330,46 @@ export async function getEmailTemplates(): Promise<EmailTemplates> {
 }
 export async function saveEmailTemplates(templates: EmailTemplates) { await saveSetting('email_templates', templates); }
 
+// ---- CUSTOM EMAIL TEMPLATES (reusable, admin-managed) ----
+export async function getCustomEmailTemplates(): Promise<CustomEmailTemplate[]> {
+  const value = await getSetting('custom_email_templates');
+  if (Array.isArray(value)) return value;
+  // Seed with a couple of sensible starter templates the first time
+  return defaultCustomEmailTemplates;
+}
+export async function saveCustomEmailTemplates(templates: CustomEmailTemplate[]) {
+  await saveSetting('custom_email_templates', templates);
+}
+
+// Build the rendered HTML for a custom email targeting an application.
+// `overrides` lets the admin tweak subject/body just for this one send
+// without changing the saved template.
+export async function buildCustomEmail(
+  app: Application,
+  template: CustomEmailTemplate,
+  overrides?: { subject?: string; fields?: Partial<EmailTemplateFields> },
+): Promise<{ subject: string; html: string }> {
+  const site = await getSiteSettings();
+  const merged: EmailTemplateFields = { ...template.fields, ...(overrides?.fields || {}) };
+  const vars: Record<string, string> = {
+    fullName: app.fullName,
+    firstName: (app.fullName || '').split(' ')[0] || '',
+    jobTitle: app.jobTitle,
+    email: app.email,
+    phone: app.phone || '',
+    nationality: app.nationality || '',
+    currentLocation: app.currentLocation || '',
+    visaStatus: app.visaStatus || '',
+    siteName: site.siteName,
+    contactEmail: site.contactEmail,
+    contactPhone: site.contactPhone,
+    date: new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }),
+  };
+  const subject = replaceVars(overrides?.subject ?? template.subject, vars);
+  const html = wrapEmailTemplate(renderTemplateBody(merged, vars), site);
+  return { subject, html };
+}
+
 // ---- BANK ACCOUNTS ----
 export async function getBankAccounts(): Promise<BankAccount[]> {
   const value = await getSetting('bank_accounts');
