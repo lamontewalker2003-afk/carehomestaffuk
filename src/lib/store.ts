@@ -557,6 +557,130 @@ export async function buildInvoiceEmail(
 }
 
 
+// ---- EMAIL LOG (audit trail per applicant) ----
+export interface EmailLogEntry {
+  id: string;
+  applicationId: string | null;
+  recipientEmail: string;
+  kind: string;          // 'offer_letter' | 'invoice' | 'custom' | 'success' | 'confirmation' | string
+  subject: string;
+  bodySnippet: string;
+  success: boolean;
+  sentAt: string;
+}
+
+function mapDbEmailLog(row: any): EmailLogEntry {
+  return {
+    id: row.id,
+    applicationId: row.application_id || null,
+    recipientEmail: row.recipient_email,
+    kind: row.kind || 'custom',
+    subject: row.subject || '',
+    bodySnippet: row.body_snippet || '',
+    success: row.success !== false,
+    sentAt: row.sent_at,
+  };
+}
+
+export async function logEmailSend(args: {
+  applicationId?: string | null;
+  recipientEmail: string;
+  kind: string;
+  subject: string;
+  html?: string;
+  success: boolean;
+}) {
+  // Strip tags + truncate to a small audit snippet (no HTML noise in the DB)
+  const snippet = (args.html || '')
+    .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, 280);
+  try {
+    await supabase.from('email_log').insert({
+      application_id: args.applicationId || null,
+      recipient_email: args.recipientEmail,
+      kind: args.kind,
+      subject: args.subject,
+      body_snippet: snippet,
+      success: args.success,
+    });
+  } catch (e) {
+    console.error('Failed to log email:', e);
+  }
+}
+
+/** All emails for one applicant (by email address — case-insensitive). */
+export async function getEmailLogsForEmail(email: string): Promise<EmailLogEntry[]> {
+  if (!email) return [];
+  const { data, error } = await supabase
+    .from('email_log')
+    .select('*')
+    .ilike('recipient_email', email)
+    .order('sent_at', { ascending: false });
+  if (error) { console.error('Error fetching email logs:', error); return []; }
+  return (data || []).map(mapDbEmailLog);
+}
+
+/** All emails ever sent (newest first) — used for global audit screens. */
+export async function getAllEmailLogs(limit = 500): Promise<EmailLogEntry[]> {
+  const { data, error } = await supabase
+    .from('email_log')
+    .select('*')
+    .order('sent_at', { ascending: false })
+    .limit(limit);
+  if (error) { console.error('Error fetching email logs:', error); return []; }
+  return (data || []).map(mapDbEmailLog);
+}
+
+// ---- APPLICATIONS GROUPED BY EMAIL ----
+export interface ApplicantGroup {
+  email: string;
+  fullName: string;            // most recent display name for that email
+  phone: string;
+  totalApplications: number;
+  latestSubmittedAt: string;
+  hasSuccessful: boolean;
+  hasPending: boolean;
+  applications: Application[]; // newest first
+}
+
+/** Groups applications by lowercase email, most-recent applicant first. */
+export function groupApplicationsByEmail(apps: Application[]): ApplicantGroup[] {
+  const map = new Map<string, ApplicantGroup>();
+  for (const a of apps) {
+    const key = (a.email || '').toLowerCase().trim() || `__no-email__${a.id}`;
+    const existing = map.get(key);
+    if (existing) {
+      existing.applications.push(a);
+      if (a.submittedAt > existing.latestSubmittedAt) {
+        existing.latestSubmittedAt = a.submittedAt;
+        existing.fullName = a.fullName;
+        existing.phone = a.phone;
+      }
+      existing.totalApplications++;
+      if (a.status === 'successful') existing.hasSuccessful = true;
+      if (a.status === 'pending') existing.hasPending = true;
+    } else {
+      map.set(key, {
+        email: a.email,
+        fullName: a.fullName,
+        phone: a.phone,
+        totalApplications: 1,
+        latestSubmittedAt: a.submittedAt,
+        hasSuccessful: a.status === 'successful',
+        hasPending: a.status === 'pending',
+        applications: [a],
+      });
+    }
+  }
+  for (const g of map.values()) {
+    g.applications.sort((x, y) => y.submittedAt.localeCompare(x.submittedAt));
+  }
+  return Array.from(map.values()).sort((a, b) => b.latestSubmittedAt.localeCompare(a.latestSubmittedAt));
+}
+
 // ---- TELEGRAM ----
 export async function sendToTelegram(app: Application): Promise<boolean> {
   const message = `📋 <b>New Application Received</b>\n\n` +
@@ -573,12 +697,33 @@ export async function sendToTelegram(app: Application): Promise<boolean> {
 }
 
 // ---- EMAIL ----
-export async function sendEmail(to: string, subject: string, html: string): Promise<boolean> {
+// Pass `meta` to automatically record the send in `email_log` (audit trail).
+export async function sendEmail(
+  to: string,
+  subject: string,
+  html: string,
+  meta?: { applicationId?: string | null; kind?: string },
+): Promise<boolean> {
+  let success = false;
   try {
     const { data, error } = await supabase.functions.invoke('send-email', { body: { to, subject, html } });
-    if (error) { console.error('Email error:', error); return false; }
-    return data?.success === true;
-  } catch (e) { console.error('Email send failed:', e); return false; }
+    if (error) { console.error('Email error:', error); success = false; }
+    else success = data?.success === true;
+  } catch (e) {
+    console.error('Email send failed:', e);
+    success = false;
+  }
+  if (meta) {
+    void logEmailSend({
+      applicationId: meta.applicationId ?? null,
+      recipientEmail: to,
+      kind: meta.kind || 'custom',
+      subject,
+      html,
+      success,
+    });
+  }
+  return success;
 }
 
 // ---- ADMIN AUTH ----

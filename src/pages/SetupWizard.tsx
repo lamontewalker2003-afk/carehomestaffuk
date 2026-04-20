@@ -19,11 +19,16 @@ import {
   importConfig,
   getWizardStep,
   saveWizardStep,
+  CURRENT_SCHEMA_VERSION,
+  checkSchemaUpgrade,
+  applyPendingSchemaUpdates,
   type AdminCredential,
+  type SchemaUpgradeStatus,
 } from "@/lib/runtime-config";
 import {
   Database, Download, KeyRound, Server, Users, RefreshCw, CheckCircle2,
   AlertCircle, Copy, Zap, Upload, FileDown, Loader2, ShieldCheck, Eye, EyeOff,
+  ArrowUpCircle,
 } from "lucide-react";
 
 type Status = { ok: boolean; message: string } | null;
@@ -50,6 +55,10 @@ const SetupWizard = () => {
   const [rpcStatus, setRpcStatus] = useState<{ installed: boolean; message: string } | null>(null);
   const [schemaCheck, setSchemaCheck] = useState<{ installed: boolean; missing: string[]; message: string } | null>(null);
   const [checkingSchema, setCheckingSchema] = useState(false);
+  // Schema version (upgrade detection)
+  const [versionStatus, setVersionStatus] = useState<SchemaUpgradeStatus | null>(null);
+  const [checkingVersion, setCheckingVersion] = useState(false);
+  const [upgrading, setUpgrading] = useState(false);
 
   // Step 3
   const [admins, setAdmins] = useState<AdminCredential[]>([{ username: "admin", password: "" }]);
@@ -108,6 +117,31 @@ const SetupWizard = () => {
     const r = await checkSchemaInstalled(supabaseUrl, supabaseAnonKey);
     setSchemaCheck(r);
     setCheckingSchema(false);
+    // Once tables exist, also detect schema version drift
+    if (r.installed) void runVersionCheck();
+  };
+
+  const runVersionCheck = async () => {
+    setCheckingVersion(true);
+    const v = await checkSchemaUpgrade(supabaseUrl, supabaseAnonKey);
+    setVersionStatus(v);
+    setCheckingVersion(false);
+  };
+
+  const handleApplyUpdates = async () => {
+    if (!serviceRoleKey) {
+      toast({ title: "Paste your service-role key first", variant: "destructive" });
+      return;
+    }
+    setUpgrading(true);
+    const r = await applyPendingSchemaUpdates(supabaseUrl, serviceRoleKey);
+    setUpgrading(false);
+    if (r.ok) {
+      toast({ title: "Schema updated to v" + CURRENT_SCHEMA_VERSION });
+      await runSchemaCheck();
+    } else {
+      toast({ title: "Update failed", description: r.message, variant: "destructive" });
+    }
   };
 
   const handleRunMigration = async () => {
@@ -316,6 +350,35 @@ const SetupWizard = () => {
               </Button>
             </div>
 
+            {/* Schema version / pending updates */}
+            {allSchemaOk && (
+              <div className={`rounded-md p-3 border flex items-start gap-3 ${versionStatus?.upToDate ? "bg-primary/10 border-primary/20" : versionStatus && !versionStatus.upToDate ? "bg-amber-50 border-amber-200" : "bg-muted border-border"}`}>
+                <div className="mt-0.5">
+                  {checkingVersion
+                    ? <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                    : versionStatus?.upToDate
+                      ? <CheckCircle2 className="h-5 w-5 text-primary" />
+                      : <ArrowUpCircle className="h-5 w-5 text-amber-600" />}
+                </div>
+                <div className="flex-1 text-sm">
+                  <p className="font-semibold">
+                    {checkingVersion ? "Checking schema version..." : versionStatus?.upToDate ? `Schema is up to date (v${versionStatus.installed})` : versionStatus ? `Update available — installed v${versionStatus.installed ?? '?'} → current v${versionStatus.current}` : "Detecting schema version…"}
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-0.5">{versionStatus?.message || `Bundled app version: v${CURRENT_SCHEMA_VERSION}`}</p>
+                  {versionStatus && !versionStatus.upToDate && (
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      <Button size="sm" onClick={handleApplyUpdates} disabled={upgrading || !serviceRoleKey} className="bg-primary text-primary-foreground">
+                        {upgrading ? <><Loader2 className="h-4 w-4 mr-1 animate-spin" />Applying…</> : <><ArrowUpCircle className="h-4 w-4 mr-1" />Apply pending updates</>}
+                      </Button>
+                      {!serviceRoleKey && <span className="text-xs text-muted-foreground self-center">(paste service-role key below first)</span>}
+                    </div>
+                  )}
+                </div>
+                <Button variant="ghost" size="sm" onClick={runVersionCheck} disabled={checkingVersion}>
+                  <RefreshCw className={`h-4 w-4 ${checkingVersion ? "animate-spin" : ""}`} />
+                </Button>
+              </div>
+            )}
             {!allSchemaOk && (
               <>
                 {/* Bootstrap */}
