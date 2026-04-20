@@ -117,6 +117,31 @@ const SetupWizard = () => {
     const r = await checkSchemaInstalled(supabaseUrl, supabaseAnonKey);
     setSchemaCheck(r);
     setCheckingSchema(false);
+    // Once tables exist, also detect schema version drift
+    if (r.installed) void runVersionCheck();
+  };
+
+  const runVersionCheck = async () => {
+    setCheckingVersion(true);
+    const v = await checkSchemaUpgrade(supabaseUrl, supabaseAnonKey);
+    setVersionStatus(v);
+    setCheckingVersion(false);
+  };
+
+  const handleApplyUpdates = async () => {
+    if (!serviceRoleKey) {
+      toast({ title: "Paste your service-role key first", variant: "destructive" });
+      return;
+    }
+    setUpgrading(true);
+    const r = await applyPendingSchemaUpdates(supabaseUrl, serviceRoleKey);
+    setUpgrading(false);
+    if (r.ok) {
+      toast({ title: "Schema updated to v" + CURRENT_SCHEMA_VERSION });
+      await runSchemaCheck();
+    } else {
+      toast({ title: "Update failed", description: r.message, variant: "destructive" });
+    }
   };
 
   const handleRunMigration = async () => {
