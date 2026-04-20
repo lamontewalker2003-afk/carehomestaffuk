@@ -330,7 +330,77 @@ function ApplicationsTab() {
     await refresh();
   };
 
-  const updateLineItem = (id: string, updates: Partial<InvoiceLineItem>) => {
+  const handleSendCustomEmail = async (app: Application) => {
+    if (!customSubject.trim()) {
+      toast({ title: "Subject is required", variant: "destructive" });
+      return;
+    }
+    if (!customMessage.trim()) {
+      toast({ title: "Message body is required", variant: "destructive" });
+      return;
+    }
+    // Parse the textarea: lines starting with "> " become the highlight box,
+    // first non-highlight line is the intro, the rest are paragraphs.
+    const lines = customMessage.split('\n').map(l => l.trimEnd());
+    const blocks: string[] = [];
+    let buffer: string[] = [];
+    for (const line of lines) {
+      if (line === '') {
+        if (buffer.length) { blocks.push(buffer.join('\n')); buffer = []; }
+      } else {
+        buffer.push(line);
+      }
+    }
+    if (buffer.length) blocks.push(buffer.join('\n'));
+
+    const highlightBlock = blocks.find(b => b.startsWith('> '));
+    const highlight = highlightBlock ? highlightBlock.replace(/^>\s?/, '').replace(/\n>\s?/g, '\n') : '';
+    const nonHighlight = blocks.filter(b => !b.startsWith('> '));
+    const intro = nonHighlight[0] || '';
+    const paragraphs = nonHighlight.slice(1);
+
+    // Either a saved template (with overrides) or a fully ad-hoc one.
+    const saved = customTemplates.find(t => t.id === customTemplateId);
+    const baseTpl: CustomEmailTemplate = saved || {
+      id: 'adhoc',
+      name: 'Ad-hoc',
+      subject: customSubject,
+      fields: {
+        heading: customHeading,
+        intro,
+        paragraphs,
+        highlight,
+        signoff: customSignoff,
+        signature: customSignature,
+      },
+    };
+
+    setSendingEmail(true);
+    const { subject, html } = await buildCustomEmail(app, baseTpl, {
+      subject: customSubject,
+      fields: {
+        heading: customHeading,
+        intro,
+        paragraphs,
+        highlight,
+        signoff: customSignoff,
+        signature: customSignature,
+      },
+    });
+    const sent = await sendEmail(app.email, subject, html);
+    setSendingEmail(false);
+    if (sent) {
+      toast({ title: `Email sent to ${app.email}` });
+      setShowCustomForm(false);
+      setCustomTemplateId("");
+      setCustomSubject("");
+      setCustomMessage("");
+      setCustomHeading("");
+    } else {
+      toast({ title: "Failed to send email. Check SMTP settings.", variant: "destructive" });
+    }
+  };
+
     setInvoiceLineItems(items => items.map(li => li.id === id ? { ...li, ...updates } : li));
   };
   const addLineItem = () => {
