@@ -734,6 +734,163 @@ function ApplicationsTab() {
   );
 }
 
+// ---- Applicants grouped by email ----
+function GroupedApplicationsView({
+  groups, expanded, toggle, onSelect, onDelete,
+}: {
+  groups: ApplicantGroup[];
+  expanded: Set<string>;
+  toggle: (email: string) => void;
+  onSelect: (app: Application) => void;
+  onDelete: (id: string) => void;
+}) {
+  if (groups.length === 0) return null;
+  return (
+    <div className="space-y-3">
+      <p className="text-xs text-muted-foreground">
+        {groups.length} unique applicant{groups.length === 1 ? '' : 's'} · {groups.reduce((s, g) => s + g.totalApplications, 0)} total application{groups.reduce((s, g) => s + g.totalApplications, 0) === 1 ? '' : 's'}
+      </p>
+      {groups.map(g => {
+        const isOpen = expanded.has(g.email);
+        return (
+          <div key={g.email} className="bg-card border rounded-lg overflow-hidden">
+            <button
+              type="button"
+              onClick={() => toggle(g.email)}
+              className="w-full flex items-center gap-3 p-4 text-left hover:bg-muted/40 transition-colors"
+            >
+              <div className="h-10 w-10 rounded-full bg-primary/10 text-primary flex items-center justify-center font-semibold shrink-0">
+                {(g.fullName || g.email || '?').charAt(0).toUpperCase()}
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <p className="font-semibold truncate">{g.fullName || '(unnamed)'}</p>
+                  <Badge variant="secondary" className="text-[10px] h-5">
+                    {g.totalApplications} app{g.totalApplications === 1 ? '' : 's'}
+                  </Badge>
+                  {g.hasSuccessful && <Badge className="bg-green-100 text-green-800 border-green-200 text-[10px] h-5">✓ Successful</Badge>}
+                </div>
+                <p className="text-xs text-muted-foreground truncate">{g.email}{g.phone ? ` · ${g.phone}` : ''}</p>
+                <p className="text-[11px] text-muted-foreground mt-0.5">Latest: {new Date(g.latestSubmittedAt).toLocaleDateString()}</p>
+              </div>
+              {isOpen ? <ChevronDown className="h-4 w-4 text-muted-foreground" /> : <ChevronRight className="h-4 w-4 text-muted-foreground" />}
+            </button>
+            {isOpen && (
+              <div className="border-t bg-muted/20">
+                <table className="w-full text-sm">
+                  <thead className="bg-muted/50">
+                    <tr>
+                      <th className="text-left p-2 px-4 font-medium text-xs">Position</th>
+                      <th className="text-left p-2 font-medium text-xs">Status</th>
+                      <th className="text-left p-2 font-medium text-xs hidden sm:table-cell">Submitted</th>
+                      <th className="p-2"></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {g.applications.map(a => (
+                      <tr key={a.id} className="border-t border-border/60">
+                        <td className="p-2 px-4">{a.jobTitle}</td>
+                        <td className="p-2"><StatusBadge status={a.status} /></td>
+                        <td className="p-2 hidden sm:table-cell text-xs text-muted-foreground">{new Date(a.submittedAt).toLocaleString()}</td>
+                        <td className="p-2 text-right">
+                          <div className="flex items-center justify-end gap-1">
+                            <Button variant="ghost" size="sm" onClick={() => onSelect(a)}><Eye className="h-4 w-4" /></Button>
+                            <Button variant="ghost" size="sm" onClick={() => onDelete(a.id)} className="text-destructive hover:text-destructive"><Trash2 className="h-4 w-4" /></Button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+// ---- Email send history (audit trail per applicant) ----
+function kindLabel(kind: string): { label: string; className: string } {
+  const map: Record<string, { label: string; className: string }> = {
+    offer_letter: { label: "Offer letter", className: "bg-blue-100 text-blue-800 border-blue-200" },
+    invoice: { label: "Invoice", className: "bg-amber-100 text-amber-800 border-amber-200" },
+    custom: { label: "Custom", className: "bg-violet-100 text-violet-800 border-violet-200" },
+    success: { label: "Success notice", className: "bg-green-100 text-green-800 border-green-200" },
+    confirmation: { label: "Confirmation", className: "bg-slate-100 text-slate-800 border-slate-200" },
+  };
+  return map[kind] || { label: kind, className: "bg-muted text-foreground border-border" };
+}
+
+function EmailHistoryPanel({ email }: { email: string }) {
+  const [logs, setLogs] = useState<EmailLogEntry[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+
+  const refresh = async () => {
+    setLoading(true);
+    setLogs(await getEmailLogsForEmail(email));
+    setLoading(false);
+  };
+
+  useEffect(() => { void refresh(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [email]);
+
+  return (
+    <div className="bg-muted rounded-lg p-4 space-y-3">
+      <div className="flex items-center justify-between">
+        <h4 className="font-heading font-semibold text-sm flex items-center gap-2">
+          <History className="h-4 w-4 text-primary" /> Email History
+          <Badge variant="secondary" className="text-[10px] h-5">{logs.length}</Badge>
+        </h4>
+        <Button variant="ghost" size="sm" onClick={refresh} disabled={loading}>
+          <RefreshIcon className="h-4 w-4" />
+        </Button>
+      </div>
+      {loading ? (
+        <p className="text-xs text-muted-foreground">Loading…</p>
+      ) : logs.length === 0 ? (
+        <p className="text-xs text-muted-foreground">No emails have been sent to {email} yet.</p>
+      ) : (
+        <ul className="space-y-2">
+          {logs.map(l => {
+            const k = kindLabel(l.kind);
+            const open = expandedId === l.id;
+            return (
+              <li key={l.id} className="bg-card border rounded-md">
+                <button
+                  type="button"
+                  onClick={() => setExpandedId(open ? null : l.id)}
+                  className="w-full flex items-start gap-3 p-3 text-left hover:bg-muted/30"
+                >
+                  <span className={`inline-flex shrink-0 items-center px-2 py-0.5 rounded-full text-[10px] font-medium border ${k.className}`}>{k.label}</span>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium truncate">{l.subject || '(no subject)'}</p>
+                    <p className="text-[11px] text-muted-foreground">
+                      {new Date(l.sentAt).toLocaleString()} · {l.success ? <span className="text-green-700">✓ delivered</span> : <span className="text-destructive">✗ failed</span>}
+                    </p>
+                  </div>
+                  {open ? <ChevronDown className="h-4 w-4 text-muted-foreground" /> : <ChevronRight className="h-4 w-4 text-muted-foreground" />}
+                </button>
+                {open && l.bodySnippet && (
+                  <div className="border-t px-3 py-2 text-xs text-muted-foreground whitespace-pre-wrap leading-relaxed">
+                    {l.bodySnippet}
+                  </div>
+                )}
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+// Tiny shim so we don't collide with the lucide `RefreshCw` we may import elsewhere later.
+function RefreshIcon(props: any) {
+  return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><polyline points="23 4 23 10 17 10" /><polyline points="1 20 1 14 7 14" /><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" /></svg>;
+}
+
 function JobsTab() {
   const [jobs, setJobs] = useState<Job[]>([]);
   const [showForm, setShowForm] = useState(false);
