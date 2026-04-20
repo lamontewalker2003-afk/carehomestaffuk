@@ -203,12 +203,38 @@ function ApplicationsTab() {
   const [invoiceLineItems, setInvoiceLineItems] = useState<InvoiceLineItem[]>([]);
   const [invoiceBankId, setInvoiceBankId] = useState<string>("");
   const [invoiceNotes, setInvoiceNotes] = useState("");
+  // ---- Custom email state ----
+  const [customTemplates, setCustomTemplates] = useState<CustomEmailTemplate[]>([]);
+  const [showCustomForm, setShowCustomForm] = useState(false);
+  const [customTemplateId, setCustomTemplateId] = useState<string>("");
+  const [customSubject, setCustomSubject] = useState("");
+  const [customMessage, setCustomMessage] = useState(""); // free-form body, one paragraph per line
+  const [customHeading, setCustomHeading] = useState("");
+  const [customSignoff, setCustomSignoff] = useState("Kind regards,");
+  const [customSignature, setCustomSignature] = useState("");
 
   useEffect(() => {
     getApplications().then(setApps);
     getInvoiceTemplate().then(t => { setInvoiceTemplateState(t); setInvoiceLineItems(t.defaultLineItems); });
     getBankAccounts().then(b => { setBanks(b); const def = b.find(x => x.isDefault) || b[0]; if (def) setInvoiceBankId(def.id); });
+    getCustomEmailTemplates().then(setCustomTemplates);
   }, []);
+
+  // When admin picks a saved template, prefill the editable fields
+  const loadCustomTemplate = (id: string) => {
+    setCustomTemplateId(id);
+    const tpl = customTemplates.find(t => t.id === id);
+    if (!tpl) return;
+    setCustomSubject(tpl.subject);
+    setCustomHeading(tpl.fields.heading || "");
+    setCustomMessage([
+      tpl.fields.intro,
+      ...(tpl.fields.paragraphs || []),
+      ...(tpl.fields.highlight ? [`> ${tpl.fields.highlight}`] : []),
+    ].filter(Boolean).join('\n\n'));
+    setCustomSignoff(tpl.fields.signoff || "Kind regards,");
+    setCustomSignature(tpl.fields.signature || "");
+  };
 
   const refresh = async () => {
     const updated = await getApplications();
