@@ -55,6 +55,10 @@ const SetupWizard = () => {
   const [rpcStatus, setRpcStatus] = useState<{ installed: boolean; message: string } | null>(null);
   const [schemaCheck, setSchemaCheck] = useState<{ installed: boolean; missing: string[]; message: string } | null>(null);
   const [checkingSchema, setCheckingSchema] = useState(false);
+  // Schema version (upgrade detection)
+  const [versionStatus, setVersionStatus] = useState<SchemaUpgradeStatus | null>(null);
+  const [checkingVersion, setCheckingVersion] = useState(false);
+  const [upgrading, setUpgrading] = useState(false);
 
   // Step 3
   const [admins, setAdmins] = useState<AdminCredential[]>([{ username: "admin", password: "" }]);
