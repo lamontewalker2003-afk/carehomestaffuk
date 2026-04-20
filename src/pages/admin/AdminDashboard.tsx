@@ -33,7 +33,7 @@ import {
   MessageSquare, Copy as CopyIcon,
 } from "lucide-react";
 
-type Tab = "dashboard" | "applications" | "jobs" | "telegram" | "smtp" | "email-templates" | "seo" | "site-settings" | "banks" | "invoice-template";
+type Tab = "dashboard" | "applications" | "jobs" | "telegram" | "smtp" | "email-templates" | "custom-emails" | "seo" | "site-settings" | "banks" | "invoice-template";
 
 const AdminDashboard = () => {
   const navigate = useNavigate();
@@ -55,6 +55,7 @@ const AdminDashboard = () => {
     { id: "telegram" as Tab, label: "Telegram", icon: Send },
     { id: "smtp" as Tab, label: "SMTP / Email", icon: Mail },
     { id: "email-templates" as Tab, label: "Email Templates", icon: FileCheck },
+    { id: "custom-emails" as Tab, label: "Custom Emails", icon: MessageSquare },
     { id: "site-settings" as Tab, label: "Site Settings", icon: Settings },
     { id: "seo" as Tab, label: "SEO & Search", icon: Globe },
   ];
@@ -100,6 +101,7 @@ const AdminDashboard = () => {
           {tab === "telegram" && <TelegramTab />}
           {tab === "smtp" && <SMTPTab />}
           {tab === "email-templates" && <EmailTemplatesTab />}
+          {tab === "custom-emails" && <CustomEmailsTab />}
           {tab === "site-settings" && <SiteSettingsTab />}
           {tab === "seo" && <SEOTab />}
         </div>
