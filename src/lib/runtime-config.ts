@@ -230,6 +230,81 @@ export async function checkSchemaInstalled(
   }
 }
 
+// =====================================================================
+// SCHEMA VERSIONING
+// =====================================================================
+// Bump this constant + add a `schema_versions` row in the migration SQL
+// every time you ship a schema-changing release. The wizard auto-detects
+// the gap and offers a one-click "Apply pending updates" button.
+export const CURRENT_SCHEMA_VERSION = 2;
+
+/** Reads the highest applied version from the user's standalone DB. */
+export async function getInstalledSchemaVersion(
+  supabaseUrl: string,
+  anonKey: string,
+): Promise<{ version: number | null; supported: boolean; message: string }> {
+  if (!supabaseUrl || !anonKey) return { version: null, supported: false, message: "Missing URL or anon key." };
+  try {
+    const res = await fetch(
+      `${supabaseUrl.replace(/\/$/, "")}/rest/v1/schema_versions?select=version&order=version.desc&limit=1`,
+      { headers: { apikey: anonKey, Authorization: `Bearer ${anonKey}` } },
+    );
+    if (res.status === 404) {
+      return { version: null, supported: false, message: "schema_versions table not found — migration is outdated. Click 'Apply pending updates' to upgrade." };
+    }
+    if (!res.ok) return { version: null, supported: true, message: `Could not read version (${res.status}).` };
+    const rows = await res.json();
+    if (!Array.isArray(rows) || rows.length === 0) {
+      return { version: 0, supported: true, message: "No version recorded — treating as v0." };
+    }
+    const v = Number(rows[0]?.version) || 0;
+    return { version: v, supported: true, message: `Installed: v${v}` };
+  } catch (e: any) {
+    return { version: null, supported: false, message: `Network error: ${e?.message || e}` };
+  }
+}
+
+export interface SchemaUpgradeStatus {
+  installed: number | null;
+  current: number;
+  upToDate: boolean;
+  pending: number;       // how many versions behind
+  message: string;
+}
+
+export async function checkSchemaUpgrade(
+  supabaseUrl: string,
+  anonKey: string,
+): Promise<SchemaUpgradeStatus> {
+  const r = await getInstalledSchemaVersion(supabaseUrl, anonKey);
+  const installed = r.version;
+  const current = CURRENT_SCHEMA_VERSION;
+  if (installed === null) {
+    return { installed: null, current, upToDate: false, pending: current, message: r.message };
+  }
+  const pending = Math.max(0, current - installed);
+  return {
+    installed,
+    current,
+    upToDate: pending === 0,
+    pending,
+    message: pending === 0
+      ? `Schema is up to date (v${installed}).`
+      : `Schema is ${pending} version${pending === 1 ? '' : 's'} behind (installed v${installed}, current v${current}).`,
+  };
+}
+
+/** Re-runs the bundled standalone migration — safe because it's idempotent. */
+export async function applyPendingSchemaUpdates(
+  supabaseUrl: string,
+  serviceRoleKey: string,
+): Promise<{ ok: boolean; message: string; needsBootstrap?: boolean }> {
+  // The standalone migration is fully idempotent (CREATE TABLE IF NOT EXISTS,
+  // ADD COLUMN IF NOT EXISTS, INSERT ... ON CONFLICT DO NOTHING) so re-running
+  // it is the simplest robust upgrade path.
+  return runStandaloneMigration(supabaseUrl, serviceRoleKey);
+}
+
 /** Runs the consolidated standalone migration against the configured DB. */
 export async function runStandaloneMigration(
   supabaseUrl: string,
