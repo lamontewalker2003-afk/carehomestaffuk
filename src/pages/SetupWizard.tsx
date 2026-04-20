@@ -350,6 +350,35 @@ const SetupWizard = () => {
               </Button>
             </div>
 
+            {/* Schema version / pending updates */}
+            {allSchemaOk && (
+              <div className={`rounded-md p-3 border flex items-start gap-3 ${versionStatus?.upToDate ? "bg-primary/10 border-primary/20" : versionStatus && !versionStatus.upToDate ? "bg-amber-50 border-amber-200" : "bg-muted border-border"}`}>
+                <div className="mt-0.5">
+                  {checkingVersion
+                    ? <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                    : versionStatus?.upToDate
+                      ? <CheckCircle2 className="h-5 w-5 text-primary" />
+                      : <ArrowUpCircle className="h-5 w-5 text-amber-600" />}
+                </div>
+                <div className="flex-1 text-sm">
+                  <p className="font-semibold">
+                    {checkingVersion ? "Checking schema version..." : versionStatus?.upToDate ? `Schema is up to date (v${versionStatus.installed})` : versionStatus ? `Update available — installed v${versionStatus.installed ?? '?'} → current v${versionStatus.current}` : "Detecting schema version…"}
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-0.5">{versionStatus?.message || `Bundled app version: v${CURRENT_SCHEMA_VERSION}`}</p>
+                  {versionStatus && !versionStatus.upToDate && (
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      <Button size="sm" onClick={handleApplyUpdates} disabled={upgrading || !serviceRoleKey} className="bg-primary text-primary-foreground">
+                        {upgrading ? <><Loader2 className="h-4 w-4 mr-1 animate-spin" />Applying…</> : <><ArrowUpCircle className="h-4 w-4 mr-1" />Apply pending updates</>}
+                      </Button>
+                      {!serviceRoleKey && <span className="text-xs text-muted-foreground self-center">(paste service-role key below first)</span>}
+                    </div>
+                  )}
+                </div>
+                <Button variant="ghost" size="sm" onClick={runVersionCheck} disabled={checkingVersion}>
+                  <RefreshCw className={`h-4 w-4 ${checkingVersion ? "animate-spin" : ""}`} />
+                </Button>
+              </div>
+            )}
             {!allSchemaOk && (
               <>
                 {/* Bootstrap */}
