@@ -92,6 +92,16 @@ export interface EmailTemplates {
   contactConfirmation: EmailTemplateFields;
 }
 
+// ---- CUSTOM EMAILS ----
+// Admin-created reusable email templates that can be sent manually
+// from any application. Each has a subject + standard friendly body fields.
+export interface CustomEmailTemplate {
+  id: string;
+  name: string;          // admin-facing label, e.g. "Interview Invite"
+  subject: string;       // supports {{variables}}
+  fields: EmailTemplateFields;
+}
+
 // ---- BANK ACCOUNTS (UK + flexible custom fields) ----
 export interface BankCustomField {
   id: string;
@@ -319,6 +329,46 @@ export async function getEmailTemplates(): Promise<EmailTemplates> {
   };
 }
 export async function saveEmailTemplates(templates: EmailTemplates) { await saveSetting('email_templates', templates); }
+
+// ---- CUSTOM EMAIL TEMPLATES (reusable, admin-managed) ----
+export async function getCustomEmailTemplates(): Promise<CustomEmailTemplate[]> {
+  const value = await getSetting('custom_email_templates');
+  if (Array.isArray(value)) return value;
+  // Seed with a couple of sensible starter templates the first time
+  return defaultCustomEmailTemplates;
+}
+export async function saveCustomEmailTemplates(templates: CustomEmailTemplate[]) {
+  await saveSetting('custom_email_templates', templates);
+}
+
+// Build the rendered HTML for a custom email targeting an application.
+// `overrides` lets the admin tweak subject/body just for this one send
+// without changing the saved template.
+export async function buildCustomEmail(
+  app: Application,
+  template: CustomEmailTemplate,
+  overrides?: { subject?: string; fields?: Partial<EmailTemplateFields> },
+): Promise<{ subject: string; html: string }> {
+  const site = await getSiteSettings();
+  const merged: EmailTemplateFields = { ...template.fields, ...(overrides?.fields || {}) };
+  const vars: Record<string, string> = {
+    fullName: app.fullName,
+    firstName: (app.fullName || '').split(' ')[0] || '',
+    jobTitle: app.jobTitle,
+    email: app.email,
+    phone: app.phone || '',
+    nationality: app.nationality || '',
+    currentLocation: app.currentLocation || '',
+    visaStatus: app.visaStatus || '',
+    siteName: site.siteName,
+    contactEmail: site.contactEmail,
+    contactPhone: site.contactPhone,
+    date: new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }),
+  };
+  const subject = replaceVars(overrides?.subject ?? template.subject, vars);
+  const html = wrapEmailTemplate(renderTemplateBody(merged, vars), site);
+  return { subject, html };
+}
 
 // ---- BANK ACCOUNTS ----
 export async function getBankAccounts(): Promise<BankAccount[]> {
@@ -694,3 +744,52 @@ const defaultContactConfirmationTemplate: EmailTemplateFields = {
   signoff: 'Warm regards,',
   signature: 'The {{siteName}} Team',
 };
+
+// ---- DEFAULT CUSTOM EMAIL TEMPLATES (seed examples) ----
+const defaultCustomEmailTemplates: CustomEmailTemplate[] = [
+  {
+    id: 'tpl-interview-invite',
+    name: 'Interview Invitation',
+    subject: 'Interview invitation — {{jobTitle}} at {{siteName}}',
+    fields: {
+      heading: 'You\u2019re invited to an interview',
+      intro: 'Dear {{fullName}}, thank you for your application for the {{jobTitle}} position.',
+      paragraphs: [
+        'We were impressed with your application and would like to invite you to an interview with our recruitment team.',
+        'Please reply to this email with two or three time slots that suit you over the next 5 working days, and let us know whether you prefer a phone or video call.',
+        'A member of our team will then confirm the final time and share the meeting details.',
+      ],
+      highlight: 'Tip: have a copy of your CV and right-to-work documents ready during the call.',
+      signoff: 'Kind regards,',
+      signature: 'The {{siteName}} Recruitment Team',
+    },
+  },
+  {
+    id: 'tpl-document-request',
+    name: 'Document Request',
+    subject: 'Documents required for your {{jobTitle}} application',
+    fields: {
+      heading: 'A few documents to complete your file',
+      intro: 'Hello {{fullName}}, thanks again for applying for the {{jobTitle}} role.',
+      paragraphs: [
+        'To progress your application to the next stage we need a few supporting documents.',
+        'Please reply to this email and attach: a copy of your passport bio page, your highest qualification certificate, and the contact details of two professional references.',
+        'Once received we will complete our compliance checks and update you on next steps.',
+      ],
+      signoff: 'Many thanks,',
+      signature: 'The {{siteName}} Compliance Team',
+    },
+  },
+  {
+    id: 'tpl-custom-blank',
+    name: 'Blank Custom Message',
+    subject: 'A message from {{siteName}}',
+    fields: {
+      heading: '',
+      intro: 'Dear {{fullName}},',
+      paragraphs: ['Write your message here. You can use variables like {{jobTitle}}, {{siteName}} and {{date}}.'],
+      signoff: 'Kind regards,',
+      signature: 'The {{siteName}} Team',
+    },
+  },
+];

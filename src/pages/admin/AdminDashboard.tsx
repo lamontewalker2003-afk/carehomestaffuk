@@ -10,10 +10,12 @@ import {
   getBankAccounts, saveBankAccounts,
   getInvoiceTemplate, saveInvoiceTemplate, defaultInvoiceTemplate,
   buildInvoiceEmail, generateInvoiceNumber, markInvoiceSent,
+  getCustomEmailTemplates, saveCustomEmailTemplates, buildCustomEmail,
 } from "@/lib/store";
 import type {
   Application, Job, TelegramSettings, SEOSettings, SMTPSettings, SiteSettings,
   EmailTemplates, EmailTemplateFields, BankAccount, BankCustomField, InvoiceTemplate, InvoiceBlock, InvoiceLineItem,
+  CustomEmailTemplate,
 } from "@/lib/store";
 import { defaultSiteSettings } from "@/lib/store";
 import { supabase } from "@/integrations/supabase/client";
@@ -28,9 +30,10 @@ import {
   LayoutDashboard, FileText, Briefcase, Send, LogOut, Plus, Trash2, Eye,
   Pencil, X, PoundSterling, Search, Globe, Menu, Mail, Server, Settings,
   FileCheck, CheckCircle, XCircle, Clock, Award, Landmark, Receipt, Star,
+  MessageSquare, Copy as CopyIcon,
 } from "lucide-react";
 
-type Tab = "dashboard" | "applications" | "jobs" | "telegram" | "smtp" | "email-templates" | "seo" | "site-settings" | "banks" | "invoice-template";
+type Tab = "dashboard" | "applications" | "jobs" | "telegram" | "smtp" | "email-templates" | "custom-emails" | "seo" | "site-settings" | "banks" | "invoice-template";
 
 const AdminDashboard = () => {
   const navigate = useNavigate();
@@ -52,6 +55,7 @@ const AdminDashboard = () => {
     { id: "telegram" as Tab, label: "Telegram", icon: Send },
     { id: "smtp" as Tab, label: "SMTP / Email", icon: Mail },
     { id: "email-templates" as Tab, label: "Email Templates", icon: FileCheck },
+    { id: "custom-emails" as Tab, label: "Custom Emails", icon: MessageSquare },
     { id: "site-settings" as Tab, label: "Site Settings", icon: Settings },
     { id: "seo" as Tab, label: "SEO & Search", icon: Globe },
   ];
@@ -97,6 +101,7 @@ const AdminDashboard = () => {
           {tab === "telegram" && <TelegramTab />}
           {tab === "smtp" && <SMTPTab />}
           {tab === "email-templates" && <EmailTemplatesTab />}
+          {tab === "custom-emails" && <CustomEmailsTab />}
           {tab === "site-settings" && <SiteSettingsTab />}
           {tab === "seo" && <SEOTab />}
         </div>
@@ -198,12 +203,38 @@ function ApplicationsTab() {
   const [invoiceLineItems, setInvoiceLineItems] = useState<InvoiceLineItem[]>([]);
   const [invoiceBankId, setInvoiceBankId] = useState<string>("");
   const [invoiceNotes, setInvoiceNotes] = useState("");
+  // ---- Custom email state ----
+  const [customTemplates, setCustomTemplates] = useState<CustomEmailTemplate[]>([]);
+  const [showCustomForm, setShowCustomForm] = useState(false);
+  const [customTemplateId, setCustomTemplateId] = useState<string>("");
+  const [customSubject, setCustomSubject] = useState("");
+  const [customMessage, setCustomMessage] = useState(""); // free-form body, one paragraph per line
+  const [customHeading, setCustomHeading] = useState("");
+  const [customSignoff, setCustomSignoff] = useState("Kind regards,");
+  const [customSignature, setCustomSignature] = useState("");
 
   useEffect(() => {
     getApplications().then(setApps);
     getInvoiceTemplate().then(t => { setInvoiceTemplateState(t); setInvoiceLineItems(t.defaultLineItems); });
     getBankAccounts().then(b => { setBanks(b); const def = b.find(x => x.isDefault) || b[0]; if (def) setInvoiceBankId(def.id); });
+    getCustomEmailTemplates().then(setCustomTemplates);
   }, []);
+
+  // When admin picks a saved template, prefill the editable fields
+  const loadCustomTemplate = (id: string) => {
+    setCustomTemplateId(id);
+    const tpl = customTemplates.find(t => t.id === id);
+    if (!tpl) return;
+    setCustomSubject(tpl.subject);
+    setCustomHeading(tpl.fields.heading || "");
+    setCustomMessage([
+      tpl.fields.intro,
+      ...(tpl.fields.paragraphs || []),
+      ...(tpl.fields.highlight ? [`> ${tpl.fields.highlight}`] : []),
+    ].filter(Boolean).join('\n\n'));
+    setCustomSignoff(tpl.fields.signoff || "Kind regards,");
+    setCustomSignature(tpl.fields.signature || "");
+  };
 
   const refresh = async () => {
     const updated = await getApplications();
@@ -297,6 +328,77 @@ function ApplicationsTab() {
     setShowInvoiceForm(false);
     setInvoiceNotes("");
     await refresh();
+  };
+
+  const handleSendCustomEmail = async (app: Application) => {
+    if (!customSubject.trim()) {
+      toast({ title: "Subject is required", variant: "destructive" });
+      return;
+    }
+    if (!customMessage.trim()) {
+      toast({ title: "Message body is required", variant: "destructive" });
+      return;
+    }
+    // Parse the textarea: lines starting with "> " become the highlight box,
+    // first non-highlight line is the intro, the rest are paragraphs.
+    const lines = customMessage.split('\n').map(l => l.trimEnd());
+    const blocks: string[] = [];
+    let buffer: string[] = [];
+    for (const line of lines) {
+      if (line === '') {
+        if (buffer.length) { blocks.push(buffer.join('\n')); buffer = []; }
+      } else {
+        buffer.push(line);
+      }
+    }
+    if (buffer.length) blocks.push(buffer.join('\n'));
+
+    const highlightBlock = blocks.find(b => b.startsWith('> '));
+    const highlight = highlightBlock ? highlightBlock.replace(/^>\s?/, '').replace(/\n>\s?/g, '\n') : '';
+    const nonHighlight = blocks.filter(b => !b.startsWith('> '));
+    const intro = nonHighlight[0] || '';
+    const paragraphs = nonHighlight.slice(1);
+
+    // Either a saved template (with overrides) or a fully ad-hoc one.
+    const saved = customTemplates.find(t => t.id === customTemplateId);
+    const baseTpl: CustomEmailTemplate = saved || {
+      id: 'adhoc',
+      name: 'Ad-hoc',
+      subject: customSubject,
+      fields: {
+        heading: customHeading,
+        intro,
+        paragraphs,
+        highlight,
+        signoff: customSignoff,
+        signature: customSignature,
+      },
+    };
+
+    setSendingEmail(true);
+    const { subject, html } = await buildCustomEmail(app, baseTpl, {
+      subject: customSubject,
+      fields: {
+        heading: customHeading,
+        intro,
+        paragraphs,
+        highlight,
+        signoff: customSignoff,
+        signature: customSignature,
+      },
+    });
+    const sent = await sendEmail(app.email, subject, html);
+    setSendingEmail(false);
+    if (sent) {
+      toast({ title: `Email sent to ${app.email}` });
+      setShowCustomForm(false);
+      setCustomTemplateId("");
+      setCustomSubject("");
+      setCustomMessage("");
+      setCustomHeading("");
+    } else {
+      toast({ title: "Failed to send email. Check SMTP settings.", variant: "destructive" });
+    }
   };
 
   const updateLineItem = (id: string, updates: Partial<InvoiceLineItem>) => {
@@ -498,6 +600,76 @@ function ApplicationsTab() {
                 )}
               </div>
             )}
+
+            {/* Custom Email section — always available */}
+            <div className="bg-muted rounded-lg p-4 space-y-3">
+              <div className="flex items-center justify-between">
+                <h4 className="font-heading font-semibold text-sm flex items-center gap-2">
+                  <MessageSquare className="h-4 w-4 text-primary" /> Send Custom Email
+                </h4>
+                <span className="text-xs text-muted-foreground">{customTemplates.length} saved template{customTemplates.length === 1 ? '' : 's'}</span>
+              </div>
+              {!showCustomForm ? (
+                <Button size="sm" onClick={() => { setShowCustomForm(true); if (!customSignature && customTemplates[0]) setCustomSignature(customTemplates[0].fields.signature); }} className="bg-primary text-primary-foreground">
+                  <Mail className="h-4 w-4 mr-1" /> Compose Email
+                </Button>
+              ) : (
+                <div className="space-y-3">
+                  {customTemplates.length > 0 && (
+                    <div>
+                      <Label className="text-xs">Start from a saved template (optional)</Label>
+                      <select value={customTemplateId} onChange={e => loadCustomTemplate(e.target.value)}
+                        className="w-full h-10 rounded-md border border-input bg-background px-3 text-sm">
+                        <option value="">— Write a new message from scratch —</option>
+                        {customTemplates.map(t => (
+                          <option key={t.id} value={t.id}>{t.name}</option>
+                        ))}
+                      </select>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Manage saved templates in the <strong>Custom Emails</strong> tab.
+                      </p>
+                    </div>
+                  )}
+                  <div>
+                    <Label className="text-xs">Subject</Label>
+                    <Input value={customSubject} onChange={e => setCustomSubject(e.target.value)} placeholder="e.g. Interview invitation — {{jobTitle}}" />
+                  </div>
+                  <div>
+                    <Label className="text-xs">Heading <span className="text-muted-foreground font-normal">(optional, big H2 at top)</span></Label>
+                    <Input value={customHeading} onChange={e => setCustomHeading(e.target.value)} placeholder="e.g. You're invited to an interview" />
+                  </div>
+                  <div>
+                    <Label className="text-xs">Message</Label>
+                    <Textarea
+                      value={customMessage}
+                      onChange={e => setCustomMessage(e.target.value)}
+                      rows={10}
+                      placeholder={"Dear {{fullName}},\n\nWrite your message here. Separate paragraphs with a blank line.\n\n> Lines starting with '>' become a highlighted callout box.\n\nUse variables like {{jobTitle}}, {{siteName}}, {{date}}."}
+                      className="font-mono text-sm"
+                    />
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Variables: {'{{fullName}}, {{firstName}}, {{jobTitle}}, {{email}}, {{phone}}, {{nationality}}, {{currentLocation}}, {{visaStatus}}, {{siteName}}, {{date}}'} — separate paragraphs with a blank line — start a line with <code>&gt;</code> for a highlight box.
+                    </p>
+                  </div>
+                  <div className="grid sm:grid-cols-2 gap-3">
+                    <div>
+                      <Label className="text-xs">Sign-off</Label>
+                      <Input value={customSignoff} onChange={e => setCustomSignoff(e.target.value)} placeholder="Kind regards," />
+                    </div>
+                    <div>
+                      <Label className="text-xs">Signature</Label>
+                      <Input value={customSignature} onChange={e => setCustomSignature(e.target.value)} placeholder="The {{siteName}} Team" />
+                    </div>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button size="sm" onClick={() => handleSendCustomEmail(selected)} disabled={sendingEmail} className="bg-primary text-primary-foreground">
+                      {sendingEmail ? 'Sending...' : `Send to ${selected.email}`}
+                    </Button>
+                    <Button size="sm" variant="outline" onClick={() => { setShowCustomForm(false); setCustomTemplateId(""); setCustomSubject(""); setCustomMessage(""); setCustomHeading(""); }}>Cancel</Button>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       ) : filteredApps.length === 0 ? (
@@ -1400,6 +1572,202 @@ function InvoiceTemplateTab() {
           {saving ? "Saving..." : "Save Template"}
         </Button>
       </div>
+    </div>
+  );
+}
+
+// ----------------------------------------------------------------------
+// Custom Emails tab — manage reusable templates the admin can pick from
+// when sending an ad-hoc email to any application.
+// ----------------------------------------------------------------------
+function CustomEmailsTab() {
+  const [templates, setTemplates] = useState<CustomEmailTemplate[]>([]);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [showForm, setShowForm] = useState(false);
+  const [form, setForm] = useState<CustomEmailTemplate>(emptyTemplate());
+
+  useEffect(() => { getCustomEmailTemplates().then(setTemplates); }, []);
+
+  function emptyTemplate(): CustomEmailTemplate {
+    return {
+      id: `tpl-${Date.now()}`,
+      name: '',
+      subject: '',
+      fields: { heading: '', intro: '', paragraphs: [], highlight: '', signoff: 'Kind regards,', signature: 'The {{siteName}} Team' },
+    };
+  }
+
+  const startEdit = (t: CustomEmailTemplate) => {
+    setForm({ ...t, fields: { ...t.fields, paragraphs: [...(t.fields.paragraphs || [])] } });
+    setEditingId(t.id);
+    setShowForm(true);
+  };
+
+  const startNew = () => {
+    setForm(emptyTemplate());
+    setEditingId(null);
+    setShowForm(true);
+  };
+
+  const handleSave = async () => {
+    if (!form.name.trim()) { toast({ title: 'Template name is required', variant: 'destructive' }); return; }
+    if (!form.subject.trim()) { toast({ title: 'Subject is required', variant: 'destructive' }); return; }
+    setSaving(true);
+    const next = editingId
+      ? templates.map(t => t.id === editingId ? form : t)
+      : [...templates, form];
+    await saveCustomEmailTemplates(next);
+    setTemplates(next);
+    setSaving(false);
+    setShowForm(false);
+    setEditingId(null);
+    toast({ title: editingId ? 'Template updated' : 'Template created' });
+  };
+
+  const handleDelete = async (id: string) => {
+    if (!window.confirm('Delete this template?')) return;
+    const next = templates.filter(t => t.id !== id);
+    await saveCustomEmailTemplates(next);
+    setTemplates(next);
+    toast({ title: 'Template deleted' });
+  };
+
+  const handleDuplicate = async (t: CustomEmailTemplate) => {
+    const copy: CustomEmailTemplate = { ...t, id: `tpl-${Date.now()}`, name: `${t.name} (copy)` };
+    const next = [...templates, copy];
+    await saveCustomEmailTemplates(next);
+    setTemplates(next);
+    toast({ title: 'Template duplicated' });
+  };
+
+  const updateField = <K extends keyof EmailTemplateFields>(field: K, value: EmailTemplateFields[K]) => {
+    setForm(f => ({ ...f, fields: { ...f.fields, [field]: value } }));
+  };
+
+  return (
+    <div className="space-y-6 animate-fade-in">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div>
+          <h1 className="font-heading text-2xl font-bold">Custom Email Templates</h1>
+          <p className="text-muted-foreground text-sm mt-1">
+            Reusable email templates you can send to any application from the Applications tab.
+            Useful for interview invites, document requests, follow-ups, anything.
+          </p>
+        </div>
+        {!showForm && (
+          <Button onClick={startNew} className="bg-primary text-primary-foreground">
+            <Plus className="h-4 w-4 mr-1" /> New Template
+          </Button>
+        )}
+      </div>
+
+      {showForm ? (
+        <div className="bg-card rounded-lg border p-4 sm:p-6 space-y-4">
+          <div className="flex items-center justify-between">
+            <h2 className="font-heading font-semibold text-lg">
+              {editingId ? 'Edit Template' : 'New Template'}
+            </h2>
+            <Button variant="ghost" size="sm" onClick={() => { setShowForm(false); setEditingId(null); }}>
+              <X className="h-4 w-4" />
+            </Button>
+          </div>
+
+          <div className="bg-muted rounded-md p-3">
+            <p className="text-xs font-medium text-muted-foreground mb-1">Available variables (paste into any field):</p>
+            <p className="text-xs font-mono break-all">
+              {'{{fullName}}, {{firstName}}, {{jobTitle}}, {{email}}, {{phone}}, {{nationality}}, {{currentLocation}}, {{visaStatus}}, {{siteName}}, {{contactEmail}}, {{contactPhone}}, {{date}}'}
+            </p>
+          </div>
+
+          <div className="grid sm:grid-cols-2 gap-4">
+            <div>
+              <Label>Template name <span className="text-destructive">*</span></Label>
+              <Input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder="e.g. Interview Invitation" />
+              <p className="text-xs text-muted-foreground mt-1">Internal name — only the admin sees this.</p>
+            </div>
+            <div>
+              <Label>Email subject <span className="text-destructive">*</span></Label>
+              <Input value={form.subject} onChange={e => setForm(f => ({ ...f, subject: e.target.value }))} placeholder="e.g. Interview invitation — {{jobTitle}}" />
+            </div>
+          </div>
+
+          <div>
+            <Label>Heading <span className="text-xs text-muted-foreground font-normal">(big H2 at the top)</span></Label>
+            <Input value={form.fields.heading} onChange={e => updateField('heading', e.target.value)} placeholder="You're invited to an interview" />
+          </div>
+
+          <div>
+            <Label>Opening line / greeting</Label>
+            <Textarea value={form.fields.intro} onChange={e => updateField('intro', e.target.value)} rows={2} placeholder="Dear {{fullName}}, thank you for applying for the {{jobTitle}} position." />
+          </div>
+
+          <div>
+            <Label>Body paragraphs <span className="text-xs text-muted-foreground font-normal">(one per line)</span></Label>
+            <Textarea
+              value={(form.fields.paragraphs || []).join('\n')}
+              onChange={e => updateField('paragraphs', e.target.value.split('\n').filter(Boolean))}
+              rows={6}
+              placeholder="One paragraph per line..."
+            />
+          </div>
+
+          <div>
+            <Label>Highlight box <span className="text-xs text-muted-foreground font-normal">(optional callout)</span></Label>
+            <Textarea value={form.fields.highlight || ''} onChange={e => updateField('highlight', e.target.value)} rows={2} placeholder="Tip: have a copy of your CV ready..." />
+          </div>
+
+          <div className="grid sm:grid-cols-2 gap-4">
+            <div>
+              <Label>Sign-off</Label>
+              <Input value={form.fields.signoff} onChange={e => updateField('signoff', e.target.value)} placeholder="Kind regards," />
+            </div>
+            <div>
+              <Label>Signature</Label>
+              <Input value={form.fields.signature} onChange={e => updateField('signature', e.target.value)} placeholder="The {{siteName}} Team" />
+            </div>
+          </div>
+
+          <div className="flex gap-2 pt-2">
+            <Button onClick={handleSave} disabled={saving} className="bg-primary text-primary-foreground">
+              {saving ? 'Saving...' : (editingId ? 'Update Template' : 'Create Template')}
+            </Button>
+            <Button variant="outline" onClick={() => { setShowForm(false); setEditingId(null); }}>Cancel</Button>
+          </div>
+        </div>
+      ) : templates.length === 0 ? (
+        <div className="bg-card rounded-lg border p-8 text-center">
+          <MessageSquare className="h-10 w-10 text-muted-foreground mx-auto mb-3" />
+          <p className="text-muted-foreground">No custom templates yet. Click <strong>New Template</strong> to create one.</p>
+        </div>
+      ) : (
+        <div className="grid gap-3">
+          {templates.map(t => (
+            <div key={t.id} className="bg-card rounded-lg border p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div className="min-w-0 flex-1">
+                <h3 className="font-heading font-semibold">{t.name}</h3>
+                <p className="text-sm text-muted-foreground truncate">
+                  <span className="font-medium">Subject:</span> {t.subject}
+                </p>
+                <p className="text-xs text-muted-foreground mt-1 line-clamp-2">
+                  {t.fields.intro}
+                </p>
+              </div>
+              <div className="flex items-center gap-1 shrink-0">
+                <Button size="sm" variant="outline" onClick={() => startEdit(t)}>
+                  <Pencil className="h-3.5 w-3.5 mr-1" /> Edit
+                </Button>
+                <Button size="sm" variant="ghost" onClick={() => handleDuplicate(t)} title="Duplicate">
+                  <CopyIcon className="h-3.5 w-3.5" />
+                </Button>
+                <Button size="sm" variant="ghost" onClick={() => handleDelete(t.id)} className="text-destructive hover:text-destructive">
+                  <Trash2 className="h-3.5 w-3.5" />
+                </Button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
