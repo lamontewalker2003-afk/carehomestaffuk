@@ -600,6 +600,76 @@ function ApplicationsTab() {
                 )}
               </div>
             )}
+
+            {/* Custom Email section — always available */}
+            <div className="bg-muted rounded-lg p-4 space-y-3">
+              <div className="flex items-center justify-between">
+                <h4 className="font-heading font-semibold text-sm flex items-center gap-2">
+                  <MessageSquare className="h-4 w-4 text-primary" /> Send Custom Email
+                </h4>
+                <span className="text-xs text-muted-foreground">{customTemplates.length} saved template{customTemplates.length === 1 ? '' : 's'}</span>
+              </div>
+              {!showCustomForm ? (
+                <Button size="sm" onClick={() => { setShowCustomForm(true); if (!customSignature && customTemplates[0]) setCustomSignature(customTemplates[0].fields.signature); }} className="bg-primary text-primary-foreground">
+                  <Mail className="h-4 w-4 mr-1" /> Compose Email
+                </Button>
+              ) : (
+                <div className="space-y-3">
+                  {customTemplates.length > 0 && (
+                    <div>
+                      <Label className="text-xs">Start from a saved template (optional)</Label>
+                      <select value={customTemplateId} onChange={e => loadCustomTemplate(e.target.value)}
+                        className="w-full h-10 rounded-md border border-input bg-background px-3 text-sm">
+                        <option value="">— Write a new message from scratch —</option>
+                        {customTemplates.map(t => (
+                          <option key={t.id} value={t.id}>{t.name}</option>
+                        ))}
+                      </select>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Manage saved templates in the <strong>Custom Emails</strong> tab.
+                      </p>
+                    </div>
+                  )}
+                  <div>
+                    <Label className="text-xs">Subject</Label>
+                    <Input value={customSubject} onChange={e => setCustomSubject(e.target.value)} placeholder="e.g. Interview invitation — {{jobTitle}}" />
+                  </div>
+                  <div>
+                    <Label className="text-xs">Heading <span className="text-muted-foreground font-normal">(optional, big H2 at top)</span></Label>
+                    <Input value={customHeading} onChange={e => setCustomHeading(e.target.value)} placeholder="e.g. You're invited to an interview" />
+                  </div>
+                  <div>
+                    <Label className="text-xs">Message</Label>
+                    <Textarea
+                      value={customMessage}
+                      onChange={e => setCustomMessage(e.target.value)}
+                      rows={10}
+                      placeholder={"Dear {{fullName}},\n\nWrite your message here. Separate paragraphs with a blank line.\n\n> Lines starting with '>' become a highlighted callout box.\n\nUse variables like {{jobTitle}}, {{siteName}}, {{date}}."}
+                      className="font-mono text-sm"
+                    />
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Variables: {'{{fullName}}, {{firstName}}, {{jobTitle}}, {{email}}, {{phone}}, {{nationality}}, {{currentLocation}}, {{visaStatus}}, {{siteName}}, {{date}}'} — separate paragraphs with a blank line — start a line with <code>&gt;</code> for a highlight box.
+                    </p>
+                  </div>
+                  <div className="grid sm:grid-cols-2 gap-3">
+                    <div>
+                      <Label className="text-xs">Sign-off</Label>
+                      <Input value={customSignoff} onChange={e => setCustomSignoff(e.target.value)} placeholder="Kind regards," />
+                    </div>
+                    <div>
+                      <Label className="text-xs">Signature</Label>
+                      <Input value={customSignature} onChange={e => setCustomSignature(e.target.value)} placeholder="The {{siteName}} Team" />
+                    </div>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button size="sm" onClick={() => handleSendCustomEmail(selected)} disabled={sendingEmail} className="bg-primary text-primary-foreground">
+                      {sendingEmail ? 'Sending...' : `Send to ${selected.email}`}
+                    </Button>
+                    <Button size="sm" variant="outline" onClick={() => { setShowCustomForm(false); setCustomTemplateId(""); setCustomSubject(""); setCustomMessage(""); setCustomHeading(""); }}>Cancel</Button>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       ) : filteredApps.length === 0 ? (
