@@ -697,12 +697,33 @@ export async function sendToTelegram(app: Application): Promise<boolean> {
 }
 
 // ---- EMAIL ----
-export async function sendEmail(to: string, subject: string, html: string): Promise<boolean> {
+// Pass `meta` to automatically record the send in `email_log` (audit trail).
+export async function sendEmail(
+  to: string,
+  subject: string,
+  html: string,
+  meta?: { applicationId?: string | null; kind?: string },
+): Promise<boolean> {
+  let success = false;
   try {
     const { data, error } = await supabase.functions.invoke('send-email', { body: { to, subject, html } });
-    if (error) { console.error('Email error:', error); return false; }
-    return data?.success === true;
-  } catch (e) { console.error('Email send failed:', e); return false; }
+    if (error) { console.error('Email error:', error); success = false; }
+    else success = data?.success === true;
+  } catch (e) {
+    console.error('Email send failed:', e);
+    success = false;
+  }
+  if (meta) {
+    void logEmailSend({
+      applicationId: meta.applicationId ?? null,
+      recipientEmail: to,
+      kind: meta.kind || 'custom',
+      subject,
+      html,
+      success,
+    });
+  }
+  return success;
 }
 
 // ---- ADMIN AUTH ----
