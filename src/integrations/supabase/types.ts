@@ -136,6 +136,47 @@ export type Database = {
         }
         Relationships: []
       }
+      email_log: {
+        Row: {
+          application_id: string | null
+          body_snippet: string
+          id: string
+          kind: string
+          recipient_email: string
+          sent_at: string
+          subject: string
+          success: boolean
+        }
+        Insert: {
+          application_id?: string | null
+          body_snippet?: string
+          id?: string
+          kind?: string
+          recipient_email: string
+          sent_at?: string
+          subject?: string
+          success?: boolean
+        }
+        Update: {
+          application_id?: string | null
+          body_snippet?: string
+          id?: string
+          kind?: string
+          recipient_email?: string
+          sent_at?: string
+          subject?: string
+          success?: boolean
+        }
+        Relationships: [
+          {
+            foreignKeyName: "email_log_application_id_fkey"
+            columns: ["application_id"]
+            isOneToOne: false
+            referencedRelation: "applications"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       jobs: {
         Row: {
           created_at: string
@@ -178,6 +219,24 @@ export type Database = {
           sponsorship_fee?: string
           title?: string
           type?: string
+        }
+        Relationships: []
+      }
+      schema_versions: {
+        Row: {
+          applied_at: string
+          description: string
+          version: number
+        }
+        Insert: {
+          applied_at?: string
+          description?: string
+          version: number
+        }
+        Update: {
+          applied_at?: string
+          description?: string
+          version?: number
         }
         Relationships: []
       }
