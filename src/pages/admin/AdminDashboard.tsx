@@ -10,10 +10,12 @@ import {
   getBankAccounts, saveBankAccounts,
   getInvoiceTemplate, saveInvoiceTemplate, defaultInvoiceTemplate,
   buildInvoiceEmail, generateInvoiceNumber, markInvoiceSent,
+  getCustomEmailTemplates, saveCustomEmailTemplates, buildCustomEmail,
 } from "@/lib/store";
 import type {
   Application, Job, TelegramSettings, SEOSettings, SMTPSettings, SiteSettings,
   EmailTemplates, EmailTemplateFields, BankAccount, BankCustomField, InvoiceTemplate, InvoiceBlock, InvoiceLineItem,
+  CustomEmailTemplate,
 } from "@/lib/store";
 import { defaultSiteSettings } from "@/lib/store";
 import { supabase } from "@/integrations/supabase/client";
@@ -28,6 +30,7 @@ import {
   LayoutDashboard, FileText, Briefcase, Send, LogOut, Plus, Trash2, Eye,
   Pencil, X, PoundSterling, Search, Globe, Menu, Mail, Server, Settings,
   FileCheck, CheckCircle, XCircle, Clock, Award, Landmark, Receipt, Star,
+  MessageSquare, Copy as CopyIcon,
 } from "lucide-react";
 
 type Tab = "dashboard" | "applications" | "jobs" | "telegram" | "smtp" | "email-templates" | "seo" | "site-settings" | "banks" | "invoice-template";
