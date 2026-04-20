@@ -686,6 +686,16 @@ function ApplicationsTab() {
         </div>
       ) : filteredApps.length === 0 ? (
         <p className="text-muted-foreground">{search || phoneSearch || statusFilter !== "all" ? "No applications match your filters." : "No applications received yet."}</p>
+      ) : groupByEmail ? (
+        <GroupedApplicationsView
+          groups={groupApplicationsByEmail(filteredApps)}
+          expanded={expandedGroups}
+          toggle={(email) => setExpandedGroups(s => {
+            const n = new Set(s); n.has(email) ? n.delete(email) : n.add(email); return n;
+          })}
+          onSelect={setSelected}
+          onDelete={handleDelete}
+        />
       ) : (
         <div className="bg-card rounded-lg border overflow-x-auto">
           <table className="w-full text-sm">
