@@ -401,6 +401,7 @@ function ApplicationsTab() {
     }
   };
 
+  const updateLineItem = (id: string, updates: Partial<InvoiceLineItem>) => {
     setInvoiceLineItems(items => items.map(li => li.id === id ? { ...li, ...updates } : li));
   };
   const addLineItem = () => {
