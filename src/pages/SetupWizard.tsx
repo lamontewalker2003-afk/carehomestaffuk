@@ -19,11 +19,16 @@ import {
   importConfig,
   getWizardStep,
   saveWizardStep,
+  CURRENT_SCHEMA_VERSION,
+  checkSchemaUpgrade,
+  applyPendingSchemaUpdates,
   type AdminCredential,
+  type SchemaUpgradeStatus,
 } from "@/lib/runtime-config";
 import {
   Database, Download, KeyRound, Server, Users, RefreshCw, CheckCircle2,
   AlertCircle, Copy, Zap, Upload, FileDown, Loader2, ShieldCheck, Eye, EyeOff,
+  ArrowUpCircle,
 } from "lucide-react";
 
 type Status = { ok: boolean; message: string } | null;
