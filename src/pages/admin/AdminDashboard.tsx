@@ -31,7 +31,7 @@ import {
   LayoutDashboard, FileText, Briefcase, Send, LogOut, Plus, Trash2, Eye,
   Pencil, X, PoundSterling, Search, Globe, Menu, Mail, Server, Settings,
   FileCheck, CheckCircle, XCircle, Clock, Award, Landmark, Receipt, Star,
-  MessageSquare, Copy as CopyIcon,
+  MessageSquare, Copy as CopyIcon, Users, History, ChevronDown, ChevronRight,
 } from "lucide-react";
 
 type Tab = "dashboard" | "applications" | "jobs" | "telegram" | "smtp" | "email-templates" | "custom-emails" | "seo" | "site-settings" | "banks" | "invoice-template";
@@ -273,7 +273,7 @@ function ApplicationsTab() {
       if (app) {
         setSendingEmail(true);
         const html = await buildApplicationSuccessEmail(app);
-        const sent = await sendEmail(app.email, "Congratulations — Your Application Was Successful!", html);
+        const sent = await sendEmail(app.email, "Congratulations — Your Application Was Successful!", html, { applicationId: app.id, kind: 'success' });
         setSendingEmail(false);
         if (sent) toast({ title: "Success email sent to " + app.email });
         else toast({ title: "Status updated but email may not have sent (check SMTP)", variant: "destructive" });
@@ -288,7 +288,7 @@ function ApplicationsTab() {
     setSendingEmail(true);
     const overrides = Object.keys(offerOverrides).length > 0 ? offerOverrides : undefined;
     const html = await buildOfferLetterEmail(app, overrides);
-    const sent = await sendEmail(app.email, "Offer of Employment", html);
+    const sent = await sendEmail(app.email, "Offer of Employment", html, { applicationId: app.id, kind: 'offer_letter' });
     if (sent) {
       await markOfferLetterSent(app.id);
       toast({ title: "Offer letter sent to " + app.email });
@@ -318,7 +318,7 @@ function ApplicationsTab() {
       bankAccountId: invoiceBankId,
       notes: invoiceNotes,
     });
-    const sent = await sendEmail(app.email, `${tpl.title} ${invoiceNumber}`, html);
+    const sent = await sendEmail(app.email, `${tpl.title} ${invoiceNumber}`, html, { applicationId: app.id, kind: 'invoice' });
     if (sent) {
       await markInvoiceSent(app.id, invoiceNumber);
       toast({ title: `Invoice ${invoiceNumber} sent to ${app.email}` });
@@ -388,7 +388,7 @@ function ApplicationsTab() {
         signature: customSignature,
       },
     });
-    const sent = await sendEmail(app.email, subject, html);
+    const sent = await sendEmail(app.email, subject, html, { applicationId: app.id, kind: 'custom' });
     setSendingEmail(false);
     if (sent) {
       toast({ title: `Email sent to ${app.email}` });
