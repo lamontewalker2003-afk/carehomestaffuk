@@ -682,6 +682,9 @@ function ApplicationsTab() {
                 </div>
               )}
             </div>
+
+            {/* Email history (audit trail for this applicant by email) */}
+            <EmailHistoryPanel email={selected.email} />
           </div>
         </div>
       ) : filteredApps.length === 0 ? (
