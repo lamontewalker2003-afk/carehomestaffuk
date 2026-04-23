@@ -253,6 +253,32 @@ const SetupWizard = () => {
           ))}
         </div>
 
+        {/* Active connection banner — shows where the running app is ACTUALLY writing */}
+        {(() => {
+          const savedUrl = supabaseUrl.trim();
+          const liveUrl = activeSupabaseUrl || "(none)";
+          const mismatch = savedUrl && savedUrl.replace(/\/$/, "") !== liveUrl.replace(/\/$/, "");
+          return (
+            <div className={`rounded-md border p-3 mb-4 text-xs ${mismatch ? "bg-destructive/10 border-destructive/30" : "bg-muted border-border"}`}>
+              <div className="flex items-start gap-2">
+                {mismatch ? <AlertTriangle className="h-4 w-4 text-destructive mt-0.5" /> : <Database className="h-4 w-4 text-muted-foreground mt-0.5" />}
+                <div className="flex-1 space-y-1">
+                  <div><strong>Live app is connected to:</strong> <code className="break-all">{liveUrl}</code> {isStandaloneSupabase ? "(standalone)" : "(Lovable Cloud default)"}</div>
+                  {savedUrl && <div><strong>Saved in wizard:</strong> <code className="break-all">{savedUrl}</code></div>}
+                  {mismatch && (
+                    <div className="text-destructive font-medium pt-1">
+                      ⚠ The running app is still using the OLD database. Click "Reload App" below to switch.
+                      <Button size="sm" variant="destructive" className="ml-2 h-6 px-2 text-xs" onClick={() => window.location.reload()}>
+                        <RefreshCw className="h-3 w-3 mr-1" /> Reload now
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          );
+        })()}
+
         {/* Quick actions */}
         <div className="flex flex-wrap items-center justify-center gap-2 mb-6">
           <Button variant="outline" size="sm" onClick={handleExportConfig}>
