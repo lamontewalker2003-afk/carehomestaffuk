@@ -25,10 +25,11 @@ import {
   type AdminCredential,
   type SchemaUpgradeStatus,
 } from "@/lib/runtime-config";
+import { activeSupabaseUrl, isStandaloneSupabase } from "@/integrations/supabase/client";
 import {
   Database, Download, KeyRound, Server, Users, RefreshCw, CheckCircle2,
   AlertCircle, Copy, Zap, Upload, FileDown, Loader2, ShieldCheck, Eye, EyeOff,
-  ArrowUpCircle,
+  ArrowUpCircle, AlertTriangle,
 } from "lucide-react";
 
 type Status = { ok: boolean; message: string } | null;
