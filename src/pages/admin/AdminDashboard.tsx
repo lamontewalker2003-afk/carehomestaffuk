@@ -1288,8 +1288,12 @@ function SiteSettingsTab() {
           <p className="text-xs text-muted-foreground mt-1">Leave empty to hide the floating button.</p>
         </div>
         <div>
-          <Label>Pre-filled Message</Label>
+          <Label>Pre-filled Message <span className="text-xs text-muted-foreground font-normal">(opens in WhatsApp chat input)</span></Label>
           <Textarea value={settings.whatsappMessage} onChange={e => update('whatsappMessage', e.target.value)} rows={2} placeholder="Hello! I'd like to enquire..." />
+        </div>
+        <div>
+          <Label>Floating Button Label <span className="text-xs text-muted-foreground font-normal">(tease text shown next to the button)</span></Label>
+          <Input value={settings.whatsappLabel} onChange={e => update('whatsappLabel', e.target.value)} placeholder="Chat with us on WhatsApp" />
         </div>
       </div>
 

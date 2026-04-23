@@ -49,6 +49,7 @@ const SetupWizard = () => {
   // Step 2
   const [migrationSql, setMigrationSql] = useState("");
   const [bootstrapSql, setBootstrapSql] = useState("");
+  const [jobsSeedSql, setJobsSeedSql] = useState("");
   const [serviceRoleKey, setServiceRoleKey] = useState("");
   const [showService, setShowService] = useState(false);
   const [migrationStatus, setMigrationStatus] = useState<Status & { needsBootstrap?: boolean }>(null);
@@ -74,6 +75,7 @@ const SetupWizard = () => {
     setSupabaseAnonKey(cfg.supabaseAnonKey);
     fetch("/standalone-migration.sql").then(r => r.text()).then(setMigrationSql).catch(() => {});
     fetch("/bootstrap-exec-sql.sql").then(r => r.text()).then(setBootstrapSql).catch(() => {});
+    fetch("/jobs-seed.sql").then(r => r.text()).then(setJobsSeedSql).catch(() => {});
     getAdminCredentials().then(a => { if (a.length) setAdmins(a); });
   }, []);
 
