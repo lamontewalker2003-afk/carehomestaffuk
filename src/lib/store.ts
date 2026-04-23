@@ -67,6 +67,7 @@ export interface SiteSettings {
   officeHours: string;
   whatsappNumber: string; // international format with no +, e.g. 441234567890
   whatsappMessage: string;
+  whatsappLabel: string;  // floating button tease label
   footerTagline: string;
   // Footer copyright controls
   footerCompanyName: string;   // shown in © line
@@ -307,6 +308,7 @@ export const defaultSiteSettings: SiteSettings = {
   officeHours: 'Mon–Fri 9:00 AM – 5:30 PM',
   whatsappNumber: '441234567890',
   whatsappMessage: 'Hello! I would like to enquire about UK care work opportunities.',
+  whatsappLabel: 'Chat with us on WhatsApp',
   footerTagline: 'Connecting care homes with compassionate, qualified healthcare professionals across the United Kingdom. Visa sponsorship available.',
   footerCompanyName: 'CareHomeStaffUK',
   footerYear: '',
