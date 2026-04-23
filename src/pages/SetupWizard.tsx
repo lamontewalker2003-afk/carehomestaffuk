@@ -30,7 +30,7 @@ import { activeSupabaseUrl, isStandaloneSupabase } from "@/integrations/supabase
 import {
   Database, Download, KeyRound, Server, Users, RefreshCw, CheckCircle2,
   AlertCircle, Copy, Zap, Upload, FileDown, Loader2, ShieldCheck, Eye, EyeOff,
-  ArrowUpCircle, AlertTriangle,
+  ArrowUpCircle, AlertTriangle, Briefcase,
 } from "lucide-react";
 
 type Status = { ok: boolean; message: string } | null;
@@ -540,6 +540,35 @@ const SetupWizard = () => {
                   </div>
                 </details>
               </>
+            )}
+
+            {/* Seed job positions — copy/paste SQL */}
+            {allSchemaOk && (
+              <div className="border-2 border-primary/20 bg-primary/5 rounded-md p-4 space-y-3">
+                <div className="flex items-start gap-3">
+                  <div className="h-8 w-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center shrink-0">
+                    <Briefcase className="h-4 w-4" />
+                  </div>
+                  <div className="flex-1">
+                    <p className="font-semibold text-sm">Optional: seed 120 UK job positions</p>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Pre-populates 3 roles (Care Worker, Nursing Assistant, Senior Care Worker) across 40 major UK cities.
+                      Idempotent — re-running won't create duplicates.
+                    </p>
+                    <div className="flex flex-wrap gap-2 pt-3">
+                      <Button variant="outline" size="sm" onClick={() => copyText(jobsSeedSql, "Job positions SQL")} disabled={!jobsSeedSql}>
+                        <Copy className="h-4 w-4 mr-1" /> Copy job positions SQL
+                      </Button>
+                      <Button variant="outline" size="sm" onClick={() => downloadFile(jobsSeedSql, "carehomestaffuk-jobs-seed.sql")} disabled={!jobsSeedSql}>
+                        <Download className="h-4 w-4 mr-1" /> Download
+                      </Button>
+                    </div>
+                    <p className="text-[10px] text-muted-foreground mt-2">
+                      Paste into Supabase → <strong>SQL Editor</strong> → <strong>Run</strong>. Edit titles, salaries, or cities afterwards in the admin Jobs tab.
+                    </p>
+                  </div>
+                </div>
+              </div>
             )}
 
             <div className="flex gap-2 justify-between pt-4 border-t">
