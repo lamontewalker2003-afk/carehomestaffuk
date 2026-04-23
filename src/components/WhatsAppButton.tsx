@@ -4,12 +4,14 @@ import { getSiteSettings } from "@/lib/store";
 export function WhatsAppButton() {
   const [number, setNumber] = useState("");
   const [message, setMessage] = useState("");
+  const [label, setLabel] = useState("Chat with us on WhatsApp");
   const [showLabel, setShowLabel] = useState(false);
 
   useEffect(() => {
     getSiteSettings().then(s => {
       setNumber((s.whatsappNumber || "").replace(/[^\d]/g, ""));
       setMessage(s.whatsappMessage || "");
+      if (s.whatsappLabel) setLabel(s.whatsappLabel);
     });
     // Auto-tease the label after 3s, then hide
     const t1 = setTimeout(() => setShowLabel(true), 3000);
@@ -26,7 +28,7 @@ export function WhatsAppButton() {
       href={href}
       target="_blank"
       rel="noopener noreferrer"
-      aria-label="Chat with us on WhatsApp"
+      aria-label={label}
       onMouseEnter={() => setShowLabel(true)}
       onMouseLeave={() => setShowLabel(false)}
       className="fixed bottom-5 right-5 z-50 group flex items-center gap-3"
@@ -37,7 +39,7 @@ export function WhatsAppButton() {
           showLabel ? "opacity-100 scale-100 translate-x-0" : "opacity-0 scale-90 translate-x-2 pointer-events-none"
         }`}
       >
-        Chat with us on WhatsApp
+        {label}
       </span>
 
       {/* Animated pulse rings */}
