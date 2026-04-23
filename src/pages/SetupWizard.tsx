@@ -108,6 +108,16 @@ const SetupWizard = () => {
       toast({ title: "Connection check failed", description: "Saving anyway — fix details on next step if migration fails.", variant: "destructive" });
     }
     saveRuntimeConfig(supabaseUrl, supabaseAnonKey);
+    // If the running client is still pointed at a different DB, reload so all
+    // subsequent reads/writes (including the migration step) hit the new project.
+    const liveNorm = (activeSupabaseUrl || "").replace(/\/$/, "");
+    const savedNorm = supabaseUrl.trim().replace(/\/$/, "");
+    if (liveNorm !== savedNorm) {
+      toast({ title: "Reloading to apply new connection..." });
+      saveWizardStep(2);
+      setTimeout(() => window.location.reload(), 600);
+      return;
+    }
     toast({ title: "Supabase config saved" });
     goStep(2);
   };
