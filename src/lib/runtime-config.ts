@@ -258,9 +258,11 @@ export async function pingSupabaseAnon(
   supabaseUrl: string,
   anonKey: string,
 ): Promise<{ ok: boolean; message: string }> {
-  if (!supabaseUrl || !anonKey) return { ok: false, message: "URL and anon key are both required." };
+  const normalizedUrl = normalizeSupabaseUrl(supabaseUrl);
+  if (!normalizedUrl || !anonKey) return { ok: false, message: "URL and anon key are both required." };
+  if (isDashboardUrl(supabaseUrl)) return { ok: false, message: "Use the project API URL, not the dashboard URL." };
   try {
-    const u = new URL(supabaseUrl);
+    const u = new URL(normalizedUrl);
     if (!u.hostname.endsWith(".supabase.co") && !u.hostname.endsWith(".supabase.in") && !u.hostname.includes("localhost")) {
       // Allow self-hosted but warn
     }
@@ -268,7 +270,7 @@ export async function pingSupabaseAnon(
     return { ok: false, message: "That doesn't look like a valid URL." };
   }
   try {
-    const res = await fetch(`${supabaseUrl.replace(/\/$/, "")}/rest/v1/`, {
+    const res = await fetch(`${normalizedUrl}/rest/v1/`, {
       headers: { apikey: anonKey, Authorization: `Bearer ${anonKey}` },
     });
     if (res.status === 401 || res.status === 403) {
@@ -289,11 +291,12 @@ export async function checkSchemaInstalled(
   anonKey: string,
 ): Promise<{ installed: boolean; missing: string[]; message: string }> {
   const tables = ["jobs", "applications", "contact_submissions", "admin_settings"];
-  if (!supabaseUrl || !anonKey) return { installed: false, missing: tables, message: "Missing URL or anon key." };
+  const normalizedUrl = normalizeSupabaseUrl(supabaseUrl);
+  if (!normalizedUrl || !anonKey) return { installed: false, missing: tables, message: "Missing URL or anon key." };
   const missing: string[] = [];
   try {
     for (const t of tables) {
-      const res = await fetch(`${supabaseUrl.replace(/\/$/, "")}/rest/v1/${t}?select=*&limit=0`, {
+      const res = await fetch(`${normalizedUrl}/rest/v1/${t}?select=*&limit=0`, {
         headers: { apikey: anonKey, Authorization: `Bearer ${anonKey}` },
       });
       if (res.status === 404) missing.push(t);
@@ -321,10 +324,11 @@ export async function getInstalledSchemaVersion(
   supabaseUrl: string,
   anonKey: string,
 ): Promise<{ version: number | null; supported: boolean; message: string }> {
-  if (!supabaseUrl || !anonKey) return { version: null, supported: false, message: "Missing URL or anon key." };
+  const normalizedUrl = normalizeSupabaseUrl(supabaseUrl);
+  if (!normalizedUrl || !anonKey) return { version: null, supported: false, message: "Missing URL or anon key." };
   try {
     const res = await fetch(
-      `${supabaseUrl.replace(/\/$/, "")}/rest/v1/schema_versions?select=version&order=version.desc&limit=1`,
+      `${normalizedUrl}/rest/v1/schema_versions?select=version&order=version.desc&limit=1`,
       { headers: { apikey: anonKey, Authorization: `Bearer ${anonKey}` } },
     );
     if (res.status === 404) {
@@ -388,23 +392,27 @@ export async function runStandaloneMigration(
   supabaseUrl: string,
   serviceRoleKey: string,
 ): Promise<{ ok: boolean; message: string; needsBootstrap?: boolean }> {
-  if (!supabaseUrl || !serviceRoleKey) {
+  const normalizedUrl = normalizeSupabaseUrl(supabaseUrl);
+  if (!normalizedUrl || !serviceRoleKey) {
     return { ok: false, message: "Supabase URL and service-role key are both required." };
+  }
+  if (isDashboardUrl(supabaseUrl)) {
+    return { ok: false, message: "Use the project API URL in Step 1, not the dashboard URL." };
   }
   try {
     const sqlRes = await fetch("/standalone-migration.sql", { cache: "no-store" });
     if (!sqlRes.ok) return { ok: false, message: "Could not load /standalone-migration.sql from the bundle." };
     const sql = await sqlRes.text();
 
-    const res = await callExecSql(supabaseUrl, serviceRoleKey, sql);
+    const res = await callExecSqlWithRetry(normalizedUrl, serviceRoleKey, sql);
 
-    if (res.status === 404) {
+    if (await isExecSqlSchemaCacheMiss(res)) {
       return {
         ok: false,
         needsBootstrap: true,
         message:
           "The `exec_sql` RPC is not installed in this Supabase project yet. " +
-          "Run the one-time bootstrap script (shown below) in your SQL Editor, then click Auto-Run again.",
+          "If you already ran the bootstrap, wait a few seconds for the API cache to refresh, then click Auto-Run again.",
       };
     }
 
@@ -431,8 +439,9 @@ export async function testExecSqlInstalled(
 ): Promise<{ installed: boolean; message: string }> {
   if (!supabaseUrl || !serviceRoleKey) return { installed: false, message: "Missing URL or key." };
   try {
-    const res = await callExecSql(supabaseUrl, serviceRoleKey, "SELECT 1;");
-    if (res.status === 404) return { installed: false, message: "exec_sql RPC not found — run the bootstrap script first." };
+    if (isDashboardUrl(supabaseUrl)) return { installed: false, message: "Use the project API URL, not the dashboard URL." };
+    const res = await callExecSqlWithRetry(supabaseUrl, serviceRoleKey, "SELECT 1;");
+    if (await isExecSqlSchemaCacheMiss(res)) return { installed: false, message: "exec_sql RPC not found yet — run the bootstrap script, then wait a few seconds and retry." };
     if (res.status === 401 || res.status === 403) return { installed: false, message: "Service-role key was rejected. Double-check the key." };
     if (!res.ok) return { installed: false, message: `Unexpected error (${res.status}).` };
     return { installed: true, message: "exec_sql is installed and the key works ✓" };
