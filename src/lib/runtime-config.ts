@@ -95,6 +95,16 @@ export function saveRuntimeConfig(supabaseUrl: string, supabaseAnonKey: string) 
   writeLocal({ ...existing, supabaseUrl: supabaseUrl.trim(), supabaseAnonKey: supabaseAnonKey.trim() });
 }
 
+/**
+ * Force a hard reload so the singleton supabase client (created at module
+ * load from runtime config) is rebuilt against the newly saved project.
+ * Call this after the wizard saves a new URL/key — without it the running
+ * tab keeps writing to the OLD database even though localStorage is updated.
+ */
+export function reloadForNewConfig() {
+  try { window.location.reload(); } catch {}
+}
+
 export function clearRuntimeConfig() {
   localStorage.removeItem(LS_KEY);
   localStorage.removeItem(LS_WIZARD_STEP);
