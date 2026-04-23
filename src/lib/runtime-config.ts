@@ -10,6 +10,44 @@
 const LS_KEY = "chsuk_runtime_config_v1";
 const LS_WIZARD_STEP = "chsuk_wizard_step_v1";
 
+const KNOWN_SUPABASE_API_SUFFIXES = ["/rest/v1", "/auth/v1", "/storage/v1", "/functions/v1", "/graphql/v1"];
+
+const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+export function normalizeSupabaseUrl(rawUrl: string): string {
+  const trimmed = rawUrl.trim();
+  if (!trimmed) return "";
+
+  try {
+    const url = new URL(trimmed);
+    let path = url.pathname.replace(/\/$/, "");
+
+    let changed = true;
+    while (changed) {
+      changed = false;
+      for (const suffix of KNOWN_SUPABASE_API_SUFFIXES) {
+        if (path.endsWith(suffix)) {
+          path = path.slice(0, -suffix.length).replace(/\/$/, "");
+          changed = true;
+        }
+      }
+    }
+
+    return `${url.origin}${path || ""}`.replace(/\/$/, "");
+  } catch {
+    return trimmed.replace(/\/$/, "");
+  }
+}
+
+function isDashboardUrl(rawUrl: string) {
+  try {
+    const url = new URL(rawUrl.trim());
+    return url.hostname === "supabase.com" && url.pathname.startsWith("/dashboard");
+  } catch {
+    return false;
+  }
+}
+
 export interface RuntimeConfig {
   supabaseUrl: string;
   supabaseAnonKey: string;
@@ -68,7 +106,7 @@ export function getRuntimeConfigSync(): RuntimeConfig {
   const envUrl = (import.meta as any).env?.VITE_SUPABASE_URL || "";
   const envKey = (import.meta as any).env?.VITE_SUPABASE_PUBLISHABLE_KEY || "";
 
-  const url = local?.supabaseUrl || envUrl;
+  const url = normalizeSupabaseUrl(local?.supabaseUrl || envUrl);
   const key = local?.supabaseAnonKey || envKey;
 
   return {
@@ -84,7 +122,7 @@ export async function getRuntimeConfig(): Promise<RuntimeConfig> {
   if (sync.supabaseUrl && sync.supabaseAnonKey) return sync;
   const file = await loadFileConfig();
   return {
-    supabaseUrl: sync.supabaseUrl || file?.supabaseUrl || "",
+    supabaseUrl: sync.supabaseUrl || normalizeSupabaseUrl(file?.supabaseUrl || ""),
     supabaseAnonKey: sync.supabaseAnonKey || file?.supabaseAnonKey || "",
     isStandalone: sync.isStandalone,
   };
@@ -92,7 +130,7 @@ export async function getRuntimeConfig(): Promise<RuntimeConfig> {
 
 export function saveRuntimeConfig(supabaseUrl: string, supabaseAnonKey: string) {
   const existing = readLocal() || {};
-  writeLocal({ ...existing, supabaseUrl: supabaseUrl.trim(), supabaseAnonKey: supabaseAnonKey.trim() });
+  writeLocal({ ...existing, supabaseUrl: normalizeSupabaseUrl(supabaseUrl), supabaseAnonKey: supabaseAnonKey.trim() });
 }
 
 /**
@@ -156,7 +194,7 @@ export function exportConfig(): string {
 export function importConfig(jsonText: string): { ok: boolean; message: string; imported?: { url: boolean; admins: number } } {
   try {
     const parsed = JSON.parse(jsonText);
-    const url = parsed?.supabase?.url?.trim() || "";
+    const url = normalizeSupabaseUrl(parsed?.supabase?.url?.trim() || "");
     const key = parsed?.supabase?.anonKey?.trim() || "";
     const admins = Array.isArray(parsed?.admins) ? parsed.admins.filter((a: any) => a?.username && a?.password) : [];
     if (!url && !admins.length) return { ok: false, message: "No Supabase URL or admins found in file." };
@@ -173,7 +211,7 @@ export function importConfig(jsonText: string): { ok: boolean; message: string; 
 }
 
 async function callExecSql(supabaseUrl: string, serviceRoleKey: string, sql: string) {
-  const res = await fetch(`${supabaseUrl.replace(/\/$/, "")}/rest/v1/rpc/exec_sql`, {
+  const res = await fetch(`${normalizeSupabaseUrl(supabaseUrl)}/rest/v1/rpc/exec_sql`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -185,14 +223,46 @@ async function callExecSql(supabaseUrl: string, serviceRoleKey: string, sql: str
   return res;
 }
 
+async function isExecSqlSchemaCacheMiss(res: Response) {
+  if (res.status === 404) return true;
+  if (res.ok) return false;
+
+  try {
+    const text = await res.clone().text();
+    return text.includes("PGRST202") || text.includes("Could not find the function public.exec_sql") || text.includes("exec_sql");
+  } catch {
+    return false;
+  }
+}
+
+async function callExecSqlWithRetry(supabaseUrl: string, serviceRoleKey: string, sql: string, attempts = 8, delayMs = 1250) {
+  let lastResponse: Response | null = null;
+
+  for (let attempt = 0; attempt < attempts; attempt += 1) {
+    const response = await callExecSql(supabaseUrl, serviceRoleKey, sql);
+    lastResponse = response;
+
+    if (response.ok) return response;
+
+    const retryable = await isExecSqlSchemaCacheMiss(response);
+    if (!retryable || attempt === attempts - 1) return response;
+
+    await wait(delayMs);
+  }
+
+  return lastResponse as Response;
+}
+
 /** Live-ping the anon key against the REST root to confirm it's valid. */
 export async function pingSupabaseAnon(
   supabaseUrl: string,
   anonKey: string,
 ): Promise<{ ok: boolean; message: string }> {
-  if (!supabaseUrl || !anonKey) return { ok: false, message: "URL and anon key are both required." };
+  const normalizedUrl = normalizeSupabaseUrl(supabaseUrl);
+  if (!normalizedUrl || !anonKey) return { ok: false, message: "URL and anon key are both required." };
+  if (isDashboardUrl(supabaseUrl)) return { ok: false, message: "Use the project API URL, not the dashboard URL." };
   try {
-    const u = new URL(supabaseUrl);
+    const u = new URL(normalizedUrl);
     if (!u.hostname.endsWith(".supabase.co") && !u.hostname.endsWith(".supabase.in") && !u.hostname.includes("localhost")) {
       // Allow self-hosted but warn
     }
@@ -200,7 +270,7 @@ export async function pingSupabaseAnon(
     return { ok: false, message: "That doesn't look like a valid URL." };
   }
   try {
-    const res = await fetch(`${supabaseUrl.replace(/\/$/, "")}/rest/v1/`, {
+    const res = await fetch(`${normalizedUrl}/rest/v1/`, {
       headers: { apikey: anonKey, Authorization: `Bearer ${anonKey}` },
     });
     if (res.status === 401 || res.status === 403) {
@@ -221,11 +291,12 @@ export async function checkSchemaInstalled(
   anonKey: string,
 ): Promise<{ installed: boolean; missing: string[]; message: string }> {
   const tables = ["jobs", "applications", "contact_submissions", "admin_settings"];
-  if (!supabaseUrl || !anonKey) return { installed: false, missing: tables, message: "Missing URL or anon key." };
+  const normalizedUrl = normalizeSupabaseUrl(supabaseUrl);
+  if (!normalizedUrl || !anonKey) return { installed: false, missing: tables, message: "Missing URL or anon key." };
   const missing: string[] = [];
   try {
     for (const t of tables) {
-      const res = await fetch(`${supabaseUrl.replace(/\/$/, "")}/rest/v1/${t}?select=*&limit=0`, {
+      const res = await fetch(`${normalizedUrl}/rest/v1/${t}?select=*&limit=0`, {
         headers: { apikey: anonKey, Authorization: `Bearer ${anonKey}` },
       });
       if (res.status === 404) missing.push(t);
@@ -253,10 +324,11 @@ export async function getInstalledSchemaVersion(
   supabaseUrl: string,
   anonKey: string,
 ): Promise<{ version: number | null; supported: boolean; message: string }> {
-  if (!supabaseUrl || !anonKey) return { version: null, supported: false, message: "Missing URL or anon key." };
+  const normalizedUrl = normalizeSupabaseUrl(supabaseUrl);
+  if (!normalizedUrl || !anonKey) return { version: null, supported: false, message: "Missing URL or anon key." };
   try {
     const res = await fetch(
-      `${supabaseUrl.replace(/\/$/, "")}/rest/v1/schema_versions?select=version&order=version.desc&limit=1`,
+      `${normalizedUrl}/rest/v1/schema_versions?select=version&order=version.desc&limit=1`,
       { headers: { apikey: anonKey, Authorization: `Bearer ${anonKey}` } },
     );
     if (res.status === 404) {
@@ -320,23 +392,27 @@ export async function runStandaloneMigration(
   supabaseUrl: string,
   serviceRoleKey: string,
 ): Promise<{ ok: boolean; message: string; needsBootstrap?: boolean }> {
-  if (!supabaseUrl || !serviceRoleKey) {
+  const normalizedUrl = normalizeSupabaseUrl(supabaseUrl);
+  if (!normalizedUrl || !serviceRoleKey) {
     return { ok: false, message: "Supabase URL and service-role key are both required." };
+  }
+  if (isDashboardUrl(supabaseUrl)) {
+    return { ok: false, message: "Use the project API URL in Step 1, not the dashboard URL." };
   }
   try {
     const sqlRes = await fetch("/standalone-migration.sql", { cache: "no-store" });
     if (!sqlRes.ok) return { ok: false, message: "Could not load /standalone-migration.sql from the bundle." };
     const sql = await sqlRes.text();
 
-    const res = await callExecSql(supabaseUrl, serviceRoleKey, sql);
+    const res = await callExecSqlWithRetry(normalizedUrl, serviceRoleKey, sql);
 
-    if (res.status === 404) {
+    if (await isExecSqlSchemaCacheMiss(res)) {
       return {
         ok: false,
         needsBootstrap: true,
         message:
           "The `exec_sql` RPC is not installed in this Supabase project yet. " +
-          "Run the one-time bootstrap script (shown below) in your SQL Editor, then click Auto-Run again.",
+          "If you already ran the bootstrap, wait a few seconds for the API cache to refresh, then click Auto-Run again.",
       };
     }
 
@@ -363,8 +439,9 @@ export async function testExecSqlInstalled(
 ): Promise<{ installed: boolean; message: string }> {
   if (!supabaseUrl || !serviceRoleKey) return { installed: false, message: "Missing URL or key." };
   try {
-    const res = await callExecSql(supabaseUrl, serviceRoleKey, "SELECT 1;");
-    if (res.status === 404) return { installed: false, message: "exec_sql RPC not found — run the bootstrap script first." };
+    if (isDashboardUrl(supabaseUrl)) return { installed: false, message: "Use the project API URL, not the dashboard URL." };
+    const res = await callExecSqlWithRetry(supabaseUrl, serviceRoleKey, "SELECT 1;");
+    if (await isExecSqlSchemaCacheMiss(res)) return { installed: false, message: "exec_sql RPC not found yet — run the bootstrap script, then wait a few seconds and retry." };
     if (res.status === 401 || res.status === 403) return { installed: false, message: "Service-role key was rejected. Double-check the key." };
     if (!res.ok) return { installed: false, message: `Unexpected error (${res.status}).` };
     return { installed: true, message: "exec_sql is installed and the key works ✓" };

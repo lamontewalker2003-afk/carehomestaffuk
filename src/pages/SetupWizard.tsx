@@ -22,6 +22,7 @@ import {
   CURRENT_SCHEMA_VERSION,
   checkSchemaUpgrade,
   applyPendingSchemaUpdates,
+  normalizeSupabaseUrl,
   type AdminCredential,
   type SchemaUpgradeStatus,
 } from "@/lib/runtime-config";
@@ -60,6 +61,7 @@ const SetupWizard = () => {
   const [versionStatus, setVersionStatus] = useState<SchemaUpgradeStatus | null>(null);
   const [checkingVersion, setCheckingVersion] = useState(false);
   const [upgrading, setUpgrading] = useState(false);
+  const [isLiveConnectionMismatch, setIsLiveConnectionMismatch] = useState(false);
 
   // Step 3
   const [admins, setAdmins] = useState<AdminCredential[]>([{ username: "admin", password: "" }]);
@@ -74,6 +76,12 @@ const SetupWizard = () => {
     fetch("/bootstrap-exec-sql.sql").then(r => r.text()).then(setBootstrapSql).catch(() => {});
     getAdminCredentials().then(a => { if (a.length) setAdmins(a); });
   }, []);
+
+  useEffect(() => {
+    const liveNorm = normalizeSupabaseUrl(activeSupabaseUrl || "");
+    const savedNorm = normalizeSupabaseUrl(supabaseUrl);
+    setIsLiveConnectionMismatch(Boolean(savedNorm && liveNorm && liveNorm !== savedNorm));
+  }, [supabaseUrl]);
 
   // Persist step every time it changes.
   useEffect(() => { saveWizardStep(step); }, [step]);
@@ -110,8 +118,8 @@ const SetupWizard = () => {
     saveRuntimeConfig(supabaseUrl, supabaseAnonKey);
     // If the running client is still pointed at a different DB, reload so all
     // subsequent reads/writes (including the migration step) hit the new project.
-    const liveNorm = (activeSupabaseUrl || "").replace(/\/$/, "");
-    const savedNorm = supabaseUrl.trim().replace(/\/$/, "");
+    const liveNorm = normalizeSupabaseUrl(activeSupabaseUrl || "");
+    const savedNorm = normalizeSupabaseUrl(supabaseUrl);
     if (liveNorm !== savedNorm) {
       toast({ title: "Reloading to apply new connection..." });
       saveWizardStep(2);
@@ -156,6 +164,12 @@ const SetupWizard = () => {
   };
 
   const handleRunMigration = async () => {
+    if (isLiveConnectionMismatch) {
+      const message = "Reload the app first so migration runs against the newly saved database.";
+      setMigrationStatus({ ok: false, message });
+      toast({ title: "Reload required", description: message, variant: "destructive" });
+      return;
+    }
     setMigrating(true);
     setMigrationStatus(null);
     const result = await runStandaloneMigration(supabaseUrl, serviceRoleKey);
@@ -168,6 +182,12 @@ const SetupWizard = () => {
   };
 
   const handleTestRpc = async () => {
+    if (isLiveConnectionMismatch) {
+      const message = "Reload the app first so the RPC test checks the newly saved database.";
+      setRpcStatus({ installed: false, message });
+      toast({ title: "Reload required", description: message, variant: "destructive" });
+      return;
+    }
     setTestingRpc(true);
     setRpcStatus(null);
     const result = await testExecSqlInstalled(supabaseUrl, serviceRoleKey);
@@ -265,9 +285,9 @@ const SetupWizard = () => {
 
         {/* Active connection banner — shows where the running app is ACTUALLY writing */}
         {(() => {
-          const savedUrl = supabaseUrl.trim();
-          const liveUrl = activeSupabaseUrl || "(none)";
-          const mismatch = savedUrl && savedUrl.replace(/\/$/, "") !== liveUrl.replace(/\/$/, "");
+          const savedUrl = normalizeSupabaseUrl(supabaseUrl);
+          const liveUrl = normalizeSupabaseUrl(activeSupabaseUrl || "") || "(none)";
+          const mismatch = isLiveConnectionMismatch;
           return (
             <div className={`rounded-md border p-3 mb-4 text-xs ${mismatch ? "bg-destructive/10 border-destructive/30" : "bg-muted border-border"}`}>
               <div className="flex items-start gap-2">
@@ -425,12 +445,12 @@ const SetupWizard = () => {
                     <div className="flex-1">
                       <p className="font-semibold text-sm">One-time bootstrap (~30 seconds, only once per Supabase project)</p>
                       <p className="text-xs text-muted-foreground mt-1">
-                        Installs a tiny <code className="bg-muted px-1 rounded">exec_sql</code> RPC so this wizard (and future schema updates) can run with one click — no more dashboard copy-paste.
+                        Installs a tiny <code className="bg-muted px-1 rounded">exec_sql</code> RPC so this wizard (and future schema updates) can run with one click.
                       </p>
                       <ol className="text-xs text-muted-foreground space-y-1 list-decimal pl-4 mt-2">
                         <li>Click <strong>Copy bootstrap SQL</strong></li>
                         <li>Open Supabase → <strong>SQL Editor</strong> → <strong>New query</strong> → paste → <strong>Run</strong></li>
-                        <li>Come back, paste your service-role key below, and click <strong>Test connection</strong></li>
+                        <li>Come back, paste your service-role key below, then click <strong>Auto-Run Migration</strong></li>
                       </ol>
                       <div className="flex flex-wrap gap-2 pt-3">
                         <Button variant="outline" size="sm" onClick={() => copyText(bootstrapSql, "Bootstrap SQL")}>
@@ -479,9 +499,14 @@ const SetupWizard = () => {
                         <Button variant="outline" size="sm" onClick={handleTestRpc} disabled={testingRpc || !serviceRoleKey}>
                           {testingRpc ? <><Loader2 className="h-4 w-4 mr-1 animate-spin" />Testing...</> : "Test connection"}
                         </Button>
-                        <Button onClick={handleRunMigration} disabled={migrating || !serviceRoleKey} className="bg-primary text-primary-foreground">
+                        <Button onClick={handleRunMigration} disabled={migrating || !serviceRoleKey || isLiveConnectionMismatch} className="bg-primary text-primary-foreground">
                           {migrating ? <><Loader2 className="h-4 w-4 mr-1 animate-spin" />Running...</> : <><Zap className="h-4 w-4 mr-1" />Auto-Run Migration</>}
                         </Button>
+                        {isLiveConnectionMismatch && (
+                          <Button variant="outline" size="sm" onClick={() => window.location.reload()}>
+                            <RefreshCw className="h-4 w-4 mr-1" /> Reload App
+                          </Button>
+                        )}
                       </div>
                       {rpcStatus && (
                         <div className={`text-xs rounded-md p-2 ${rpcStatus.installed ? "bg-primary/10 text-primary border border-primary/20" : "bg-destructive/10 text-destructive border border-destructive/20"}`}>
