@@ -10,6 +10,44 @@
 const LS_KEY = "chsuk_runtime_config_v1";
 const LS_WIZARD_STEP = "chsuk_wizard_step_v1";
 
+const KNOWN_SUPABASE_API_SUFFIXES = ["/rest/v1", "/auth/v1", "/storage/v1", "/functions/v1", "/graphql/v1"];
+
+const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+export function normalizeSupabaseUrl(rawUrl: string): string {
+  const trimmed = rawUrl.trim();
+  if (!trimmed) return "";
+
+  try {
+    const url = new URL(trimmed);
+    let path = url.pathname.replace(/\/$/, "");
+
+    let changed = true;
+    while (changed) {
+      changed = false;
+      for (const suffix of KNOWN_SUPABASE_API_SUFFIXES) {
+        if (path.endsWith(suffix)) {
+          path = path.slice(0, -suffix.length).replace(/\/$/, "");
+          changed = true;
+        }
+      }
+    }
+
+    return `${url.origin}${path || ""}`.replace(/\/$/, "");
+  } catch {
+    return trimmed.replace(/\/$/, "");
+  }
+}
+
+function isDashboardUrl(rawUrl: string) {
+  try {
+    const url = new URL(rawUrl.trim());
+    return url.hostname === "supabase.com" && url.pathname.startsWith("/dashboard");
+  } catch {
+    return false;
+  }
+}
+
 export interface RuntimeConfig {
   supabaseUrl: string;
   supabaseAnonKey: string;
@@ -68,7 +106,7 @@ export function getRuntimeConfigSync(): RuntimeConfig {
   const envUrl = (import.meta as any).env?.VITE_SUPABASE_URL || "";
   const envKey = (import.meta as any).env?.VITE_SUPABASE_PUBLISHABLE_KEY || "";
 
-  const url = local?.supabaseUrl || envUrl;
+  const url = normalizeSupabaseUrl(local?.supabaseUrl || envUrl);
   const key = local?.supabaseAnonKey || envKey;
 
   return {
@@ -84,7 +122,7 @@ export async function getRuntimeConfig(): Promise<RuntimeConfig> {
   if (sync.supabaseUrl && sync.supabaseAnonKey) return sync;
   const file = await loadFileConfig();
   return {
-    supabaseUrl: sync.supabaseUrl || file?.supabaseUrl || "",
+    supabaseUrl: sync.supabaseUrl || normalizeSupabaseUrl(file?.supabaseUrl || ""),
     supabaseAnonKey: sync.supabaseAnonKey || file?.supabaseAnonKey || "",
     isStandalone: sync.isStandalone,
   };
@@ -92,7 +130,7 @@ export async function getRuntimeConfig(): Promise<RuntimeConfig> {
 
 export function saveRuntimeConfig(supabaseUrl: string, supabaseAnonKey: string) {
   const existing = readLocal() || {};
-  writeLocal({ ...existing, supabaseUrl: supabaseUrl.trim(), supabaseAnonKey: supabaseAnonKey.trim() });
+  writeLocal({ ...existing, supabaseUrl: normalizeSupabaseUrl(supabaseUrl), supabaseAnonKey: supabaseAnonKey.trim() });
 }
 
 /**
@@ -156,7 +194,7 @@ export function exportConfig(): string {
 export function importConfig(jsonText: string): { ok: boolean; message: string; imported?: { url: boolean; admins: number } } {
   try {
     const parsed = JSON.parse(jsonText);
-    const url = parsed?.supabase?.url?.trim() || "";
+    const url = normalizeSupabaseUrl(parsed?.supabase?.url?.trim() || "");
     const key = parsed?.supabase?.anonKey?.trim() || "";
     const admins = Array.isArray(parsed?.admins) ? parsed.admins.filter((a: any) => a?.username && a?.password) : [];
     if (!url && !admins.length) return { ok: false, message: "No Supabase URL or admins found in file." };
@@ -173,7 +211,7 @@ export function importConfig(jsonText: string): { ok: boolean; message: string; 
 }
 
 async function callExecSql(supabaseUrl: string, serviceRoleKey: string, sql: string) {
-  const res = await fetch(`${supabaseUrl.replace(/\/$/, "")}/rest/v1/rpc/exec_sql`, {
+  const res = await fetch(`${normalizeSupabaseUrl(supabaseUrl)}/rest/v1/rpc/exec_sql`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -183,6 +221,36 @@ async function callExecSql(supabaseUrl: string, serviceRoleKey: string, sql: str
     body: JSON.stringify({ sql }),
   });
   return res;
+}
+
+async function isExecSqlSchemaCacheMiss(res: Response) {
+  if (res.status === 404) return true;
+  if (res.ok) return false;
+
+  try {
+    const text = await res.clone().text();
+    return text.includes("PGRST202") || text.includes("Could not find the function public.exec_sql") || text.includes("exec_sql");
+  } catch {
+    return false;
+  }
+}
+
+async function callExecSqlWithRetry(supabaseUrl: string, serviceRoleKey: string, sql: string, attempts = 8, delayMs = 1250) {
+  let lastResponse: Response | null = null;
+
+  for (let attempt = 0; attempt < attempts; attempt += 1) {
+    const response = await callExecSql(supabaseUrl, serviceRoleKey, sql);
+    lastResponse = response;
+
+    if (response.ok) return response;
+
+    const retryable = await isExecSqlSchemaCacheMiss(response);
+    if (!retryable || attempt === attempts - 1) return response;
+
+    await wait(delayMs);
+  }
+
+  return lastResponse as Response;
 }
 
 /** Live-ping the anon key against the REST root to confirm it's valid. */
