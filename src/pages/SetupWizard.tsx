@@ -25,10 +25,11 @@ import {
   type AdminCredential,
   type SchemaUpgradeStatus,
 } from "@/lib/runtime-config";
+import { activeSupabaseUrl, isStandaloneSupabase } from "@/integrations/supabase/client";
 import {
   Database, Download, KeyRound, Server, Users, RefreshCw, CheckCircle2,
   AlertCircle, Copy, Zap, Upload, FileDown, Loader2, ShieldCheck, Eye, EyeOff,
-  ArrowUpCircle,
+  ArrowUpCircle, AlertTriangle,
 } from "lucide-react";
 
 type Status = { ok: boolean; message: string } | null;
@@ -107,6 +108,16 @@ const SetupWizard = () => {
       toast({ title: "Connection check failed", description: "Saving anyway — fix details on next step if migration fails.", variant: "destructive" });
     }
     saveRuntimeConfig(supabaseUrl, supabaseAnonKey);
+    // If the running client is still pointed at a different DB, reload so all
+    // subsequent reads/writes (including the migration step) hit the new project.
+    const liveNorm = (activeSupabaseUrl || "").replace(/\/$/, "");
+    const savedNorm = supabaseUrl.trim().replace(/\/$/, "");
+    if (liveNorm !== savedNorm) {
+      toast({ title: "Reloading to apply new connection..." });
+      saveWizardStep(2);
+      setTimeout(() => window.location.reload(), 600);
+      return;
+    }
     toast({ title: "Supabase config saved" });
     goStep(2);
   };
@@ -251,6 +262,32 @@ const SetupWizard = () => {
             </button>
           ))}
         </div>
+
+        {/* Active connection banner — shows where the running app is ACTUALLY writing */}
+        {(() => {
+          const savedUrl = supabaseUrl.trim();
+          const liveUrl = activeSupabaseUrl || "(none)";
+          const mismatch = savedUrl && savedUrl.replace(/\/$/, "") !== liveUrl.replace(/\/$/, "");
+          return (
+            <div className={`rounded-md border p-3 mb-4 text-xs ${mismatch ? "bg-destructive/10 border-destructive/30" : "bg-muted border-border"}`}>
+              <div className="flex items-start gap-2">
+                {mismatch ? <AlertTriangle className="h-4 w-4 text-destructive mt-0.5" /> : <Database className="h-4 w-4 text-muted-foreground mt-0.5" />}
+                <div className="flex-1 space-y-1">
+                  <div><strong>Live app is connected to:</strong> <code className="break-all">{liveUrl}</code> {isStandaloneSupabase ? "(standalone)" : "(Lovable Cloud default)"}</div>
+                  {savedUrl && <div><strong>Saved in wizard:</strong> <code className="break-all">{savedUrl}</code></div>}
+                  {mismatch && (
+                    <div className="text-destructive font-medium pt-1">
+                      ⚠ The running app is still using the OLD database. Click "Reload App" below to switch.
+                      <Button size="sm" variant="destructive" className="ml-2 h-6 px-2 text-xs" onClick={() => window.location.reload()}>
+                        <RefreshCw className="h-3 w-3 mr-1" /> Reload now
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          );
+        })()}
 
         {/* Quick actions */}
         <div className="flex flex-wrap items-center justify-center gap-2 mb-6">
