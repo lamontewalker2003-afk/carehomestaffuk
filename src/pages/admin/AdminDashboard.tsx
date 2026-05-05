@@ -1297,8 +1297,71 @@ function SiteSettingsTab() {
         </div>
       </div>
 
-      <div className="bg-card rounded-lg border p-4 sm:p-6 space-y-3 max-w-2xl">
-        <h2 className="font-heading font-semibold flex items-center gap-2"><Server className="h-4 w-4 text-primary" /> Self-Hosting / Standalone</h2>
+      <div className="bg-card rounded-lg border p-4 sm:p-6 space-y-4 max-w-2xl">
+        <h2 className="font-heading font-semibold">Homepage Stat Cards</h2>
+        <p className="text-xs text-muted-foreground">Shown in the "Trusted Across the UK" band on the homepage.</p>
+        {settings.homepageStats.map((stat, i) => (
+          <div key={i} className="grid grid-cols-1 sm:grid-cols-2 gap-3 border-t pt-3 first:border-t-0 first:pt-0">
+            <div>
+              <Label className="text-xs">Value #{i + 1}</Label>
+              <Input
+                value={stat.value}
+                onChange={e => {
+                  const next = [...settings.homepageStats];
+                  next[i] = { ...next[i], value: e.target.value };
+                  update('homepageStats', next);
+                }}
+                placeholder="500+"
+              />
+            </div>
+            <div>
+              <Label className="text-xs">Label #{i + 1}</Label>
+              <Input
+                value={stat.label}
+                onChange={e => {
+                  const next = [...settings.homepageStats];
+                  next[i] = { ...next[i], label: e.target.value };
+                  update('homepageStats', next);
+                }}
+                placeholder="Care Workers Placed"
+              />
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <div className="bg-card rounded-lg border p-4 sm:p-6 space-y-4 max-w-2xl">
+        <h2 className="font-heading font-semibold">Testimonials Page Stat Cards</h2>
+        <p className="text-xs text-muted-foreground">Shown above the testimonial grid on the /testimonials page.</p>
+        {settings.testimonialStats.map((stat, i) => (
+          <div key={i} className="grid grid-cols-1 sm:grid-cols-2 gap-3 border-t pt-3 first:border-t-0 first:pt-0">
+            <div>
+              <Label className="text-xs">Value #{i + 1}</Label>
+              <Input
+                value={stat.value}
+                onChange={e => {
+                  const next = [...settings.testimonialStats];
+                  next[i] = { ...next[i], value: e.target.value };
+                  update('testimonialStats', next);
+                }}
+                placeholder="4.9/5"
+              />
+            </div>
+            <div>
+              <Label className="text-xs">Label #{i + 1}</Label>
+              <Input
+                value={stat.label}
+                onChange={e => {
+                  const next = [...settings.testimonialStats];
+                  next[i] = { ...next[i], label: e.target.value };
+                  update('testimonialStats', next);
+                }}
+                placeholder="Average Rating"
+              />
+            </div>
+          </div>
+        ))}
+      </div>
         <p className="text-sm text-muted-foreground">
           Want to run this app on your own Supabase project? Use the standalone setup wizard to configure your own database connection, run the consolidated migration, and set admin credentials — all from the browser, no terminal needed.
         </p>
