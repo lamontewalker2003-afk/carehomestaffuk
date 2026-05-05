@@ -63,6 +63,9 @@ const SetupWizard = () => {
   const [checkingVersion, setCheckingVersion] = useState(false);
   const [upgrading, setUpgrading] = useState(false);
   const [isLiveConnectionMismatch, setIsLiveConnectionMismatch] = useState(false);
+  const [jobsCount, setJobsCount] = useState<number | null>(null);
+  const [checkingJobs, setCheckingJobs] = useState(false);
+  const [jobsCheckError, setJobsCheckError] = useState<string | null>(null);
 
   // Step 3
   const [admins, setAdmins] = useState<AdminCredential[]>([{ username: "admin", password: "" }]);
@@ -214,7 +217,40 @@ const SetupWizard = () => {
     toast({ title: `${label} copied to clipboard` });
   };
 
-  // ---------- Step 3 actions ----------
+  const checkJobsSeeded = async () => {
+    setCheckingJobs(true);
+    setJobsCheckError(null);
+    try {
+      const url = normalizeSupabaseUrl(supabaseUrl);
+      if (!url || !supabaseAnonKey) throw new Error("Supabase URL/anon key missing");
+      const res = await fetch(`${url}/rest/v1/jobs?select=id`, {
+        method: "HEAD",
+        headers: {
+          apikey: supabaseAnonKey,
+          Authorization: `Bearer ${supabaseAnonKey}`,
+          Prefer: "count=exact",
+          Range: "0-0",
+        },
+      });
+      if (!res.ok && res.status !== 206 && res.status !== 200) {
+        throw new Error(`HTTP ${res.status}`);
+      }
+      const cr = res.headers.get("content-range") || "";
+      const total = parseInt(cr.split("/")[1] || "0", 10);
+      setJobsCount(Number.isFinite(total) ? total : 0);
+      if (total > 0) {
+        toast({ title: "Jobs seeded successfully", description: `${total} job position${total === 1 ? "" : "s"} found in the database.` });
+      } else {
+        toast({ title: "No jobs found yet", description: "Run the seed SQL in Supabase, then click Refresh again." });
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Failed to check jobs";
+      setJobsCheckError(msg);
+      toast({ title: "Could not check jobs", description: msg, variant: "destructive" });
+    }
+    setCheckingJobs(false);
+  };
+
   const handleSaveAdmins = () => {
     const valid = admins.filter(a => a.username.trim() && a.password.trim());
     if (!valid.length) {
@@ -560,12 +596,32 @@ const SetupWizard = () => {
                         <Copy className="h-4 w-4 mr-1" /> Copy job positions SQL
                       </Button>
                       <Button variant="outline" size="sm" onClick={() => downloadFile(jobsSeedSql, "carehomestaffuk-jobs-seed.sql")} disabled={!jobsSeedSql}>
-                        <Download className="h-4 w-4 mr-1" /> Download
+                        <Download className="h-4 w-4 mr-1" /> Download seed SQL
+                      </Button>
+                      <Button variant="outline" size="sm" onClick={checkJobsSeeded} disabled={checkingJobs}>
+                        {checkingJobs ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <RefreshCw className="h-4 w-4 mr-1" />}
+                        Refresh jobs table
                       </Button>
                     </div>
+                    {jobsCount !== null && jobsCount > 0 && (
+                      <div className="mt-3 flex items-center gap-2 text-sm font-medium text-green-700 dark:text-green-400 bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-900 rounded-md px-3 py-2">
+                        <CheckCircle2 className="h-4 w-4" />
+                        Jobs seeded successfully — {jobsCount} position{jobsCount === 1 ? "" : "s"} live in your database.
+                      </div>
+                    )}
+                    {jobsCount === 0 && !checkingJobs && (
+                      <div className="mt-3 flex items-center gap-2 text-xs text-muted-foreground bg-muted/50 border rounded-md px-3 py-2">
+                        <AlertCircle className="h-3.5 w-3.5" />
+                        No jobs found yet. Paste the SQL into Supabase, then click <strong>Refresh jobs table</strong>.
+                      </div>
+                    )}
+                    {jobsCheckError && (
+                      <div className="mt-2 text-xs text-destructive">{jobsCheckError}</div>
+                    )}
                     <p className="text-[10px] text-muted-foreground mt-2">
-                      Paste into Supabase → <strong>SQL Editor</strong> → <strong>Run</strong>. Edit titles, salaries, or cities afterwards in the admin Jobs tab.
+                      Paste into Supabase → <strong>SQL Editor</strong> → <strong>Run</strong>. Save the downloaded file to archive and re-run later. Edit titles, salaries, or cities afterwards in the admin Jobs tab.
                     </p>
+
                   </div>
                 </div>
               </div>
