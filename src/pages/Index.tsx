@@ -4,8 +4,8 @@ import { Button } from "@/components/ui/button";
 import { SiteHeader } from "@/components/SiteHeader";
 import { SiteFooter } from "@/components/SiteFooter";
 import { JobCard } from "@/components/JobCard";
-import { getJobs } from "@/lib/store";
-import type { Job } from "@/lib/store";
+import { getJobs, getSiteSettings, defaultSiteSettings } from "@/lib/store";
+import type { Job, SiteSettings } from "@/lib/store";
 import { Shield, Users, Heart, ArrowRight, Award, Building2, Globe2, CheckCircle2 } from "lucide-react";
 import heroCare from "@/assets/hero-care.jpg";
 
@@ -15,12 +15,6 @@ const features = [
   { icon: Heart, title: "Compassionate Care", desc: "Every worker is selected for their dedication to resident wellbeing." },
 ];
 
-const trustedStats = [
-  { value: "500+", label: "Care Workers Placed" },
-  { value: "150+", label: "Partner Care Homes" },
-  { value: "98%", label: "Client Satisfaction" },
-  { value: "50+", label: "Nationalities Supported" },
-];
 
 const trustedOrgs = [
   { name: "Care Quality Commission", icon: Award },
@@ -40,9 +34,11 @@ const whyChooseUs = [
 
 const Index = () => {
   const [jobs, setJobs] = useState<Job[]>([]);
+  const [site, setSite] = useState<SiteSettings>(defaultSiteSettings);
 
   useEffect(() => {
     getJobs().then(allJobs => setJobs(allJobs.filter(j => j.isActive).slice(0, 3)));
+    getSiteSettings().then(setSite);
   }, []);
 
   return (
@@ -121,7 +117,7 @@ const Index = () => {
             ))}
           </div>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-            {trustedStats.map((stat, i) => (
+            {site.homepageStats.map((stat, i) => (
               <div key={i} className="text-center p-6 rounded-lg bg-secondary">
                 <p className="font-heading text-3xl font-bold text-primary">{stat.value}</p>
                 <p className="text-sm text-muted-foreground mt-1">{stat.label}</p>

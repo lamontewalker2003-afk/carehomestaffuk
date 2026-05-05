@@ -73,6 +73,10 @@ export interface SiteSettings {
   footerCompanyName: string;   // shown in © line
   footerYear: string;          // empty = auto current year
   footerExtraNote: string;     // optional additional line under copyright
+  // Editable stat cards shown on the homepage "Trusted" band and the testimonials page.
+  // Always exactly 4 entries each — admin edits value + label only.
+  homepageStats: { value: string; label: string }[];
+  testimonialStats: { value: string; label: string }[];
 }
 
 // A single template = an editable email built from friendly fields,
@@ -313,6 +317,18 @@ export const defaultSiteSettings: SiteSettings = {
   footerCompanyName: 'CareHomeStaffUK',
   footerYear: '',
   footerExtraNote: '',
+  homepageStats: [
+    { value: '500+', label: 'Care Workers Placed' },
+    { value: '150+', label: 'Partner Care Homes' },
+    { value: '98%', label: 'Client Satisfaction' },
+    { value: '50+', label: 'Nationalities Supported' },
+  ],
+  testimonialStats: [
+    { value: '500+', label: 'Workers Placed' },
+    { value: '120+', label: 'Partner Care Homes' },
+    { value: '98%', label: 'Satisfaction Rate' },
+    { value: '4.9/5', label: 'Average Rating' },
+  ],
 };
 
 export async function getSiteSettings(): Promise<SiteSettings> {

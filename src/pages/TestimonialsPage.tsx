@@ -1,6 +1,9 @@
+import { useEffect, useState } from "react";
 import { SiteHeader } from "@/components/SiteHeader";
 import { SiteFooter } from "@/components/SiteFooter";
 import { Star, Quote } from "lucide-react";
+import { getSiteSettings, defaultSiteSettings } from "@/lib/store";
+import type { SiteSettings } from "@/lib/store";
 
 const testimonials = [
   {
@@ -54,6 +57,8 @@ const testimonials = [
 ];
 
 const TestimonialsPage = () => {
+  const [site, setSite] = useState<SiteSettings>(defaultSiteSettings);
+  useEffect(() => { getSiteSettings().then(setSite); }, []);
   return (
     <div className="min-h-screen flex flex-col">
       <SiteHeader />
@@ -68,12 +73,7 @@ const TestimonialsPage = () => {
         <div className="container py-10">
           {/* Stats bar */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-12">
-            {[
-              { value: "500+", label: "Workers Placed" },
-              { value: "120+", label: "Partner Care Homes" },
-              { value: "98%", label: "Satisfaction Rate" },
-              { value: "4.9/5", label: "Average Rating" },
-            ].map((stat, i) => (
+            {site.testimonialStats.map((stat, i) => (
               <div key={i} className="bg-card border rounded-lg p-5 text-center">
                 <p className="text-2xl font-bold text-primary">{stat.value}</p>
                 <p className="text-xs text-muted-foreground mt-1">{stat.label}</p>
