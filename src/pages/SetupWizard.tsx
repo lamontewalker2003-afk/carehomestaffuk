@@ -63,6 +63,9 @@ const SetupWizard = () => {
   const [checkingVersion, setCheckingVersion] = useState(false);
   const [upgrading, setUpgrading] = useState(false);
   const [isLiveConnectionMismatch, setIsLiveConnectionMismatch] = useState(false);
+  const [jobsCount, setJobsCount] = useState<number | null>(null);
+  const [checkingJobs, setCheckingJobs] = useState(false);
+  const [jobsCheckError, setJobsCheckError] = useState<string | null>(null);
 
   // Step 3
   const [admins, setAdmins] = useState<AdminCredential[]>([{ username: "admin", password: "" }]);
