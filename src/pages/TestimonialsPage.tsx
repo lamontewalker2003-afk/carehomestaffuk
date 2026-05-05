@@ -1,6 +1,9 @@
+import { useEffect, useState } from "react";
 import { SiteHeader } from "@/components/SiteHeader";
 import { SiteFooter } from "@/components/SiteFooter";
 import { Star, Quote } from "lucide-react";
+import { getSiteSettings, defaultSiteSettings } from "@/lib/store";
+import type { SiteSettings } from "@/lib/store";
 
 const testimonials = [
   {
