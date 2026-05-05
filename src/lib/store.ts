@@ -73,6 +73,10 @@ export interface SiteSettings {
   footerCompanyName: string;   // shown in © line
   footerYear: string;          // empty = auto current year
   footerExtraNote: string;     // optional additional line under copyright
+  // Editable stat cards shown on the homepage "Trusted" band and the testimonials page.
+  // Always exactly 4 entries each — admin edits value + label only.
+  homepageStats: { value: string; label: string }[];
+  testimonialStats: { value: string; label: string }[];
 }
 
 // A single template = an editable email built from friendly fields,
