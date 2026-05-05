@@ -57,6 +57,8 @@ const testimonials = [
 ];
 
 const TestimonialsPage = () => {
+  const [site, setSite] = useState<SiteSettings>(defaultSiteSettings);
+  useEffect(() => { getSiteSettings().then(setSite); }, []);
   return (
     <div className="min-h-screen flex flex-col">
       <SiteHeader />
