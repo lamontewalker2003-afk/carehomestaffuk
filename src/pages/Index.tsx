@@ -15,12 +15,6 @@ const features = [
   { icon: Heart, title: "Compassionate Care", desc: "Every worker is selected for their dedication to resident wellbeing." },
 ];
 
-const trustedStats = [
-  { value: "500+", label: "Care Workers Placed" },
-  { value: "150+", label: "Partner Care Homes" },
-  { value: "98%", label: "Client Satisfaction" },
-  { value: "50+", label: "Nationalities Supported" },
-];
 
 const trustedOrgs = [
   { name: "Care Quality Commission", icon: Award },
