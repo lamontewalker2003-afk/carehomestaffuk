@@ -34,9 +34,11 @@ const whyChooseUs = [
 
 const Index = () => {
   const [jobs, setJobs] = useState<Job[]>([]);
+  const [site, setSite] = useState<SiteSettings>(defaultSiteSettings);
 
   useEffect(() => {
     getJobs().then(allJobs => setJobs(allJobs.filter(j => j.isActive).slice(0, 3)));
+    getSiteSettings().then(setSite);
   }, []);
 
   return (
