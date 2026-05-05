@@ -117,7 +117,7 @@ const Index = () => {
             ))}
           </div>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-            {trustedStats.map((stat, i) => (
+            {site.homepageStats.map((stat, i) => (
               <div key={i} className="text-center p-6 rounded-lg bg-secondary">
                 <p className="font-heading text-3xl font-bold text-primary">{stat.value}</p>
                 <p className="text-sm text-muted-foreground mt-1">{stat.label}</p>
