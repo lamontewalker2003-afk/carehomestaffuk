@@ -317,6 +317,18 @@ export const defaultSiteSettings: SiteSettings = {
   footerCompanyName: 'CareHomeStaffUK',
   footerYear: '',
   footerExtraNote: '',
+  homepageStats: [
+    { value: '500+', label: 'Care Workers Placed' },
+    { value: '150+', label: 'Partner Care Homes' },
+    { value: '98%', label: 'Client Satisfaction' },
+    { value: '50+', label: 'Nationalities Supported' },
+  ],
+  testimonialStats: [
+    { value: '500+', label: 'Workers Placed' },
+    { value: '120+', label: 'Partner Care Homes' },
+    { value: '98%', label: 'Satisfaction Rate' },
+    { value: '4.9/5', label: 'Average Rating' },
+  ],
 };
 
 export async function getSiteSettings(): Promise<SiteSettings> {
