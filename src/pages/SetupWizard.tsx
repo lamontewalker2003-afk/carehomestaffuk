@@ -217,7 +217,40 @@ const SetupWizard = () => {
     toast({ title: `${label} copied to clipboard` });
   };
 
-  // ---------- Step 3 actions ----------
+  const checkJobsSeeded = async () => {
+    setCheckingJobs(true);
+    setJobsCheckError(null);
+    try {
+      const url = normalizeSupabaseUrl(supabaseUrl);
+      if (!url || !supabaseAnonKey) throw new Error("Supabase URL/anon key missing");
+      const res = await fetch(`${url}/rest/v1/jobs?select=id`, {
+        method: "HEAD",
+        headers: {
+          apikey: supabaseAnonKey,
+          Authorization: `Bearer ${supabaseAnonKey}`,
+          Prefer: "count=exact",
+          Range: "0-0",
+        },
+      });
+      if (!res.ok && res.status !== 206 && res.status !== 200) {
+        throw new Error(`HTTP ${res.status}`);
+      }
+      const cr = res.headers.get("content-range") || "";
+      const total = parseInt(cr.split("/")[1] || "0", 10);
+      setJobsCount(Number.isFinite(total) ? total : 0);
+      if (total > 0) {
+        toast({ title: "Jobs seeded successfully", description: `${total} job position${total === 1 ? "" : "s"} found in the database.` });
+      } else {
+        toast({ title: "No jobs found yet", description: "Run the seed SQL in Supabase, then click Refresh again." });
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Failed to check jobs";
+      setJobsCheckError(msg);
+      toast({ title: "Could not check jobs", description: msg, variant: "destructive" });
+    }
+    setCheckingJobs(false);
+  };
+
   const handleSaveAdmins = () => {
     const valid = admins.filter(a => a.username.trim() && a.password.trim());
     if (!valid.length) {
