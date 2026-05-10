@@ -9,6 +9,7 @@ import { CookieConsent } from "@/components/CookieConsent";
 import { WhatsAppButton } from "@/components/WhatsAppButton";
 import Index from "./pages/Index.tsx";
 import JobsPage from "./pages/JobsPage.tsx";
+import JobDetailPage from "./pages/JobDetailPage.tsx";
 import ApplyPage from "./pages/ApplyPage.tsx";
 import VisaInfoPage from "./pages/VisaInfoPage.tsx";
 import AboutPage from "./pages/AboutPage.tsx";
@@ -35,6 +36,7 @@ const App = () => (
           <Routes>
             <Route path="/" element={<Index />} />
             <Route path="/jobs" element={<JobsPage />} />
+            <Route path="/jobs/:slug" element={<JobDetailPage />} />
             <Route path="/apply" element={<ApplyPage />} />
             <Route path="/visa-info" element={<VisaInfoPage />} />
             <Route path="/about" element={<AboutPage />} />

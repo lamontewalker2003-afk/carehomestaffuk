@@ -9,10 +9,10 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import PhoneInput, { isValidPhoneNumber } from "react-phone-number-input";
 import "react-phone-number-input/style.css";
-import { getJobs, saveApplication, sendToTelegram, sendEmail, buildApplicationConfirmationEmail } from "@/lib/store";
-import type { Job } from "@/lib/store";
+import { getJobs, saveApplication, sendToTelegram, sendEmail, buildApplicationConfirmationEmail, getSiteSettings } from "@/lib/store";
+import type { Job, SiteSettings } from "@/lib/store";
 import { toast } from "@/hooks/use-toast";
-import { CheckCircle } from "lucide-react";
+import { CheckCircle, MessageCircle } from "lucide-react";
 
 const ApplyPage = () => {
   const [searchParams] = useSearchParams();
@@ -20,6 +20,7 @@ const ApplyPage = () => {
   const [jobs, setJobs] = useState<Job[]>([]);
   const [submitted, setSubmitted] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [site, setSite] = useState<SiteSettings | null>(null);
   const [form, setForm] = useState({
     jobId: preselectedJob,
     fullName: "",
@@ -35,6 +36,7 @@ const ApplyPage = () => {
 
   useEffect(() => {
     getJobs().then(allJobs => setJobs(allJobs.filter(j => j.isActive)));
+    getSiteSettings().then(setSite);
   }, []);
 
   const selectedJob = jobs.find(j => j.id === form.jobId);
@@ -85,16 +87,31 @@ const ApplyPage = () => {
   };
 
   if (submitted) {
+    const waNumber = (site?.whatsappNumber || "").replace(/[^\d]/g, "");
+    const waMsg = encodeURIComponent(
+      `Hi, I just submitted an application for ${selectedJob?.title || "a position"} (name: ${form.fullName}, email: ${form.email}).`
+    );
+    const waHref = waNumber ? `https://wa.me/${waNumber}?text=${waMsg}` : null;
     return (
       <div className="min-h-screen flex flex-col">
         <SiteHeader />
         <main className="flex-1 flex items-center justify-center">
-          <div className="text-center space-y-4 p-8 animate-fade-in">
+          <div className="text-center space-y-5 p-8 animate-fade-in max-w-md">
             <CheckCircle className="h-16 w-16 text-success mx-auto" />
             <h1 className="font-heading text-3xl font-bold">Application Submitted!</h1>
-            <p className="text-muted-foreground max-w-md mx-auto">
+            <p className="text-muted-foreground">
               Thank you for your application. A confirmation email has been sent to your inbox. Our team will review your details and get back to you within 3-5 working days.
             </p>
+            {waHref && (
+              <div className="space-y-2 pt-2">
+                <p className="text-sm font-medium">Want a faster response? Message us on WhatsApp:</p>
+                <a href={waHref} target="_blank" rel="noopener noreferrer">
+                  <Button size="lg" className="bg-[#25D366] hover:bg-[#1ebe5a] text-white">
+                    <MessageCircle className="h-5 w-5 mr-2" /> Message us on WhatsApp
+                  </Button>
+                </a>
+              </div>
+            )}
           </div>
         </main>
         <SiteFooter />

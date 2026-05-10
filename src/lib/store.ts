@@ -13,6 +13,17 @@ export interface Job {
   requirements: string[];
   isActive: boolean;
   createdAt: string;
+  // Google JobPosting structured data fields
+  streetAddress: string;
+  city: string;
+  region: string;
+  postcode: string;
+  salaryMin: number | null;
+  salaryMax: number | null;
+  companyLogoUrl: string;
+  visaSponsorship: boolean;
+  slug: string;
+  validThrough: string | null;
 }
 
 export interface Application {
@@ -166,6 +177,13 @@ function mapDbJob(row: any): Job {
     type: row.type, salary: row.salary, hourlyRate: row.hourly_rate,
     sponsorshipFee: row.sponsorship_fee, description: row.description,
     requirements: row.requirements || [], isActive: row.is_active, createdAt: row.created_at,
+    streetAddress: row.street_address || '', city: row.city || '', region: row.region || '',
+    postcode: row.postcode || '',
+    salaryMin: row.salary_min === null || row.salary_min === undefined ? null : Number(row.salary_min),
+    salaryMax: row.salary_max === null || row.salary_max === undefined ? null : Number(row.salary_max),
+    companyLogoUrl: row.company_logo_url || '',
+    visaSponsorship: row.visa_sponsorship !== false,
+    slug: row.slug || '', validThrough: row.valid_through || null,
   };
 }
 
@@ -191,29 +209,43 @@ export async function getJobs(): Promise<Job[]> {
   return (data || []).map(mapDbJob);
 }
 
-export async function addJob(job: Omit<Job, 'id' | 'createdAt'>): Promise<Job | null> {
-  const { data, error } = await supabase.from('jobs').insert({
-    title: job.title, soc_code: job.socCode, location: job.location, type: job.type,
-    salary: job.salary, hourly_rate: job.hourlyRate, sponsorship_fee: job.sponsorshipFee,
-    description: job.description, requirements: job.requirements, is_active: job.isActive,
-  }).select().single();
+export async function getJobBySlug(slug: string): Promise<Job | null> {
+  const { data, error } = await supabase.from('jobs').select('*').eq('slug', slug).maybeSingle();
+  if (error) { console.error('Error fetching job by slug:', error); return null; }
+  return data ? mapDbJob(data) : null;
+}
+
+function jobToDbInsert(job: Partial<Job>): any {
+  const out: any = {};
+  if (job.title !== undefined) out.title = job.title;
+  if (job.socCode !== undefined) out.soc_code = job.socCode;
+  if (job.location !== undefined) out.location = job.location;
+  if (job.type !== undefined) out.type = job.type;
+  if (job.salary !== undefined) out.salary = job.salary;
+  if (job.hourlyRate !== undefined) out.hourly_rate = job.hourlyRate;
+  if (job.sponsorshipFee !== undefined) out.sponsorship_fee = job.sponsorshipFee;
+  if (job.description !== undefined) out.description = job.description;
+  if (job.requirements !== undefined) out.requirements = job.requirements;
+  if (job.isActive !== undefined) out.is_active = job.isActive;
+  if (job.streetAddress !== undefined) out.street_address = job.streetAddress;
+  if (job.city !== undefined) out.city = job.city;
+  if (job.region !== undefined) out.region = job.region;
+  if (job.postcode !== undefined) out.postcode = job.postcode;
+  if (job.salaryMin !== undefined) out.salary_min = job.salaryMin;
+  if (job.salaryMax !== undefined) out.salary_max = job.salaryMax;
+  if (job.companyLogoUrl !== undefined) out.company_logo_url = job.companyLogoUrl;
+  if (job.visaSponsorship !== undefined) out.visa_sponsorship = job.visaSponsorship;
+  return out;
+}
+
+export async function addJob(job: Omit<Job, 'id' | 'createdAt' | 'slug' | 'validThrough'>): Promise<Job | null> {
+  const { data, error } = await supabase.from('jobs').insert(jobToDbInsert(job as any)).select().single();
   if (error) { console.error('Error adding job:', error); return null; }
   return mapDbJob(data);
 }
 
 export async function updateJob(id: string, updates: Partial<Job>) {
-  const dbUpdates: any = {};
-  if (updates.title !== undefined) dbUpdates.title = updates.title;
-  if (updates.socCode !== undefined) dbUpdates.soc_code = updates.socCode;
-  if (updates.location !== undefined) dbUpdates.location = updates.location;
-  if (updates.type !== undefined) dbUpdates.type = updates.type;
-  if (updates.salary !== undefined) dbUpdates.salary = updates.salary;
-  if (updates.hourlyRate !== undefined) dbUpdates.hourly_rate = updates.hourlyRate;
-  if (updates.sponsorshipFee !== undefined) dbUpdates.sponsorship_fee = updates.sponsorshipFee;
-  if (updates.description !== undefined) dbUpdates.description = updates.description;
-  if (updates.requirements !== undefined) dbUpdates.requirements = updates.requirements;
-  if (updates.isActive !== undefined) dbUpdates.is_active = updates.isActive;
-  const { error } = await supabase.from('jobs').update(dbUpdates).eq('id', id);
+  const { error } = await supabase.from('jobs').update(jobToDbInsert(updates)).eq('id', id);
   if (error) console.error('Error updating job:', error);
 }
 
