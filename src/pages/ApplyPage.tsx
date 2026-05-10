@@ -87,16 +87,31 @@ const ApplyPage = () => {
   };
 
   if (submitted) {
+    const waNumber = (site?.whatsappNumber || "").replace(/[^\d]/g, "");
+    const waMsg = encodeURIComponent(
+      `Hi, I just submitted an application for ${selectedJob?.title || "a position"} (name: ${form.fullName}, email: ${form.email}).`
+    );
+    const waHref = waNumber ? `https://wa.me/${waNumber}?text=${waMsg}` : null;
     return (
       <div className="min-h-screen flex flex-col">
         <SiteHeader />
         <main className="flex-1 flex items-center justify-center">
-          <div className="text-center space-y-4 p-8 animate-fade-in">
+          <div className="text-center space-y-5 p-8 animate-fade-in max-w-md">
             <CheckCircle className="h-16 w-16 text-success mx-auto" />
             <h1 className="font-heading text-3xl font-bold">Application Submitted!</h1>
-            <p className="text-muted-foreground max-w-md mx-auto">
+            <p className="text-muted-foreground">
               Thank you for your application. A confirmation email has been sent to your inbox. Our team will review your details and get back to you within 3-5 working days.
             </p>
+            {waHref && (
+              <div className="space-y-2 pt-2">
+                <p className="text-sm font-medium">Want a faster response? Message us on WhatsApp:</p>
+                <a href={waHref} target="_blank" rel="noopener noreferrer">
+                  <Button size="lg" className="bg-[#25D366] hover:bg-[#1ebe5a] text-white">
+                    <MessageCircle className="h-5 w-5 mr-2" /> Message us on WhatsApp
+                  </Button>
+                </a>
+              </div>
+            )}
           </div>
         </main>
         <SiteFooter />
