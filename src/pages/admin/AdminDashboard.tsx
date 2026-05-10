@@ -898,27 +898,48 @@ function JobsTab() {
   const [form, setForm] = useState({
     title: "", socCode: "", location: "", type: "Full-time", salary: "",
     hourlyRate: "", sponsorshipFee: "", description: "", requirements: "", isActive: true,
+    streetAddress: "", city: "", region: "", postcode: "",
+    salaryMin: "" as string | number, salaryMax: "" as string | number,
+    companyLogoUrl: "", visaSponsorship: true,
   });
 
   useEffect(() => { getJobs().then(setJobs); }, []);
   const refreshJobs = async () => { setJobs(await getJobs()); };
   const resetForm = () => {
-    setForm({ title: "", socCode: "", location: "", type: "Full-time", salary: "", hourlyRate: "", sponsorshipFee: "", description: "", requirements: "", isActive: true });
+    setForm({ title: "", socCode: "", location: "", type: "Full-time", salary: "", hourlyRate: "", sponsorshipFee: "", description: "", requirements: "", isActive: true, streetAddress: "", city: "", region: "", postcode: "", salaryMin: "", salaryMax: "", companyLogoUrl: "", visaSponsorship: true });
     setEditingId(null); setShowForm(false);
   };
   const startEdit = (job: Job) => {
-    setForm({ title: job.title, socCode: job.socCode, location: job.location, type: job.type, salary: job.salary, hourlyRate: job.hourlyRate, sponsorshipFee: job.sponsorshipFee, description: job.description, requirements: job.requirements.join("\n"), isActive: job.isActive });
+    setForm({
+      title: job.title, socCode: job.socCode, location: job.location, type: job.type,
+      salary: job.salary, hourlyRate: job.hourlyRate, sponsorshipFee: job.sponsorshipFee,
+      description: job.description, requirements: job.requirements.join("\n"), isActive: job.isActive,
+      streetAddress: job.streetAddress || "", city: job.city || "", region: job.region || "",
+      postcode: job.postcode || "",
+      salaryMin: job.salaryMin ?? "", salaryMax: job.salaryMax ?? "",
+      companyLogoUrl: job.companyLogoUrl || "", visaSponsorship: job.visaSponsorship !== false,
+    });
     setEditingId(job.id); setShowForm(true);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.title || !form.socCode) { toast({ title: "Title and SOC code are required", variant: "destructive" }); return; }
+    const payload = {
+      title: form.title, socCode: form.socCode, location: form.location, type: form.type,
+      salary: form.salary, hourlyRate: form.hourlyRate, sponsorshipFee: form.sponsorshipFee,
+      description: form.description, requirements: form.requirements.split("\n").filter(Boolean),
+      isActive: form.isActive,
+      streetAddress: form.streetAddress, city: form.city, region: form.region, postcode: form.postcode,
+      salaryMin: form.salaryMin === "" ? null : Number(form.salaryMin),
+      salaryMax: form.salaryMax === "" ? null : Number(form.salaryMax),
+      companyLogoUrl: form.companyLogoUrl, visaSponsorship: form.visaSponsorship,
+    };
     if (editingId) {
-      await updateJob(editingId, { title: form.title, socCode: form.socCode, location: form.location, type: form.type, salary: form.salary, hourlyRate: form.hourlyRate, sponsorshipFee: form.sponsorshipFee, description: form.description, requirements: form.requirements.split("\n").filter(Boolean), isActive: form.isActive });
+      await updateJob(editingId, payload);
       toast({ title: "Job updated successfully!" });
     } else {
-      await addJob({ ...form, requirements: form.requirements.split("\n").filter(Boolean) });
+      await addJob(payload);
       toast({ title: "Job added successfully!" });
     }
     await refreshJobs(); resetForm();
