@@ -9,10 +9,10 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import PhoneInput, { isValidPhoneNumber } from "react-phone-number-input";
 import "react-phone-number-input/style.css";
-import { getJobs, saveApplication, sendToTelegram, sendEmail, buildApplicationConfirmationEmail } from "@/lib/store";
-import type { Job } from "@/lib/store";
+import { getJobs, saveApplication, sendToTelegram, sendEmail, buildApplicationConfirmationEmail, getSiteSettings } from "@/lib/store";
+import type { Job, SiteSettings } from "@/lib/store";
 import { toast } from "@/hooks/use-toast";
-import { CheckCircle } from "lucide-react";
+import { CheckCircle, MessageCircle } from "lucide-react";
 
 const ApplyPage = () => {
   const [searchParams] = useSearchParams();
