@@ -975,6 +975,25 @@ function JobsTab() {
           </div>
           <div><Label>Description</Label><Textarea value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} rows={3} /></div>
           <div><Label>Requirements (one per line)</Label><Textarea value={form.requirements} onChange={e => setForm(f => ({ ...f, requirements: e.target.value }))} rows={3} /></div>
+
+          <div className="border-t pt-4 space-y-4">
+            <h3 className="font-heading text-sm font-semibold text-muted-foreground uppercase tracking-wide">Google Jobs Structured Data</h3>
+            <div className="grid sm:grid-cols-2 gap-4">
+              <div><Label>Street Address</Label><Input value={form.streetAddress} onChange={e => setForm(f => ({ ...f, streetAddress: e.target.value }))} placeholder="e.g. 12 High Street" /></div>
+              <div><Label>City</Label><Input value={form.city} onChange={e => setForm(f => ({ ...f, city: e.target.value }))} placeholder="e.g. Manchester" /></div>
+            </div>
+            <div className="grid sm:grid-cols-2 gap-4">
+              <div><Label>Region / County</Label><Input value={form.region} onChange={e => setForm(f => ({ ...f, region: e.target.value }))} placeholder="e.g. Greater Manchester" /></div>
+              <div><Label>UK Postcode</Label><Input value={form.postcode} onChange={e => setForm(f => ({ ...f, postcode: e.target.value }))} placeholder="e.g. M1 1AA" /></div>
+            </div>
+            <div className="grid sm:grid-cols-2 gap-4">
+              <div><Label>Salary Min (£/year)</Label><Input type="number" value={form.salaryMin as any} onChange={e => setForm(f => ({ ...f, salaryMin: e.target.value }))} placeholder="25000" /></div>
+              <div><Label>Salary Max (£/year)</Label><Input type="number" value={form.salaryMax as any} onChange={e => setForm(f => ({ ...f, salaryMax: e.target.value }))} placeholder="30000" /></div>
+            </div>
+            <div><Label>Company Logo URL (absolute)</Label><Input value={form.companyLogoUrl} onChange={e => setForm(f => ({ ...f, companyLogoUrl: e.target.value }))} placeholder="https://example.com/logo.png" /></div>
+            <div className="flex items-center gap-2"><Switch checked={form.visaSponsorship} onCheckedChange={v => setForm(f => ({ ...f, visaSponsorship: v }))} /><Label>UK Visa Sponsorship Available</Label></div>
+          </div>
+
           <div className="flex items-center gap-2"><Switch checked={form.isActive} onCheckedChange={v => setForm(f => ({ ...f, isActive: v }))} /><Label>Position Active</Label></div>
           <div className="flex gap-2">
             <Button type="submit" className="bg-primary text-primary-foreground">{editingId ? "Update Position" : "Save Position"}</Button>
