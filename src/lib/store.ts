@@ -13,6 +13,17 @@ export interface Job {
   requirements: string[];
   isActive: boolean;
   createdAt: string;
+  // Google JobPosting structured data fields
+  streetAddress: string;
+  city: string;
+  region: string;
+  postcode: string;
+  salaryMin: number | null;
+  salaryMax: number | null;
+  companyLogoUrl: string;
+  visaSponsorship: boolean;
+  slug: string;
+  validThrough: string | null;
 }
 
 export interface Application {
