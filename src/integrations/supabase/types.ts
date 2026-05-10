@@ -179,46 +179,76 @@ export type Database = {
       }
       jobs: {
         Row: {
+          city: string
+          company_logo_url: string
           created_at: string
           description: string
           hourly_rate: string
           id: string
           is_active: boolean
           location: string
+          postcode: string
+          region: string
           requirements: string[]
           salary: string
+          salary_max: number | null
+          salary_min: number | null
+          slug: string | null
           soc_code: string
           sponsorship_fee: string
+          street_address: string
           title: string
           type: string
+          valid_through: string | null
+          visa_sponsorship: boolean
         }
         Insert: {
+          city?: string
+          company_logo_url?: string
           created_at?: string
           description?: string
           hourly_rate?: string
           id?: string
           is_active?: boolean
           location?: string
+          postcode?: string
+          region?: string
           requirements?: string[]
           salary?: string
+          salary_max?: number | null
+          salary_min?: number | null
+          slug?: string | null
           soc_code: string
           sponsorship_fee?: string
+          street_address?: string
           title: string
           type?: string
+          valid_through?: string | null
+          visa_sponsorship?: boolean
         }
         Update: {
+          city?: string
+          company_logo_url?: string
           created_at?: string
           description?: string
           hourly_rate?: string
           id?: string
           is_active?: boolean
           location?: string
+          postcode?: string
+          region?: string
           requirements?: string[]
           salary?: string
+          salary_max?: number | null
+          salary_min?: number | null
+          slug?: string | null
           soc_code?: string
           sponsorship_fee?: string
+          street_address?: string
           title?: string
           type?: string
+          valid_through?: string | null
+          visa_sponsorship?: boolean
         }
         Relationships: []
       }
