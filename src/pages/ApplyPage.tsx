@@ -36,6 +36,7 @@ const ApplyPage = () => {
 
   useEffect(() => {
     getJobs().then(allJobs => setJobs(allJobs.filter(j => j.isActive)));
+    getSiteSettings().then(setSite);
   }, []);
 
   const selectedJob = jobs.find(j => j.id === form.jobId);
