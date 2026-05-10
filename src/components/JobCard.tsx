@@ -34,11 +34,18 @@ export function JobCard({ job }: { job: Job }) {
         </div>
       )}
 
-      <Link to={`/apply?job=${job.id}`}>
-        <Button variant="outline" size="sm" className="border-primary text-primary hover:bg-primary hover:text-primary-foreground">
-          Apply Now
-        </Button>
-      </Link>
+      <div className="flex flex-wrap gap-2">
+        {job.slug && (
+          <Link to={`/jobs/${job.slug}`}>
+            <Button variant="ghost" size="sm">View details</Button>
+          </Link>
+        )}
+        <Link to={`/apply?job=${job.id}`}>
+          <Button variant="outline" size="sm" className="border-primary text-primary hover:bg-primary hover:text-primary-foreground">
+            Apply Now
+          </Button>
+        </Link>
+      </div>
     </div>
   );
 }
