@@ -20,6 +20,7 @@ const ApplyPage = () => {
   const [jobs, setJobs] = useState<Job[]>([]);
   const [submitted, setSubmitted] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [site, setSite] = useState<SiteSettings | null>(null);
   const [form, setForm] = useState({
     jobId: preselectedJob,
     fullName: "",
