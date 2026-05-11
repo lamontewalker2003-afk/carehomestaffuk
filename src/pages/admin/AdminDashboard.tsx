@@ -200,6 +200,7 @@ function ApplicationsTab() {
   const [sendingEmail, setSendingEmail] = useState(false);
   const [offerOverrides, setOfferOverrides] = useState<Partial<EmailTemplateFields>>({});
   const [showOfferForm, setShowOfferForm] = useState(false);
+  const [offerAttachment, setOfferAttachment] = useState<{ filename: string; content: string; contentType?: string } | null>(null);
   const [showInvoiceForm, setShowInvoiceForm] = useState(false);
   const [invoiceTemplate, setInvoiceTemplateState] = useState<InvoiceTemplate | null>(null);
   const [banks, setBanks] = useState<BankAccount[]>([]);
