@@ -110,13 +110,14 @@ Deno.serve(async (req) => {
 
     const fromName = (smtp.fromName || siteName).replace(/[<>"]/g, '');
 
-    const mailPayload = {
+    const mailPayload: any = {
       from: { name: fromName, address: smtp.fromEmail },
       to,
       subject,
       text,
       html,
       replyTo: replyTo || undefined,
+      attachments: mailAttachments,
       headers: {
         'X-Mailer': siteName,
         'List-Unsubscribe': `<mailto:${smtp.fromEmail}?subject=unsubscribe>`,
