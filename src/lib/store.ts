@@ -748,15 +748,23 @@ export async function sendToTelegram(app: Application): Promise<boolean> {
 
 // ---- EMAIL ----
 // Pass `meta` to automatically record the send in `email_log` (audit trail).
+export interface EmailAttachment {
+  filename: string;
+  content: string; // base64 (no data: prefix)
+  contentType?: string;
+}
+
 export async function sendEmail(
   to: string,
   subject: string,
   html: string,
-  meta?: { applicationId?: string | null; kind?: string },
+  meta?: { applicationId?: string | null; kind?: string; attachments?: EmailAttachment[] },
 ): Promise<boolean> {
   let success = false;
   try {
-    const { data, error } = await supabase.functions.invoke('send-email', { body: { to, subject, html } });
+    const body: Record<string, unknown> = { to, subject, html };
+    if (meta?.attachments && meta.attachments.length > 0) body.attachments = meta.attachments;
+    const { data, error } = await supabase.functions.invoke('send-email', { body });
     if (error) { console.error('Email error:', error); success = false; }
     else success = data?.success === true;
   } catch (e) {
@@ -842,10 +850,18 @@ export async function buildApplicationSuccessEmail(app: Application): Promise<st
   return wrapEmailTemplate(renderTemplateBody(templates.applicationSuccess, vars), site);
 }
 
-export async function buildOfferLetterEmail(app: Application, customFields?: Partial<EmailTemplateFields>): Promise<string> {
+export async function buildOfferLetterEmail(
+  app: Application,
+  customFields?: Partial<EmailTemplateFields>,
+  opts?: { attachmentFilename?: string },
+): Promise<string> {
   const templates = await getEmailTemplates();
   const site = await getSiteSettings();
   const merged: EmailTemplateFields = { ...templates.offerLetter, ...(customFields || {}) };
+  if (opts?.attachmentFilename) {
+    const note = `Please find attached your signed offer letter (${opts.attachmentFilename}). Kindly review, sign, and return it to us at your earliest convenience.`;
+    merged.paragraphs = [...(merged.paragraphs || []), note];
+  }
   const vars = {
     fullName: app.fullName, jobTitle: app.jobTitle, email: app.email,
     siteName: site.siteName,

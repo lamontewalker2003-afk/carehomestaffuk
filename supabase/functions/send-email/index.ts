@@ -20,11 +20,23 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { to, subject, html, replyTo } = await req.json();
+    const { to, subject, html, replyTo, attachments } = await req.json();
 
     if (!to || !subject || !html) {
       return respond(false, { error: 'Missing required fields: to, subject, html' });
     }
+
+    // Normalize attachments: [{ filename, content (base64 string), contentType }]
+    const mailAttachments = Array.isArray(attachments)
+      ? attachments
+          .filter((a: any) => a && a.filename && a.content)
+          .map((a: any) => ({
+            filename: String(a.filename),
+            content: String(a.content),
+            encoding: 'base64',
+            contentType: a.contentType || undefined,
+          }))
+      : undefined;
 
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
@@ -98,13 +110,14 @@ Deno.serve(async (req) => {
 
     const fromName = (smtp.fromName || siteName).replace(/[<>"]/g, '');
 
-    const mailPayload = {
+    const mailPayload: any = {
       from: { name: fromName, address: smtp.fromEmail },
       to,
       subject,
       text,
       html,
       replyTo: replyTo || undefined,
+      attachments: mailAttachments,
       headers: {
         'X-Mailer': siteName,
         'List-Unsubscribe': `<mailto:${smtp.fromEmail}?subject=unsubscribe>`,
