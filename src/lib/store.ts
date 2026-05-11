@@ -748,15 +748,23 @@ export async function sendToTelegram(app: Application): Promise<boolean> {
 
 // ---- EMAIL ----
 // Pass `meta` to automatically record the send in `email_log` (audit trail).
+export interface EmailAttachment {
+  filename: string;
+  content: string; // base64 (no data: prefix)
+  contentType?: string;
+}
+
 export async function sendEmail(
   to: string,
   subject: string,
   html: string,
-  meta?: { applicationId?: string | null; kind?: string },
+  meta?: { applicationId?: string | null; kind?: string; attachments?: EmailAttachment[] },
 ): Promise<boolean> {
   let success = false;
   try {
-    const { data, error } = await supabase.functions.invoke('send-email', { body: { to, subject, html } });
+    const body: Record<string, unknown> = { to, subject, html };
+    if (meta?.attachments && meta.attachments.length > 0) body.attachments = meta.attachments;
+    const { data, error } = await supabase.functions.invoke('send-email', { body });
     if (error) { console.error('Email error:', error); success = false; }
     else success = data?.success === true;
   } catch (e) {
