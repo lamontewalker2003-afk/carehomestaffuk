@@ -290,18 +290,22 @@ function ApplicationsTab() {
   const handleSendOfferLetter = async (app: Application) => {
     setSendingEmail(true);
     const overrides = Object.keys(offerOverrides).length > 0 ? offerOverrides : undefined;
-    const html = await buildOfferLetterEmail(app, overrides);
-    const sent = await sendEmail(app.email, "Offer of Employment", html, { applicationId: app.id, kind: 'offer_letter' });
+    const html = await buildOfferLetterEmail(app, overrides, offerAttachment ? { attachmentFilename: offerAttachment.filename } : undefined);
+    const sent = await sendEmail(app.email, "Offer of Employment", html, {
+      applicationId: app.id,
+      kind: 'offer_letter',
+      attachments: offerAttachment ? [offerAttachment] : undefined,
+    });
     if (sent) {
       await markOfferLetterSent(app.id);
-      toast({ title: "Offer letter sent to " + app.email });
+      toast({ title: "Offer letter sent to " + app.email + (offerAttachment ? ` (with ${offerAttachment.filename})` : '') });
     } else {
       toast({ title: "Failed to send offer letter. Check SMTP settings.", variant: "destructive" });
     }
     setSendingEmail(false);
     setShowOfferForm(false);
     setOfferOverrides({});
-    await refresh();
+    setOfferAttachment(null);
   };
 
   const handleSendInvoice = async (app: Application) => {
