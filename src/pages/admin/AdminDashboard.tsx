@@ -543,11 +543,40 @@ function ApplicationsTab() {
                       <Label className="text-xs">Highlight box (optional)</Label>
                       <Input value={offerOverrides.highlight || ''} onChange={e => setOfferOverrides(o => ({ ...o, highlight: e.target.value }))} placeholder="Welcome to the team..." />
                     </div>
+                    <div className="border-t pt-3">
+                      <Label className="text-xs font-semibold">Attach signed offer letter (optional)</Label>
+                      <p className="text-[11px] text-muted-foreground mb-2">Upload a PDF/DOC to send as an attachment. If attached, the email will include a "Please find attached…" note. If not attached, no such note is added.</p>
+                      <Input
+                        type="file"
+                        accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                        onChange={async (e) => {
+                          const file = e.target.files?.[0];
+                          if (!file) { setOfferAttachment(null); return; }
+                          if (file.size > 8 * 1024 * 1024) {
+                            toast({ title: "File too large (max 8MB)", variant: "destructive" });
+                            e.target.value = '';
+                            return;
+                          }
+                          const buf = await file.arrayBuffer();
+                          let bin = '';
+                          const bytes = new Uint8Array(buf);
+                          for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
+                          const b64 = btoa(bin);
+                          setOfferAttachment({ filename: file.name, content: b64, contentType: file.type || 'application/octet-stream' });
+                        }}
+                      />
+                      {offerAttachment && (
+                        <div className="text-xs mt-2 flex items-center gap-2">
+                          <span className="text-green-700">✓ {offerAttachment.filename} ready to attach</span>
+                          <button type="button" className="underline text-muted-foreground" onClick={() => setOfferAttachment(null)}>Remove</button>
+                        </div>
+                      )}
+                    </div>
                     <div className="flex gap-2">
                       <Button size="sm" onClick={() => handleSendOfferLetter(selected)} disabled={sendingEmail} className="bg-primary text-primary-foreground">
-                        {sendingEmail ? 'Sending...' : 'Send Offer Letter'}
+                        {sendingEmail ? 'Sending...' : (offerAttachment ? 'Send Offer Letter + Attachment' : 'Send Offer Letter')}
                       </Button>
-                      <Button size="sm" variant="outline" onClick={() => { setShowOfferForm(false); setOfferOverrides({}); }}>Cancel</Button>
+                      <Button size="sm" variant="outline" onClick={() => { setShowOfferForm(false); setOfferOverrides({}); setOfferAttachment(null); }}>Cancel</Button>
                     </div>
                   </div>
                 )}
