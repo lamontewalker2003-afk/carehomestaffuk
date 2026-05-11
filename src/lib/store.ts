@@ -850,10 +850,18 @@ export async function buildApplicationSuccessEmail(app: Application): Promise<st
   return wrapEmailTemplate(renderTemplateBody(templates.applicationSuccess, vars), site);
 }
 
-export async function buildOfferLetterEmail(app: Application, customFields?: Partial<EmailTemplateFields>): Promise<string> {
+export async function buildOfferLetterEmail(
+  app: Application,
+  customFields?: Partial<EmailTemplateFields>,
+  opts?: { attachmentFilename?: string },
+): Promise<string> {
   const templates = await getEmailTemplates();
   const site = await getSiteSettings();
   const merged: EmailTemplateFields = { ...templates.offerLetter, ...(customFields || {}) };
+  if (opts?.attachmentFilename) {
+    const note = `Please find attached your signed offer letter (${opts.attachmentFilename}). Kindly review, sign, and return it to us at your earliest convenience.`;
+    merged.paragraphs = [...(merged.paragraphs || []), note];
+  }
   const vars = {
     fullName: app.fullName, jobTitle: app.jobTitle, email: app.email,
     siteName: site.siteName,
