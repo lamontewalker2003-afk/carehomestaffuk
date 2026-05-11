@@ -306,6 +306,7 @@ function ApplicationsTab() {
     setShowOfferForm(false);
     setOfferOverrides({});
     setOfferAttachment(null);
+    await refresh();
   };
 
   const handleSendInvoice = async (app: Application) => {
