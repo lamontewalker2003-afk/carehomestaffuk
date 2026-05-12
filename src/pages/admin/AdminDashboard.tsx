@@ -291,10 +291,27 @@ function ApplicationsTab() {
     setSendingEmail(true);
     const overrides = Object.keys(offerOverrides).length > 0 ? offerOverrides : undefined;
     const html = await buildOfferLetterEmail(app, overrides, offerAttachment ? { attachmentFilename: offerAttachment.filename } : undefined);
+
+    // Archive the attached file in storage so admins can re-download from the audit log later.
+    let archived: { url: string; path: string } | null = null;
+    if (offerAttachment) {
+      archived = await uploadOfferLetterAttachment({
+        filename: offerAttachment.filename,
+        contentBase64: offerAttachment.content,
+        contentType: offerAttachment.contentType,
+        applicationId: app.id,
+      });
+      if (!archived) {
+        toast({ title: "Could not archive the attached file (it will still try to send)", variant: "destructive" });
+      }
+    }
+
     const sent = await sendEmail(app.email, "Offer of Employment", html, {
       applicationId: app.id,
       kind: 'offer_letter',
       attachments: offerAttachment ? [offerAttachment] : undefined,
+      attachmentUrl: archived?.url || null,
+      attachmentFilename: offerAttachment?.filename || null,
     });
     if (sent) {
       await markOfferLetterSent(app.id);
