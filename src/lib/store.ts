@@ -783,7 +783,13 @@ export async function sendEmail(
   to: string,
   subject: string,
   html: string,
-  meta?: { applicationId?: string | null; kind?: string; attachments?: EmailAttachment[] },
+  meta?: {
+    applicationId?: string | null;
+    kind?: string;
+    attachments?: EmailAttachment[];
+    attachmentUrl?: string | null;
+    attachmentFilename?: string | null;
+  },
 ): Promise<boolean> {
   let success = false;
   try {
@@ -804,9 +810,114 @@ export async function sendEmail(
       subject,
       html,
       success,
+      attachmentUrl: meta.attachmentUrl ?? null,
+      attachmentFilename: meta.attachmentFilename ?? null,
     });
   }
   return success;
+}
+
+// Upload an offer letter file (base64) to the public storage bucket and
+// return its public URL so admins can re-download from the audit log later.
+export async function uploadOfferLetterAttachment(args: {
+  filename: string;
+  contentBase64: string;
+  contentType?: string;
+  applicationId?: string;
+}): Promise<{ url: string; path: string } | null> {
+  try {
+    const safeName = args.filename.replace(/[^a-zA-Z0-9._-]+/g, '_');
+    const path = `${args.applicationId || 'misc'}/${Date.now()}-${safeName}`;
+    const bin = atob(args.contentBase64);
+    const bytes = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+    const { error } = await supabase.storage
+      .from('offer-letters')
+      .upload(path, bytes, {
+        contentType: args.contentType || 'application/octet-stream',
+        upsert: false,
+      });
+    if (error) { console.error('Offer letter upload failed:', error); return null; }
+    const { data } = supabase.storage.from('offer-letters').getPublicUrl(path);
+    return { url: data.publicUrl, path };
+  } catch (e) {
+    console.error('Offer letter upload exception:', e);
+    return null;
+  }
+}
+
+// ---- APPOINTMENTS ----
+function mapDbAppointment(row: any): Appointment {
+  return {
+    id: row.id,
+    fullName: row.full_name,
+    email: row.email,
+    phone: row.phone || '',
+    scheduledAt: row.scheduled_at,
+    notes: row.notes || '',
+    status: (row.status as Appointment['status']) || 'pending',
+    createdAt: row.created_at,
+  };
+}
+
+export async function getAppointments(): Promise<Appointment[]> {
+  const { data, error } = await supabase
+    .from('appointments').select('*').order('scheduled_at', { ascending: true });
+  if (error) { console.error('Error fetching appointments:', error); return []; }
+  return (data || []).map(mapDbAppointment);
+}
+
+export async function createAppointment(input: {
+  fullName: string; email: string; phone: string; scheduledAt: string; notes?: string;
+}): Promise<Appointment | null> {
+  const { data, error } = await supabase.from('appointments').insert({
+    full_name: input.fullName, email: input.email, phone: input.phone,
+    scheduled_at: input.scheduledAt, notes: input.notes || '',
+  }).select().single();
+  if (error) { console.error('Error creating appointment:', error); return null; }
+  return mapDbAppointment(data);
+}
+
+export async function updateAppointmentStatus(id: string, status: Appointment['status']) {
+  const { error } = await supabase.from('appointments').update({ status }).eq('id', id);
+  if (error) console.error('Error updating appointment:', error);
+}
+
+export async function deleteAppointment(id: string) {
+  const { error } = await supabase.from('appointments').delete().eq('id', id);
+  if (error) console.error('Error deleting appointment:', error);
+}
+
+/** Slots already booked (any status except revoked) for blocking the calendar UI. */
+export async function getBookedSlots(): Promise<string[]> {
+  const { data, error } = await supabase
+    .from('appointments').select('scheduled_at,status')
+    .neq('status', 'revoked');
+  if (error) return [];
+  return (data || []).map((r: any) => r.scheduled_at);
+}
+
+export async function buildAppointmentEmail(
+  app: Appointment,
+  kind: 'appointmentConfirmation' | 'appointmentAccepted' | 'appointmentRevoked',
+): Promise<{ subject: string; html: string }> {
+  const templates = await getEmailTemplates();
+  const site = await getSiteSettings();
+  const dt = new Date(app.scheduledAt);
+  const dateStr = dt.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+  const timeStr = dt.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+  const vars: Record<string, string> = {
+    fullName: app.fullName, email: app.email, phone: app.phone,
+    siteName: site.siteName, contactEmail: site.contactEmail, contactPhone: site.contactPhone,
+    appointmentDate: dateStr, appointmentTime: timeStr, notes: app.notes || '—',
+  };
+  const subjectMap: Record<typeof kind, string> = {
+    appointmentConfirmation: `Appointment request received — ${dateStr} at ${timeStr}`,
+    appointmentAccepted: `Your appointment is confirmed — ${dateStr} at ${timeStr}`,
+    appointmentRevoked: `Update on your appointment request`,
+  };
+  const html = wrapEmailTemplate(renderTemplateBody(templates[kind], vars), site);
+  return { subject: subjectMap[kind], html };
 }
 
 // ---- ADMIN AUTH ----
