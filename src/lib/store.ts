@@ -1140,3 +1140,41 @@ const defaultCustomEmailTemplates: CustomEmailTemplate[] = [
     },
   },
 ];
+
+// ---- DEFAULT APPOINTMENT TEMPLATES ----
+const defaultAppointmentConfirmationTemplate: EmailTemplateFields = {
+  heading: 'Appointment Request Received',
+  intro: 'Hello {{fullName}}, thank you for booking an appointment with {{siteName}}.',
+  paragraphs: [
+    'We have received your appointment request for {{appointmentDate}} at {{appointmentTime}}.',
+    'Our team will review your request and confirm availability shortly. You will receive a follow-up email once your appointment is approved.',
+    'If you provided any notes, here they are for your reference: {{notes}}',
+  ],
+  highlight: 'Need to reach us sooner? Email {{contactEmail}} or call {{contactPhone}}.',
+  signoff: 'Kind regards,',
+  signature: 'The {{siteName}} Team',
+};
+
+const defaultAppointmentAcceptedTemplate: EmailTemplateFields = {
+  heading: 'Your Appointment is Confirmed',
+  intro: 'Great news, {{fullName}} — your appointment with {{siteName}} has been confirmed.',
+  paragraphs: [
+    'Date: {{appointmentDate}}',
+    'Time: {{appointmentTime}}',
+    'Please make sure you are reachable on {{phone}} at the scheduled time. If you need to reschedule, reply to this email at least 24 hours in advance.',
+  ],
+  highlight: 'We look forward to speaking with you!',
+  signoff: 'Warm regards,',
+  signature: 'The {{siteName}} Team',
+};
+
+const defaultAppointmentRevokedTemplate: EmailTemplateFields = {
+  heading: 'Update on Your Appointment Request',
+  intro: 'Hello {{fullName}}, thank you for your interest in {{siteName}}.',
+  paragraphs: [
+    'Unfortunately we are unable to confirm your appointment for {{appointmentDate}} at {{appointmentTime}}.',
+    'Please feel free to book a different time slot at your convenience, or contact us directly so we can find a suitable alternative.',
+  ],
+  signoff: 'Kind regards,',
+  signature: 'The {{siteName}} Team',
+};
