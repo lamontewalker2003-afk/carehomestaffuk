@@ -635,6 +635,8 @@ export interface EmailLogEntry {
   bodySnippet: string;
   success: boolean;
   sentAt: string;
+  attachmentUrl: string | null;
+  attachmentFilename: string | null;
 }
 
 function mapDbEmailLog(row: any): EmailLogEntry {
@@ -647,6 +649,8 @@ function mapDbEmailLog(row: any): EmailLogEntry {
     bodySnippet: row.body_snippet || '',
     success: row.success !== false,
     sentAt: row.sent_at,
+    attachmentUrl: row.attachment_url || null,
+    attachmentFilename: row.attachment_filename || null,
   };
 }
 
@@ -657,8 +661,9 @@ export async function logEmailSend(args: {
   subject: string;
   html?: string;
   success: boolean;
+  attachmentUrl?: string | null;
+  attachmentFilename?: string | null;
 }) {
-  // Strip tags + truncate to a small audit snippet (no HTML noise in the DB)
   const snippet = (args.html || '')
     .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
     .replace(/<[^>]+>/g, ' ')
@@ -673,6 +678,8 @@ export async function logEmailSend(args: {
       subject: args.subject,
       body_snippet: snippet,
       success: args.success,
+      attachment_url: args.attachmentUrl || null,
+      attachment_filename: args.attachmentFilename || null,
     });
   } catch (e) {
     console.error('Failed to log email:', e);
