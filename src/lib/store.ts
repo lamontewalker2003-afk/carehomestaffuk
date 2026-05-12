@@ -106,6 +106,21 @@ export interface EmailTemplates {
   applicationSuccess: EmailTemplateFields;
   offerLetter: EmailTemplateFields;
   contactConfirmation: EmailTemplateFields;
+  appointmentConfirmation: EmailTemplateFields;
+  appointmentAccepted: EmailTemplateFields;
+  appointmentRevoked: EmailTemplateFields;
+}
+
+// ---- APPOINTMENTS ----
+export interface Appointment {
+  id: string;
+  fullName: string;
+  email: string;
+  phone: string;
+  scheduledAt: string; // ISO
+  notes: string;
+  status: 'pending' | 'accepted' | 'revoked';
+  createdAt: string;
 }
 
 // ---- CUSTOM EMAILS ----
