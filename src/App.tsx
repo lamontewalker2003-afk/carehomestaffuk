@@ -21,6 +21,7 @@ import TermsPage from "./pages/TermsPage.tsx";
 import AdminLogin from "./pages/admin/AdminLogin.tsx";
 import AdminDashboard from "./pages/admin/AdminDashboard.tsx";
 import SetupWizard from "./pages/SetupWizard.tsx";
+import BookAppointmentPage from "./pages/BookAppointmentPage.tsx";
 import NotFound from "./pages/NotFound.tsx";
 
 const queryClient = new QueryClient();
