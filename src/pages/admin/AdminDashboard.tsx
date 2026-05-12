@@ -921,13 +921,25 @@ function EmailHistoryPanel({ email }: { email: string }) {
                     <p className="text-sm font-medium truncate">{l.subject || '(no subject)'}</p>
                     <p className="text-[11px] text-muted-foreground">
                       {new Date(l.sentAt).toLocaleString()} · {l.success ? <span className="text-green-700">✓ delivered</span> : <span className="text-destructive">✗ failed</span>}
+                      {l.attachmentFilename && <span> · 📎 {l.attachmentFilename}</span>}
                     </p>
                   </div>
                   {open ? <ChevronDown className="h-4 w-4 text-muted-foreground" /> : <ChevronRight className="h-4 w-4 text-muted-foreground" />}
                 </button>
-                {open && l.bodySnippet && (
-                  <div className="border-t px-3 py-2 text-xs text-muted-foreground whitespace-pre-wrap leading-relaxed">
-                    {l.bodySnippet}
+                {open && (
+                  <div className="border-t px-3 py-2 text-xs text-muted-foreground whitespace-pre-wrap leading-relaxed space-y-2">
+                    {l.attachmentUrl && (
+                      <a
+                        href={l.attachmentUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        download={l.attachmentFilename || undefined}
+                        className="inline-flex items-center gap-1 text-primary hover:underline font-medium"
+                      >
+                        📎 Download {l.attachmentFilename || 'attachment'}
+                      </a>
+                    )}
+                    {l.bodySnippet && <div>{l.bodySnippet}</div>}
                   </div>
                 )}
               </li>
