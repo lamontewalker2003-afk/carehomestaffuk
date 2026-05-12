@@ -1183,6 +1183,21 @@ function EmailTemplatesTab() {
       description: "Sent when someone submits the contact form.",
       variables: "{{name}}, {{siteName}}, {{contactPhone}}, {{contactEmail}}",
     },
+    appointmentConfirmation: {
+      label: "Appointment Booking Received",
+      description: "Sent automatically when a user books an appointment.",
+      variables: "{{fullName}}, {{email}}, {{phone}}, {{appointmentDate}}, {{appointmentTime}}, {{notes}}, {{siteName}}, {{contactEmail}}, {{contactPhone}}",
+    },
+    appointmentAccepted: {
+      label: "Appointment Accepted",
+      description: "Sent when admin accepts a pending appointment.",
+      variables: "{{fullName}}, {{email}}, {{phone}}, {{appointmentDate}}, {{appointmentTime}}, {{siteName}}",
+    },
+    appointmentRevoked: {
+      label: "Appointment Revoked",
+      description: "Sent when admin declines or revokes an appointment.",
+      variables: "{{fullName}}, {{email}}, {{appointmentDate}}, {{appointmentTime}}, {{siteName}}",
+    },
   };
 
   const handleSave = async () => {
