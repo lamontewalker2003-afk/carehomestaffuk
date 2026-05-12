@@ -35,7 +35,7 @@ import {
   MessageSquare, Copy as CopyIcon, Users, History, ChevronDown, ChevronRight,
 } from "lucide-react";
 
-type Tab = "dashboard" | "applications" | "jobs" | "telegram" | "smtp" | "email-templates" | "custom-emails" | "seo" | "site-settings" | "banks" | "invoice-template";
+type Tab = "dashboard" | "applications" | "jobs" | "telegram" | "smtp" | "email-templates" | "custom-emails" | "seo" | "site-settings" | "banks" | "invoice-template" | "appointments";
 
 const AdminDashboard = () => {
   const navigate = useNavigate();
