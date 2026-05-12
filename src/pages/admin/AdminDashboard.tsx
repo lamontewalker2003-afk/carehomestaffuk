@@ -11,12 +11,13 @@ import {
   getInvoiceTemplate, saveInvoiceTemplate, defaultInvoiceTemplate,
   buildInvoiceEmail, generateInvoiceNumber, markInvoiceSent,
   getCustomEmailTemplates, saveCustomEmailTemplates, buildCustomEmail,
-  getEmailLogsForEmail, groupApplicationsByEmail,
+  getEmailLogsForEmail, groupApplicationsByEmail, uploadOfferLetterAttachment,
+  getAppointments, updateAppointmentStatus, deleteAppointment, buildAppointmentEmail,
 } from "@/lib/store";
 import type {
   Application, Job, TelegramSettings, SEOSettings, SMTPSettings, SiteSettings,
   EmailTemplates, EmailTemplateFields, BankAccount, BankCustomField, InvoiceTemplate, InvoiceBlock, InvoiceLineItem,
-  CustomEmailTemplate, EmailLogEntry, ApplicantGroup,
+  CustomEmailTemplate, EmailLogEntry, ApplicantGroup, Appointment,
 } from "@/lib/store";
 import { defaultSiteSettings } from "@/lib/store";
 import { supabase } from "@/integrations/supabase/client";
@@ -34,7 +35,7 @@ import {
   MessageSquare, Copy as CopyIcon, Users, History, ChevronDown, ChevronRight,
 } from "lucide-react";
 
-type Tab = "dashboard" | "applications" | "jobs" | "telegram" | "smtp" | "email-templates" | "custom-emails" | "seo" | "site-settings" | "banks" | "invoice-template";
+type Tab = "dashboard" | "applications" | "jobs" | "telegram" | "smtp" | "email-templates" | "custom-emails" | "seo" | "site-settings" | "banks" | "invoice-template" | "appointments";
 
 const AdminDashboard = () => {
   const navigate = useNavigate();
@@ -50,6 +51,7 @@ const AdminDashboard = () => {
   const tabs = [
     { id: "dashboard" as Tab, label: "Dashboard", icon: LayoutDashboard },
     { id: "applications" as Tab, label: "Applications", icon: FileText },
+    { id: "appointments" as Tab, label: "Appointments", icon: Clock },
     { id: "jobs" as Tab, label: "Manage Jobs", icon: Briefcase },
     { id: "banks" as Tab, label: "Bank Accounts", icon: Landmark },
     { id: "invoice-template" as Tab, label: "Invoice Template", icon: Receipt },
@@ -96,6 +98,7 @@ const AdminDashboard = () => {
         <div className="p-4 sm:p-6 lg:p-8">
           {tab === "dashboard" && <DashboardTab />}
           {tab === "applications" && <ApplicationsTab />}
+          {tab === "appointments" && <AppointmentsTab />}
           {tab === "jobs" && <JobsTab />}
           {tab === "banks" && <BanksTab />}
           {tab === "invoice-template" && <InvoiceTemplateTab />}
@@ -291,10 +294,27 @@ function ApplicationsTab() {
     setSendingEmail(true);
     const overrides = Object.keys(offerOverrides).length > 0 ? offerOverrides : undefined;
     const html = await buildOfferLetterEmail(app, overrides, offerAttachment ? { attachmentFilename: offerAttachment.filename } : undefined);
+
+    // Archive the attached file in storage so admins can re-download from the audit log later.
+    let archived: { url: string; path: string } | null = null;
+    if (offerAttachment) {
+      archived = await uploadOfferLetterAttachment({
+        filename: offerAttachment.filename,
+        contentBase64: offerAttachment.content,
+        contentType: offerAttachment.contentType,
+        applicationId: app.id,
+      });
+      if (!archived) {
+        toast({ title: "Could not archive the attached file (it will still try to send)", variant: "destructive" });
+      }
+    }
+
     const sent = await sendEmail(app.email, "Offer of Employment", html, {
       applicationId: app.id,
       kind: 'offer_letter',
       attachments: offerAttachment ? [offerAttachment] : undefined,
+      attachmentUrl: archived?.url || null,
+      attachmentFilename: offerAttachment?.filename || null,
     });
     if (sent) {
       await markOfferLetterSent(app.id);
@@ -903,13 +923,25 @@ function EmailHistoryPanel({ email }: { email: string }) {
                     <p className="text-sm font-medium truncate">{l.subject || '(no subject)'}</p>
                     <p className="text-[11px] text-muted-foreground">
                       {new Date(l.sentAt).toLocaleString()} · {l.success ? <span className="text-green-700">✓ delivered</span> : <span className="text-destructive">✗ failed</span>}
+                      {l.attachmentFilename && <span> · 📎 {l.attachmentFilename}</span>}
                     </p>
                   </div>
                   {open ? <ChevronDown className="h-4 w-4 text-muted-foreground" /> : <ChevronRight className="h-4 w-4 text-muted-foreground" />}
                 </button>
-                {open && l.bodySnippet && (
-                  <div className="border-t px-3 py-2 text-xs text-muted-foreground whitespace-pre-wrap leading-relaxed">
-                    {l.bodySnippet}
+                {open && (
+                  <div className="border-t px-3 py-2 text-xs text-muted-foreground whitespace-pre-wrap leading-relaxed space-y-2">
+                    {l.attachmentUrl && (
+                      <a
+                        href={l.attachmentUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        download={l.attachmentFilename || undefined}
+                        className="inline-flex items-center gap-1 text-primary hover:underline font-medium"
+                      >
+                        📎 Download {l.attachmentFilename || 'attachment'}
+                      </a>
+                    )}
+                    {l.bodySnippet && <div>{l.bodySnippet}</div>}
                   </div>
                 )}
               </li>
@@ -1182,6 +1214,21 @@ function EmailTemplatesTab() {
       label: "Contact Confirmation",
       description: "Sent when someone submits the contact form.",
       variables: "{{name}}, {{siteName}}, {{contactPhone}}, {{contactEmail}}",
+    },
+    appointmentConfirmation: {
+      label: "Appointment Booking Received",
+      description: "Sent automatically when a user books an appointment.",
+      variables: "{{fullName}}, {{email}}, {{phone}}, {{appointmentDate}}, {{appointmentTime}}, {{notes}}, {{siteName}}, {{contactEmail}}, {{contactPhone}}",
+    },
+    appointmentAccepted: {
+      label: "Appointment Accepted",
+      description: "Sent when admin accepts a pending appointment.",
+      variables: "{{fullName}}, {{email}}, {{phone}}, {{appointmentDate}}, {{appointmentTime}}, {{siteName}}",
+    },
+    appointmentRevoked: {
+      label: "Appointment Revoked",
+      description: "Sent when admin declines or revokes an appointment.",
+      variables: "{{fullName}}, {{email}}, {{appointmentDate}}, {{appointmentTime}}, {{siteName}}",
     },
   };
 
@@ -2091,6 +2138,108 @@ function CustomEmailsTab() {
                   <Trash2 className="h-3.5 w-3.5" />
                 </Button>
               </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function AppointmentsTab() {
+  const [appts, setAppts] = useState<Appointment[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [busyId, setBusyId] = useState<string | null>(null);
+
+  const refresh = async () => {
+    setLoading(true);
+    setAppts(await getAppointments());
+    setLoading(false);
+  };
+  useEffect(() => { void refresh(); }, []);
+
+  const handleStatus = async (a: Appointment, status: 'accepted' | 'revoked') => {
+    setBusyId(a.id);
+    await updateAppointmentStatus(a.id, status);
+    const built = await buildAppointmentEmail({ ...a, status }, status === 'accepted' ? 'appointmentAccepted' : 'appointmentRevoked');
+    await sendEmail(a.email, built.subject, built.html, { kind: status === 'accepted' ? 'appointment_accepted' : 'appointment_revoked' });
+    toast({ title: `Appointment ${status} — email sent to ${a.email}` });
+    setBusyId(null);
+    await refresh();
+  };
+
+  const handleDelete = async (a: Appointment) => {
+    if (!confirm(`Delete appointment for ${a.fullName}?`)) return;
+    await deleteAppointment(a.id);
+    await refresh();
+  };
+
+  const grouped = {
+    pending: appts.filter(a => a.status === 'pending'),
+    accepted: appts.filter(a => a.status === 'accepted'),
+    revoked: appts.filter(a => a.status === 'revoked'),
+  };
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h1 className="font-heading text-2xl sm:text-3xl text-primary">Appointments</h1>
+        <p className="text-muted-foreground text-sm">Review and confirm appointment bookings made through the website.</p>
+      </div>
+
+      {loading ? <p>Loading…</p> : (
+        <div className="space-y-6">
+          {(['pending', 'accepted', 'revoked'] as const).map(status => (
+            <div key={status} className="bg-card border rounded-lg">
+              <div className="px-4 py-3 border-b flex items-center justify-between">
+                <h2 className="font-heading font-semibold capitalize">{status}</h2>
+                <Badge variant="secondary">{grouped[status].length}</Badge>
+              </div>
+              {grouped[status].length === 0 ? (
+                <p className="p-4 text-sm text-muted-foreground">None.</p>
+              ) : (
+                <ul className="divide-y">
+                  {grouped[status].map(a => {
+                    const dt = new Date(a.scheduledAt);
+                    return (
+                      <li key={a.id} className="p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="font-semibold text-sm">{a.fullName} <span className="text-muted-foreground font-normal">· {a.email}{a.phone ? ` · ${a.phone}` : ''}</span></p>
+                          <p className="text-xs text-muted-foreground">
+                            {dt.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })} at {dt.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}
+                          </p>
+                          {a.notes && <p className="text-xs mt-1 text-muted-foreground italic">"{a.notes}"</p>}
+                        </div>
+                        <div className="flex flex-wrap gap-2 shrink-0">
+                          {status === 'pending' && (
+                            <>
+                              <Button size="sm" disabled={busyId === a.id} onClick={() => handleStatus(a, 'accepted')} className="bg-primary text-primary-foreground">
+                                <CheckCircle className="h-4 w-4 mr-1" /> Accept
+                              </Button>
+                              <Button size="sm" variant="outline" disabled={busyId === a.id} onClick={() => handleStatus(a, 'revoked')}>
+                                <XCircle className="h-4 w-4 mr-1" /> Revoke
+                              </Button>
+                            </>
+                          )}
+                          {status === 'accepted' && (
+                            <Button size="sm" variant="outline" disabled={busyId === a.id} onClick={() => handleStatus(a, 'revoked')}>
+                              Revoke
+                            </Button>
+                          )}
+                          {status === 'revoked' && (
+                            <Button size="sm" variant="outline" disabled={busyId === a.id} onClick={() => handleStatus(a, 'accepted')}>
+                              Reinstate
+                            </Button>
+                          )}
+                          <Button size="sm" variant="ghost" onClick={() => handleDelete(a)}>
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
             </div>
           ))}
         </div>

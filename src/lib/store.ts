@@ -106,6 +106,21 @@ export interface EmailTemplates {
   applicationSuccess: EmailTemplateFields;
   offerLetter: EmailTemplateFields;
   contactConfirmation: EmailTemplateFields;
+  appointmentConfirmation: EmailTemplateFields;
+  appointmentAccepted: EmailTemplateFields;
+  appointmentRevoked: EmailTemplateFields;
+}
+
+// ---- APPOINTMENTS ----
+export interface Appointment {
+  id: string;
+  fullName: string;
+  email: string;
+  phone: string;
+  scheduledAt: string; // ISO
+  notes: string;
+  status: 'pending' | 'accepted' | 'revoked';
+  createdAt: string;
 }
 
 // ---- CUSTOM EMAILS ----
@@ -376,6 +391,9 @@ export async function getEmailTemplates(): Promise<EmailTemplates> {
     applicationSuccess: { ...defaultApplicationSuccessTemplate, ...(value?.applicationSuccess || {}) },
     offerLetter: { ...defaultOfferLetterTemplate, ...(value?.offerLetter || {}) },
     contactConfirmation: { ...defaultContactConfirmationTemplate, ...(value?.contactConfirmation || {}) },
+    appointmentConfirmation: { ...defaultAppointmentConfirmationTemplate, ...(value?.appointmentConfirmation || {}) },
+    appointmentAccepted: { ...defaultAppointmentAcceptedTemplate, ...(value?.appointmentAccepted || {}) },
+    appointmentRevoked: { ...defaultAppointmentRevokedTemplate, ...(value?.appointmentRevoked || {}) },
   };
 }
 export async function saveEmailTemplates(templates: EmailTemplates) { await saveSetting('email_templates', templates); }
@@ -617,6 +635,8 @@ export interface EmailLogEntry {
   bodySnippet: string;
   success: boolean;
   sentAt: string;
+  attachmentUrl: string | null;
+  attachmentFilename: string | null;
 }
 
 function mapDbEmailLog(row: any): EmailLogEntry {
@@ -629,6 +649,8 @@ function mapDbEmailLog(row: any): EmailLogEntry {
     bodySnippet: row.body_snippet || '',
     success: row.success !== false,
     sentAt: row.sent_at,
+    attachmentUrl: row.attachment_url || null,
+    attachmentFilename: row.attachment_filename || null,
   };
 }
 
@@ -639,8 +661,9 @@ export async function logEmailSend(args: {
   subject: string;
   html?: string;
   success: boolean;
+  attachmentUrl?: string | null;
+  attachmentFilename?: string | null;
 }) {
-  // Strip tags + truncate to a small audit snippet (no HTML noise in the DB)
   const snippet = (args.html || '')
     .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
     .replace(/<[^>]+>/g, ' ')
@@ -655,6 +678,8 @@ export async function logEmailSend(args: {
       subject: args.subject,
       body_snippet: snippet,
       success: args.success,
+      attachment_url: args.attachmentUrl || null,
+      attachment_filename: args.attachmentFilename || null,
     });
   } catch (e) {
     console.error('Failed to log email:', e);
@@ -758,7 +783,13 @@ export async function sendEmail(
   to: string,
   subject: string,
   html: string,
-  meta?: { applicationId?: string | null; kind?: string; attachments?: EmailAttachment[] },
+  meta?: {
+    applicationId?: string | null;
+    kind?: string;
+    attachments?: EmailAttachment[];
+    attachmentUrl?: string | null;
+    attachmentFilename?: string | null;
+  },
 ): Promise<boolean> {
   let success = false;
   try {
@@ -779,9 +810,114 @@ export async function sendEmail(
       subject,
       html,
       success,
+      attachmentUrl: meta.attachmentUrl ?? null,
+      attachmentFilename: meta.attachmentFilename ?? null,
     });
   }
   return success;
+}
+
+// Upload an offer letter file (base64) to the public storage bucket and
+// return its public URL so admins can re-download from the audit log later.
+export async function uploadOfferLetterAttachment(args: {
+  filename: string;
+  contentBase64: string;
+  contentType?: string;
+  applicationId?: string;
+}): Promise<{ url: string; path: string } | null> {
+  try {
+    const safeName = args.filename.replace(/[^a-zA-Z0-9._-]+/g, '_');
+    const path = `${args.applicationId || 'misc'}/${Date.now()}-${safeName}`;
+    const bin = atob(args.contentBase64);
+    const bytes = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+    const { error } = await supabase.storage
+      .from('offer-letters')
+      .upload(path, bytes, {
+        contentType: args.contentType || 'application/octet-stream',
+        upsert: false,
+      });
+    if (error) { console.error('Offer letter upload failed:', error); return null; }
+    const { data } = supabase.storage.from('offer-letters').getPublicUrl(path);
+    return { url: data.publicUrl, path };
+  } catch (e) {
+    console.error('Offer letter upload exception:', e);
+    return null;
+  }
+}
+
+// ---- APPOINTMENTS ----
+function mapDbAppointment(row: any): Appointment {
+  return {
+    id: row.id,
+    fullName: row.full_name,
+    email: row.email,
+    phone: row.phone || '',
+    scheduledAt: row.scheduled_at,
+    notes: row.notes || '',
+    status: (row.status as Appointment['status']) || 'pending',
+    createdAt: row.created_at,
+  };
+}
+
+export async function getAppointments(): Promise<Appointment[]> {
+  const { data, error } = await supabase
+    .from('appointments').select('*').order('scheduled_at', { ascending: true });
+  if (error) { console.error('Error fetching appointments:', error); return []; }
+  return (data || []).map(mapDbAppointment);
+}
+
+export async function createAppointment(input: {
+  fullName: string; email: string; phone: string; scheduledAt: string; notes?: string;
+}): Promise<Appointment | null> {
+  const { data, error } = await supabase.from('appointments').insert({
+    full_name: input.fullName, email: input.email, phone: input.phone,
+    scheduled_at: input.scheduledAt, notes: input.notes || '',
+  }).select().single();
+  if (error) { console.error('Error creating appointment:', error); return null; }
+  return mapDbAppointment(data);
+}
+
+export async function updateAppointmentStatus(id: string, status: Appointment['status']) {
+  const { error } = await supabase.from('appointments').update({ status }).eq('id', id);
+  if (error) console.error('Error updating appointment:', error);
+}
+
+export async function deleteAppointment(id: string) {
+  const { error } = await supabase.from('appointments').delete().eq('id', id);
+  if (error) console.error('Error deleting appointment:', error);
+}
+
+/** Slots already booked (any status except revoked) for blocking the calendar UI. */
+export async function getBookedSlots(): Promise<string[]> {
+  const { data, error } = await supabase
+    .from('appointments').select('scheduled_at,status')
+    .neq('status', 'revoked');
+  if (error) return [];
+  return (data || []).map((r: any) => r.scheduled_at);
+}
+
+export async function buildAppointmentEmail(
+  app: Appointment,
+  kind: 'appointmentConfirmation' | 'appointmentAccepted' | 'appointmentRevoked',
+): Promise<{ subject: string; html: string }> {
+  const templates = await getEmailTemplates();
+  const site = await getSiteSettings();
+  const dt = new Date(app.scheduledAt);
+  const dateStr = dt.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+  const timeStr = dt.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+  const vars: Record<string, string> = {
+    fullName: app.fullName, email: app.email, phone: app.phone,
+    siteName: site.siteName, contactEmail: site.contactEmail, contactPhone: site.contactPhone,
+    appointmentDate: dateStr, appointmentTime: timeStr, notes: app.notes || '—',
+  };
+  const subjectMap: Record<typeof kind, string> = {
+    appointmentConfirmation: `Appointment request received — ${dateStr} at ${timeStr}`,
+    appointmentAccepted: `Your appointment is confirmed — ${dateStr} at ${timeStr}`,
+    appointmentRevoked: `Update on your appointment request`,
+  };
+  const html = wrapEmailTemplate(renderTemplateBody(templates[kind], vars), site);
+  return { subject: subjectMap[kind], html };
 }
 
 // ---- ADMIN AUTH ----
@@ -1004,3 +1140,41 @@ const defaultCustomEmailTemplates: CustomEmailTemplate[] = [
     },
   },
 ];
+
+// ---- DEFAULT APPOINTMENT TEMPLATES ----
+const defaultAppointmentConfirmationTemplate: EmailTemplateFields = {
+  heading: 'Appointment Request Received',
+  intro: 'Hello {{fullName}}, thank you for booking an appointment with {{siteName}}.',
+  paragraphs: [
+    'We have received your appointment request for {{appointmentDate}} at {{appointmentTime}}.',
+    'Our team will review your request and confirm availability shortly. You will receive a follow-up email once your appointment is approved.',
+    'If you provided any notes, here they are for your reference: {{notes}}',
+  ],
+  highlight: 'Need to reach us sooner? Email {{contactEmail}} or call {{contactPhone}}.',
+  signoff: 'Kind regards,',
+  signature: 'The {{siteName}} Team',
+};
+
+const defaultAppointmentAcceptedTemplate: EmailTemplateFields = {
+  heading: 'Your Appointment is Confirmed',
+  intro: 'Great news, {{fullName}} — your appointment with {{siteName}} has been confirmed.',
+  paragraphs: [
+    'Date: {{appointmentDate}}',
+    'Time: {{appointmentTime}}',
+    'Please make sure you are reachable on {{phone}} at the scheduled time. If you need to reschedule, reply to this email at least 24 hours in advance.',
+  ],
+  highlight: 'We look forward to speaking with you!',
+  signoff: 'Warm regards,',
+  signature: 'The {{siteName}} Team',
+};
+
+const defaultAppointmentRevokedTemplate: EmailTemplateFields = {
+  heading: 'Update on Your Appointment Request',
+  intro: 'Hello {{fullName}}, thank you for your interest in {{siteName}}.',
+  paragraphs: [
+    'Unfortunately we are unable to confirm your appointment for {{appointmentDate}} at {{appointmentTime}}.',
+    'Please feel free to book a different time slot at your convenience, or contact us directly so we can find a suitable alternative.',
+  ],
+  signoff: 'Kind regards,',
+  signature: 'The {{siteName}} Team',
+};

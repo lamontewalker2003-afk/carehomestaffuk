@@ -109,6 +109,42 @@ export type Database = {
           },
         ]
       }
+      appointments: {
+        Row: {
+          created_at: string
+          email: string
+          full_name: string
+          id: string
+          notes: string
+          phone: string
+          scheduled_at: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          email: string
+          full_name: string
+          id?: string
+          notes?: string
+          phone?: string
+          scheduled_at: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          email?: string
+          full_name?: string
+          id?: string
+          notes?: string
+          phone?: string
+          scheduled_at?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       contact_submissions: {
         Row: {
           created_at: string
@@ -139,6 +175,8 @@ export type Database = {
       email_log: {
         Row: {
           application_id: string | null
+          attachment_filename: string | null
+          attachment_url: string | null
           body_snippet: string
           id: string
           kind: string
@@ -149,6 +187,8 @@ export type Database = {
         }
         Insert: {
           application_id?: string | null
+          attachment_filename?: string | null
+          attachment_url?: string | null
           body_snippet?: string
           id?: string
           kind?: string
@@ -159,6 +199,8 @@ export type Database = {
         }
         Update: {
           application_id?: string | null
+          attachment_filename?: string | null
+          attachment_url?: string | null
           body_snippet?: string
           id?: string
           kind?: string
