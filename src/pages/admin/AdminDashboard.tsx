@@ -98,6 +98,7 @@ const AdminDashboard = () => {
         <div className="p-4 sm:p-6 lg:p-8">
           {tab === "dashboard" && <DashboardTab />}
           {tab === "applications" && <ApplicationsTab />}
+          {tab === "appointments" && <AppointmentsTab />}
           {tab === "jobs" && <JobsTab />}
           {tab === "banks" && <BanksTab />}
           {tab === "invoice-template" && <InvoiceTemplateTab />}
