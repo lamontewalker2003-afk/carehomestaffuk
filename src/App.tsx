@@ -49,6 +49,7 @@ const App = () => (
             <Route path="/bestadmin" element={<AdminLogin />} />
             <Route path="/bestadmin/dashboard" element={<AdminDashboard />} />
             <Route path="/setup" element={<SetupWizard />} />
+            <Route path="/book-appointment" element={<BookAppointmentPage />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
           <CookieConsent />
