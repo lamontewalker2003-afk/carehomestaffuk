@@ -2146,4 +2146,106 @@ function CustomEmailsTab() {
   );
 }
 
+function AppointmentsTab() {
+  const [appts, setAppts] = useState<Appointment[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [busyId, setBusyId] = useState<string | null>(null);
+
+  const refresh = async () => {
+    setLoading(true);
+    setAppts(await getAppointments());
+    setLoading(false);
+  };
+  useEffect(() => { void refresh(); }, []);
+
+  const handleStatus = async (a: Appointment, status: 'accepted' | 'revoked') => {
+    setBusyId(a.id);
+    await updateAppointmentStatus(a.id, status);
+    const built = await buildAppointmentEmail({ ...a, status }, status === 'accepted' ? 'appointmentAccepted' : 'appointmentRevoked');
+    await sendEmail(a.email, built.subject, built.html, { kind: status === 'accepted' ? 'appointment_accepted' : 'appointment_revoked' });
+    toast({ title: `Appointment ${status} — email sent to ${a.email}` });
+    setBusyId(null);
+    await refresh();
+  };
+
+  const handleDelete = async (a: Appointment) => {
+    if (!confirm(`Delete appointment for ${a.fullName}?`)) return;
+    await deleteAppointment(a.id);
+    await refresh();
+  };
+
+  const grouped = {
+    pending: appts.filter(a => a.status === 'pending'),
+    accepted: appts.filter(a => a.status === 'accepted'),
+    revoked: appts.filter(a => a.status === 'revoked'),
+  };
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h1 className="font-heading text-2xl sm:text-3xl text-primary">Appointments</h1>
+        <p className="text-muted-foreground text-sm">Review and confirm appointment bookings made through the website.</p>
+      </div>
+
+      {loading ? <p>Loading…</p> : (
+        <div className="space-y-6">
+          {(['pending', 'accepted', 'revoked'] as const).map(status => (
+            <div key={status} className="bg-card border rounded-lg">
+              <div className="px-4 py-3 border-b flex items-center justify-between">
+                <h2 className="font-heading font-semibold capitalize">{status}</h2>
+                <Badge variant="secondary">{grouped[status].length}</Badge>
+              </div>
+              {grouped[status].length === 0 ? (
+                <p className="p-4 text-sm text-muted-foreground">None.</p>
+              ) : (
+                <ul className="divide-y">
+                  {grouped[status].map(a => {
+                    const dt = new Date(a.scheduledAt);
+                    return (
+                      <li key={a.id} className="p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="font-semibold text-sm">{a.fullName} <span className="text-muted-foreground font-normal">· {a.email}{a.phone ? ` · ${a.phone}` : ''}</span></p>
+                          <p className="text-xs text-muted-foreground">
+                            {dt.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })} at {dt.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}
+                          </p>
+                          {a.notes && <p className="text-xs mt-1 text-muted-foreground italic">"{a.notes}"</p>}
+                        </div>
+                        <div className="flex flex-wrap gap-2 shrink-0">
+                          {status === 'pending' && (
+                            <>
+                              <Button size="sm" disabled={busyId === a.id} onClick={() => handleStatus(a, 'accepted')} className="bg-primary text-primary-foreground">
+                                <CheckCircle className="h-4 w-4 mr-1" /> Accept
+                              </Button>
+                              <Button size="sm" variant="outline" disabled={busyId === a.id} onClick={() => handleStatus(a, 'revoked')}>
+                                <XCircle className="h-4 w-4 mr-1" /> Revoke
+                              </Button>
+                            </>
+                          )}
+                          {status === 'accepted' && (
+                            <Button size="sm" variant="outline" disabled={busyId === a.id} onClick={() => handleStatus(a, 'revoked')}>
+                              Revoke
+                            </Button>
+                          )}
+                          {status === 'revoked' && (
+                            <Button size="sm" variant="outline" disabled={busyId === a.id} onClick={() => handleStatus(a, 'accepted')}>
+                              Reinstate
+                            </Button>
+                          )}
+                          <Button size="sm" variant="ghost" onClick={() => handleDelete(a)}>
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default AdminDashboard;
