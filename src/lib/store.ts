@@ -391,6 +391,9 @@ export async function getEmailTemplates(): Promise<EmailTemplates> {
     applicationSuccess: { ...defaultApplicationSuccessTemplate, ...(value?.applicationSuccess || {}) },
     offerLetter: { ...defaultOfferLetterTemplate, ...(value?.offerLetter || {}) },
     contactConfirmation: { ...defaultContactConfirmationTemplate, ...(value?.contactConfirmation || {}) },
+    appointmentConfirmation: { ...defaultAppointmentConfirmationTemplate, ...(value?.appointmentConfirmation || {}) },
+    appointmentAccepted: { ...defaultAppointmentAcceptedTemplate, ...(value?.appointmentAccepted || {}) },
+    appointmentRevoked: { ...defaultAppointmentRevokedTemplate, ...(value?.appointmentRevoked || {}) },
   };
 }
 export async function saveEmailTemplates(templates: EmailTemplates) { await saveSetting('email_templates', templates); }
