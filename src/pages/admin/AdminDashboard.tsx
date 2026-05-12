@@ -11,12 +11,13 @@ import {
   getInvoiceTemplate, saveInvoiceTemplate, defaultInvoiceTemplate,
   buildInvoiceEmail, generateInvoiceNumber, markInvoiceSent,
   getCustomEmailTemplates, saveCustomEmailTemplates, buildCustomEmail,
-  getEmailLogsForEmail, groupApplicationsByEmail,
+  getEmailLogsForEmail, groupApplicationsByEmail, uploadOfferLetterAttachment,
+  getAppointments, updateAppointmentStatus, deleteAppointment, buildAppointmentEmail,
 } from "@/lib/store";
 import type {
   Application, Job, TelegramSettings, SEOSettings, SMTPSettings, SiteSettings,
   EmailTemplates, EmailTemplateFields, BankAccount, BankCustomField, InvoiceTemplate, InvoiceBlock, InvoiceLineItem,
-  CustomEmailTemplate, EmailLogEntry, ApplicantGroup,
+  CustomEmailTemplate, EmailLogEntry, ApplicantGroup, Appointment,
 } from "@/lib/store";
 import { defaultSiteSettings } from "@/lib/store";
 import { supabase } from "@/integrations/supabase/client";
