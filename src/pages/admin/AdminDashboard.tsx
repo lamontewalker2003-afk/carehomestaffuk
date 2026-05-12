@@ -51,6 +51,7 @@ const AdminDashboard = () => {
   const tabs = [
     { id: "dashboard" as Tab, label: "Dashboard", icon: LayoutDashboard },
     { id: "applications" as Tab, label: "Applications", icon: FileText },
+    { id: "appointments" as Tab, label: "Appointments", icon: Clock },
     { id: "jobs" as Tab, label: "Manage Jobs", icon: Briefcase },
     { id: "banks" as Tab, label: "Bank Accounts", icon: Landmark },
     { id: "invoice-template" as Tab, label: "Invoice Template", icon: Receipt },
