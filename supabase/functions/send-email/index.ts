@@ -26,17 +26,23 @@ Deno.serve(async (req) => {
       return respond(false, { error: 'Missing required fields: to, subject, html' });
     }
 
-    // Normalize attachments: [{ filename, content (base64 string), contentType }]
+    // Normalize attachments: decode base64 to bytes for reliable nodemailer delivery in Deno
     const mailAttachments = Array.isArray(attachments)
       ? attachments
           .filter((a: any) => a && a.filename && a.content)
-          .map((a: any) => ({
-            filename: String(a.filename),
-            content: String(a.content),
-            encoding: 'base64',
-            contentType: a.contentType || undefined,
-          }))
+          .map((a: any) => {
+            const b64 = String(a.content).replace(/^data:[^;]+;base64,/, '');
+            const bin = atob(b64);
+            const bytes = new Uint8Array(bin.length);
+            for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+            return {
+              filename: String(a.filename),
+              content: bytes,
+              contentType: a.contentType || 'application/octet-stream',
+            };
+          })
       : undefined;
+    console.log('Email request:', { to, subject, attachmentCount: mailAttachments?.length || 0 });
 
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
