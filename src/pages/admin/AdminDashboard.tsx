@@ -196,10 +196,12 @@ function StatusBadge({ status }: { status: string }) {
 
 function ApplicationsTab() {
   const [apps, setApps] = useState<Application[]>([]);
+  const [jobsById, setJobsById] = useState<Record<string, Job>>({});
   const [selected, setSelected] = useState<Application | null>(null);
   const [search, setSearch] = useState("");
   const [phoneSearch, setPhoneSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [locationFilter, setLocationFilter] = useState("all");
   const [groupByEmail, setGroupByEmail] = useState(false);
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
   const [sendingEmail, setSendingEmail] = useState(false);
@@ -212,22 +214,34 @@ function ApplicationsTab() {
   const [invoiceLineItems, setInvoiceLineItems] = useState<InvoiceLineItem[]>([]);
   const [invoiceBankId, setInvoiceBankId] = useState<string>("");
   const [invoiceNotes, setInvoiceNotes] = useState("");
+  // ---- Revoke state ----
+  const [showRevokeForm, setShowRevokeForm] = useState(false);
+  const [revokeReason, setRevokeReason] = useState<string>(APPLICATION_REVOCATION_REASONS[0]);
+  const [revokeCustom, setRevokeCustom] = useState("");
   // ---- Custom email state ----
   const [customTemplates, setCustomTemplates] = useState<CustomEmailTemplate[]>([]);
   const [showCustomForm, setShowCustomForm] = useState(false);
   const [customTemplateId, setCustomTemplateId] = useState<string>("");
   const [customSubject, setCustomSubject] = useState("");
-  const [customMessage, setCustomMessage] = useState(""); // free-form body, one paragraph per line
+  const [customMessage, setCustomMessage] = useState("");
   const [customHeading, setCustomHeading] = useState("");
   const [customSignoff, setCustomSignoff] = useState("Kind regards,");
   const [customSignature, setCustomSignature] = useState("");
 
   useEffect(() => {
     getApplications().then(setApps);
+    getJobs().then(js => {
+      const map: Record<string, Job> = {};
+      js.forEach(j => { map[j.id] = j; });
+      setJobsById(map);
+    });
     getInvoiceTemplate().then(t => { setInvoiceTemplateState(t); setInvoiceLineItems(t.defaultLineItems); });
     getBankAccounts().then(b => { setBanks(b); const def = b.find(x => x.isDefault) || b[0]; if (def) setInvoiceBankId(def.id); });
     getCustomEmailTemplates().then(setCustomTemplates);
   }, []);
+
+  const jobLocationFor = (a: Application) => jobsById[a.jobId]?.location || '';
+  const allJobLocations = Array.from(new Set(Object.values(jobsById).map(j => j.location).filter(Boolean))).sort();
 
   // When admin picks a saved template, prefill the editable fields
   const loadCustomTemplate = (id: string) => {
