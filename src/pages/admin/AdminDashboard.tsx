@@ -555,11 +555,33 @@ function ApplicationsTab() {
                 </Button>
               )}
               {selected.status !== 'rejected' && (
-                <Button size="sm" variant="destructive" onClick={() => handleStatusChange(selected.id, 'rejected')} disabled={sendingEmail}>
-                  <XCircle className="h-4 w-4 mr-1" /> Reject
+                <Button size="sm" variant="destructive" onClick={() => setShowRevokeForm(v => !v)} disabled={sendingEmail}>
+                  <XCircle className="h-4 w-4 mr-1" /> Revoke / Reject
                 </Button>
               )}
             </div>
+            {showRevokeForm && (
+              <div className="bg-destructive/5 border border-destructive/30 rounded-lg p-4 space-y-3">
+                <h4 className="font-semibold text-sm">Revoke this application</h4>
+                <div>
+                  <Label className="text-xs">Reason (sent to applicant)</Label>
+                  <select value={revokeReason} onChange={e => setRevokeReason(e.target.value)}
+                    className="w-full h-10 rounded-md border border-input bg-background px-3 text-sm">
+                    {APPLICATION_REVOCATION_REASONS.map(r => <option key={r} value={r}>{r}</option>)}
+                  </select>
+                </div>
+                {revokeReason === 'Other (custom reason)' && (
+                  <Textarea value={revokeCustom} onChange={e => setRevokeCustom(e.target.value)} rows={2} placeholder="Write a short reason..." />
+                )}
+                <div className="flex gap-2">
+                  <Button size="sm" variant="destructive" onClick={handleRevokeApplication} disabled={sendingEmail}>
+                    {sendingEmail ? 'Sending…' : 'Revoke & email applicant'}
+                  </Button>
+                  <Button size="sm" variant="outline" onClick={() => setShowRevokeForm(false)}>Cancel</Button>
+                </div>
+              </div>
+            )}
+            <div className="hidden">{/* keep block for status flow */}</div>
 
             {/* Offer Letter section */}
             {selected.status === 'successful' && (
