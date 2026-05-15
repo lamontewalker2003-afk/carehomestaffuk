@@ -930,6 +930,7 @@ export async function buildAppointmentEmail(
     fullName: app.fullName, email: app.email, phone: app.phone,
     siteName: site.siteName, contactEmail: site.contactEmail, contactPhone: site.contactPhone,
     appointmentDate: dateStr, appointmentTime: timeStr, notes: app.notes || '—',
+    manageLink: appointmentManageLink(app.id),
   };
   const subjectMap: Record<typeof kind, string> = {
     appointmentConfirmation: `Appointment request received — ${dateStr} at ${timeStr}`,
