@@ -494,6 +494,11 @@ function ApplicationsTab() {
             <option value="successful">Successful</option>
             <option value="rejected">Rejected</option>
           </select>
+          <select value={locationFilter} onChange={e => setLocationFilter(e.target.value)}
+            className="h-10 rounded-md border border-input bg-background px-3 text-sm">
+            <option value="all">All Job Locations</option>
+            {allJobLocations.map(loc => <option key={loc} value={loc}>{loc}</option>)}
+          </select>
           <Button
             type="button"
             variant={groupByEmail ? "default" : "outline"}
