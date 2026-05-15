@@ -1170,6 +1170,7 @@ const defaultAppointmentConfirmationTemplate: EmailTemplateFields = {
     'We have received your appointment request for {{appointmentDate}} at {{appointmentTime}}.',
     'Our team will review your request and confirm availability shortly. You will receive a follow-up email once your appointment is approved.',
     'If you provided any notes, here they are for your reference: {{notes}}',
+    'Need to change or cancel? Manage your booking here: {{manageLink}}',
   ],
   highlight: 'Need to reach us sooner? Email {{contactEmail}} or call {{contactPhone}}.',
   signoff: 'Kind regards,',
