@@ -104,12 +104,28 @@ export interface EmailTemplateFields {
 export interface EmailTemplates {
   applicationConfirmation: EmailTemplateFields;
   applicationSuccess: EmailTemplateFields;
+  applicationRevoked: EmailTemplateFields;
   offerLetter: EmailTemplateFields;
   contactConfirmation: EmailTemplateFields;
   appointmentConfirmation: EmailTemplateFields;
   appointmentAccepted: EmailTemplateFields;
   appointmentRevoked: EmailTemplateFields;
+  appointmentRescheduled: EmailTemplateFields;
+  appointmentCancelledByApplicant: EmailTemplateFields;
+  appointmentScheduledByAdmin: EmailTemplateFields;
 }
+
+// Predefined revocation reasons admins can choose from. "Other" lets them write a custom reason.
+export const APPLICATION_REVOCATION_REASONS = [
+  'The position has now been filled',
+  'You did not meet the UK Health & Care Worker visa eligibility criteria',
+  'Your experience does not match the role requirements at this time',
+  'Insufficient supporting documentation provided',
+  'Application is on hold — we encourage you to reapply in 3 months',
+  'Duplicate application detected',
+  'Other (custom reason)',
+] as const;
+export type ApplicationRevocationReason = typeof APPLICATION_REVOCATION_REASONS[number];
 
 // ---- APPOINTMENTS ----
 export interface Appointment {
@@ -389,11 +405,15 @@ export async function getEmailTemplates(): Promise<EmailTemplates> {
   return {
     applicationConfirmation: { ...defaultApplicationConfirmationTemplate, ...(value?.applicationConfirmation || {}) },
     applicationSuccess: { ...defaultApplicationSuccessTemplate, ...(value?.applicationSuccess || {}) },
+    applicationRevoked: { ...defaultApplicationRevokedTemplate, ...(value?.applicationRevoked || {}) },
     offerLetter: { ...defaultOfferLetterTemplate, ...(value?.offerLetter || {}) },
     contactConfirmation: { ...defaultContactConfirmationTemplate, ...(value?.contactConfirmation || {}) },
     appointmentConfirmation: { ...defaultAppointmentConfirmationTemplate, ...(value?.appointmentConfirmation || {}) },
     appointmentAccepted: { ...defaultAppointmentAcceptedTemplate, ...(value?.appointmentAccepted || {}) },
     appointmentRevoked: { ...defaultAppointmentRevokedTemplate, ...(value?.appointmentRevoked || {}) },
+    appointmentRescheduled: { ...defaultAppointmentRescheduledTemplate, ...(value?.appointmentRescheduled || {}) },
+    appointmentCancelledByApplicant: { ...defaultAppointmentCancelledByApplicantTemplate, ...(value?.appointmentCancelledByApplicant || {}) },
+    appointmentScheduledByAdmin: { ...defaultAppointmentScheduledByAdminTemplate, ...(value?.appointmentScheduledByAdmin || {}) },
   };
 }
 export async function saveEmailTemplates(templates: EmailTemplates) { await saveSetting('email_templates', templates); }
@@ -910,6 +930,7 @@ export async function buildAppointmentEmail(
     fullName: app.fullName, email: app.email, phone: app.phone,
     siteName: site.siteName, contactEmail: site.contactEmail, contactPhone: site.contactPhone,
     appointmentDate: dateStr, appointmentTime: timeStr, notes: app.notes || '—',
+    manageLink: appointmentManageLink(app.id),
   };
   const subjectMap: Record<typeof kind, string> = {
     appointmentConfirmation: `Appointment request received — ${dateStr} at ${timeStr}`,
@@ -1149,6 +1170,7 @@ const defaultAppointmentConfirmationTemplate: EmailTemplateFields = {
     'We have received your appointment request for {{appointmentDate}} at {{appointmentTime}}.',
     'Our team will review your request and confirm availability shortly. You will receive a follow-up email once your appointment is approved.',
     'If you provided any notes, here they are for your reference: {{notes}}',
+    'Need to change or cancel? Manage your booking here: {{manageLink}}',
   ],
   highlight: 'Need to reach us sooner? Email {{contactEmail}} or call {{contactPhone}}.',
   signoff: 'Kind regards,',
@@ -1178,3 +1200,151 @@ const defaultAppointmentRevokedTemplate: EmailTemplateFields = {
   signoff: 'Kind regards,',
   signature: 'The {{siteName}} Team',
 };
+
+const defaultAppointmentRescheduledTemplate: EmailTemplateFields = {
+  heading: 'Your Appointment Has Been Rescheduled',
+  intro: 'Hello {{fullName}}, your appointment with {{siteName}} has been moved to a new date and time at your request.',
+  paragraphs: [
+    'New date: {{appointmentDate}}',
+    'New time: {{appointmentTime}}',
+    'Previous slot: {{previousAppointment}}',
+    'Our team will review the new slot and confirm shortly. If you need to change it again, you can use the manage link below.',
+  ],
+  highlight: 'Manage your booking any time: {{manageLink}}',
+  signoff: 'Kind regards,',
+  signature: 'The {{siteName}} Team',
+};
+
+const defaultAppointmentCancelledByApplicantTemplate: EmailTemplateFields = {
+  heading: 'Your Appointment Has Been Cancelled',
+  intro: 'Hello {{fullName}}, we have cancelled your appointment with {{siteName}} as requested.',
+  paragraphs: [
+    'Cancelled slot: {{appointmentDate}} at {{appointmentTime}}',
+    'You are welcome to book a fresh time whenever it suits you — just visit our booking page.',
+  ],
+  signoff: 'Kind regards,',
+  signature: 'The {{siteName}} Team',
+};
+
+const defaultAppointmentScheduledByAdminTemplate: EmailTemplateFields = {
+  heading: 'We Have Scheduled an Appointment For You',
+  intro: 'Hello {{fullName}}, our team at {{siteName}} has scheduled an appointment for you.',
+  paragraphs: [
+    'Date: {{appointmentDate}}',
+    'Time: {{appointmentTime}}',
+    'Notes from our team: {{notes}}',
+    'If this time does not suit you, you can reschedule or cancel using the manage link below at no charge.',
+  ],
+  highlight: 'Manage your booking: {{manageLink}}',
+  signoff: 'We look forward to speaking with you,',
+  signature: 'The {{siteName}} Team',
+};
+
+const defaultApplicationRevokedTemplate: EmailTemplateFields = {
+  heading: 'Update on Your Application',
+  intro: 'Dear {{fullName}}, thank you for applying for the {{jobTitle}} position with {{siteName}}.',
+  paragraphs: [
+    'After careful review of your application, we are unable to take it forward at this stage.',
+    'Reason: {{reason}}',
+    'We sincerely appreciate the time and effort you put into your application and we will keep your details on file in case a more suitable role opens up.',
+  ],
+  highlight: 'You are very welcome to apply for other vacancies on our website at any time.',
+  signoff: 'With best wishes,',
+  signature: 'The {{siteName}} Recruitment Team',
+};
+
+// ---- BUILDERS for the new templates ----
+function appointmentManageLink(id: string): string {
+  if (typeof window === 'undefined') return '';
+  return `${window.location.origin}/appointments/manage/${id}`;
+}
+
+export async function buildApplicationRevokedEmail(app: Application, reason: string): Promise<{ subject: string; html: string }> {
+  const templates = await getEmailTemplates();
+  const site = await getSiteSettings();
+  const vars = {
+    fullName: app.fullName, jobTitle: app.jobTitle, email: app.email,
+    siteName: site.siteName, reason: reason || 'Not specified',
+  };
+  const html = wrapEmailTemplate(renderTemplateBody(templates.applicationRevoked, vars), site);
+  return { subject: `Update on your application for ${app.jobTitle}`, html };
+}
+
+export async function buildAppointmentRescheduledEmail(
+  app: Appointment, previousISO: string,
+): Promise<{ subject: string; html: string }> {
+  const templates = await getEmailTemplates();
+  const site = await getSiteSettings();
+  const dt = new Date(app.scheduledAt);
+  const dateStr = dt.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+  const timeStr = dt.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+  const prev = new Date(previousISO);
+  const prevStr = `${prev.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })} at ${prev.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}`;
+  const vars: Record<string, string> = {
+    fullName: app.fullName, email: app.email, phone: app.phone,
+    siteName: site.siteName, appointmentDate: dateStr, appointmentTime: timeStr,
+    previousAppointment: prevStr, manageLink: appointmentManageLink(app.id),
+  };
+  const html = wrapEmailTemplate(renderTemplateBody(templates.appointmentRescheduled, vars), site);
+  return { subject: `Your appointment has been rescheduled — ${dateStr} at ${timeStr}`, html };
+}
+
+export async function buildAppointmentCancelledByApplicantEmail(
+  app: Appointment,
+): Promise<{ subject: string; html: string }> {
+  const templates = await getEmailTemplates();
+  const site = await getSiteSettings();
+  const dt = new Date(app.scheduledAt);
+  const dateStr = dt.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+  const timeStr = dt.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+  const vars: Record<string, string> = {
+    fullName: app.fullName, email: app.email, phone: app.phone,
+    siteName: site.siteName, appointmentDate: dateStr, appointmentTime: timeStr,
+  };
+  const html = wrapEmailTemplate(renderTemplateBody(templates.appointmentCancelledByApplicant, vars), site);
+  return { subject: 'Your appointment has been cancelled', html };
+}
+
+export async function buildAppointmentScheduledByAdminEmail(
+  app: Appointment,
+): Promise<{ subject: string; html: string }> {
+  const templates = await getEmailTemplates();
+  const site = await getSiteSettings();
+  const dt = new Date(app.scheduledAt);
+  const dateStr = dt.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+  const timeStr = dt.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+  const vars: Record<string, string> = {
+    fullName: app.fullName, email: app.email, phone: app.phone,
+    siteName: site.siteName, appointmentDate: dateStr, appointmentTime: timeStr,
+    notes: app.notes || '—', manageLink: appointmentManageLink(app.id),
+  };
+  const html = wrapEmailTemplate(renderTemplateBody(templates.appointmentScheduledByAdmin, vars), site);
+  return { subject: `Appointment scheduled — ${dateStr} at ${timeStr}`, html };
+}
+
+// ---- Appointment helpers used by the manage page ----
+export async function getAppointmentById(id: string): Promise<Appointment | null> {
+  const { data, error } = await supabase.from('appointments').select('*').eq('id', id).maybeSingle();
+  if (error || !data) return null;
+  return mapDbAppointment(data);
+}
+
+export async function rescheduleAppointment(id: string, newISO: string): Promise<Appointment | null> {
+  const { data, error } = await supabase.from('appointments')
+    .update({ scheduled_at: newISO, status: 'pending' })
+    .eq('id', id).select().single();
+  if (error) { console.error('Reschedule failed:', error); return null; }
+  return mapDbAppointment(data);
+}
+
+/** Admin-side: directly create an already-accepted appointment. */
+export async function adminScheduleAppointment(input: {
+  fullName: string; email: string; phone?: string; scheduledAt: string; notes?: string;
+}): Promise<Appointment | null> {
+  const { data, error } = await supabase.from('appointments').insert({
+    full_name: input.fullName, email: input.email, phone: input.phone || '',
+    scheduled_at: input.scheduledAt, notes: input.notes || '', status: 'accepted',
+  }).select().single();
+  if (error) { console.error('Admin schedule failed:', error); return null; }
+  return mapDbAppointment(data);
+}

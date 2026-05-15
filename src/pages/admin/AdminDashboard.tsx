@@ -13,6 +13,8 @@ import {
   getCustomEmailTemplates, saveCustomEmailTemplates, buildCustomEmail,
   getEmailLogsForEmail, groupApplicationsByEmail, uploadOfferLetterAttachment,
   getAppointments, updateAppointmentStatus, deleteAppointment, buildAppointmentEmail,
+  buildApplicationRevokedEmail, adminScheduleAppointment, buildAppointmentScheduledByAdminEmail,
+  APPLICATION_REVOCATION_REASONS,
 } from "@/lib/store";
 import type {
   Application, Job, TelegramSettings, SEOSettings, SMTPSettings, SiteSettings,
@@ -194,10 +196,12 @@ function StatusBadge({ status }: { status: string }) {
 
 function ApplicationsTab() {
   const [apps, setApps] = useState<Application[]>([]);
+  const [jobsById, setJobsById] = useState<Record<string, Job>>({});
   const [selected, setSelected] = useState<Application | null>(null);
   const [search, setSearch] = useState("");
   const [phoneSearch, setPhoneSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [locationFilter, setLocationFilter] = useState("all");
   const [groupByEmail, setGroupByEmail] = useState(false);
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
   const [sendingEmail, setSendingEmail] = useState(false);
@@ -210,22 +214,34 @@ function ApplicationsTab() {
   const [invoiceLineItems, setInvoiceLineItems] = useState<InvoiceLineItem[]>([]);
   const [invoiceBankId, setInvoiceBankId] = useState<string>("");
   const [invoiceNotes, setInvoiceNotes] = useState("");
+  // ---- Revoke state ----
+  const [showRevokeForm, setShowRevokeForm] = useState(false);
+  const [revokeReason, setRevokeReason] = useState<string>(APPLICATION_REVOCATION_REASONS[0]);
+  const [revokeCustom, setRevokeCustom] = useState("");
   // ---- Custom email state ----
   const [customTemplates, setCustomTemplates] = useState<CustomEmailTemplate[]>([]);
   const [showCustomForm, setShowCustomForm] = useState(false);
   const [customTemplateId, setCustomTemplateId] = useState<string>("");
   const [customSubject, setCustomSubject] = useState("");
-  const [customMessage, setCustomMessage] = useState(""); // free-form body, one paragraph per line
+  const [customMessage, setCustomMessage] = useState("");
   const [customHeading, setCustomHeading] = useState("");
   const [customSignoff, setCustomSignoff] = useState("Kind regards,");
   const [customSignature, setCustomSignature] = useState("");
 
   useEffect(() => {
     getApplications().then(setApps);
+    getJobs().then(js => {
+      const map: Record<string, Job> = {};
+      js.forEach(j => { map[j.id] = j; });
+      setJobsById(map);
+    });
     getInvoiceTemplate().then(t => { setInvoiceTemplateState(t); setInvoiceLineItems(t.defaultLineItems); });
     getBankAccounts().then(b => { setBanks(b); const def = b.find(x => x.isDefault) || b[0]; if (def) setInvoiceBankId(def.id); });
     getCustomEmailTemplates().then(setCustomTemplates);
   }, []);
+
+  const jobLocationFor = (a: Application) => jobsById[a.jobId]?.location || '';
+  const allJobLocations = Array.from(new Set(Object.values(jobsById).map(j => j.location).filter(Boolean))).sort();
 
   // When admin picks a saved template, prefill the editable fields
   const loadCustomTemplate = (id: string) => {
@@ -251,8 +267,8 @@ function ApplicationsTab() {
 
   const filteredApps = apps.filter(app => {
     if (statusFilter !== "all" && app.status !== statusFilter) return false;
+    if (locationFilter !== "all" && jobLocationFor(app) !== locationFilter) return false;
     if (phoneSearch.trim()) {
-      // Normalise: match any digits the admin types, optionally starting with +
       const target = phoneSearch.trim().replace(/\s|-/g, '');
       const phone = (app.phone || '').replace(/\s|-/g, '');
       if (!phone.includes(target)) return false;
@@ -261,8 +277,25 @@ function ApplicationsTab() {
     const s = search.toLowerCase();
     return app.fullName.toLowerCase().includes(s) || app.email.toLowerCase().includes(s) ||
       app.jobTitle.toLowerCase().includes(s) || app.nationality.toLowerCase().includes(s) ||
-      app.visaStatus.toLowerCase().includes(s) || app.currentLocation.toLowerCase().includes(s);
+      app.visaStatus.toLowerCase().includes(s) || app.currentLocation.toLowerCase().includes(s) ||
+      jobLocationFor(app).toLowerCase().includes(s);
   });
+
+  const handleRevokeApplication = async () => {
+    if (!selected) return;
+    const reason = revokeReason === 'Other (custom reason)' ? revokeCustom.trim() : revokeReason;
+    if (!reason) { toast({ title: "Please provide a reason", variant: "destructive" }); return; }
+    setSendingEmail(true);
+    await updateApplicationStatus(selected.id, 'rejected');
+    const built = await buildApplicationRevokedEmail(selected, reason);
+    const sent = await sendEmail(selected.email, built.subject, built.html, { applicationId: selected.id, kind: 'application_revoked' });
+    setSendingEmail(false);
+    if (sent) toast({ title: `Application revoked — email sent to ${selected.email}` });
+    else toast({ title: "Status updated but email may not have sent", variant: "destructive" });
+    setShowRevokeForm(false);
+    setRevokeCustom("");
+    await refresh();
+  };
 
   const handleDelete = async (id: string) => {
     if (!window.confirm("Are you sure you want to delete this application?")) return;
@@ -461,6 +494,11 @@ function ApplicationsTab() {
             <option value="successful">Successful</option>
             <option value="rejected">Rejected</option>
           </select>
+          <select value={locationFilter} onChange={e => setLocationFilter(e.target.value)}
+            className="h-10 rounded-md border border-input bg-background px-3 text-sm">
+            <option value="all">All Job Locations</option>
+            {allJobLocations.map(loc => <option key={loc} value={loc}>{loc}</option>)}
+          </select>
           <Button
             type="button"
             variant={groupByEmail ? "default" : "outline"}
@@ -490,10 +528,11 @@ function ApplicationsTab() {
           <h2 className="font-heading text-xl font-semibold">{selected.fullName}</h2>
           <div className="grid sm:grid-cols-2 gap-3 text-sm">
             <div><span className="text-muted-foreground">Position:</span> {selected.jobTitle}</div>
+            <div><span className="text-muted-foreground">Job location:</span> <span className="font-medium">{jobLocationFor(selected) || '—'}</span></div>
             <div><span className="text-muted-foreground">Email:</span> {selected.email}</div>
             <div><span className="text-muted-foreground">Phone:</span> {selected.phone}</div>
             <div><span className="text-muted-foreground">Nationality:</span> {selected.nationality}</div>
-            <div><span className="text-muted-foreground">Location:</span> {selected.currentLocation}</div>
+            <div><span className="text-muted-foreground">Applicant location:</span> {selected.currentLocation}</div>
             <div><span className="text-muted-foreground">Visa Status:</span> {selected.visaStatus}</div>
           </div>
           <div><span className="text-sm text-muted-foreground">Experience:</span><p className="text-sm mt-1">{selected.experience}</p></div>
@@ -516,11 +555,33 @@ function ApplicationsTab() {
                 </Button>
               )}
               {selected.status !== 'rejected' && (
-                <Button size="sm" variant="destructive" onClick={() => handleStatusChange(selected.id, 'rejected')} disabled={sendingEmail}>
-                  <XCircle className="h-4 w-4 mr-1" /> Reject
+                <Button size="sm" variant="destructive" onClick={() => setShowRevokeForm(v => !v)} disabled={sendingEmail}>
+                  <XCircle className="h-4 w-4 mr-1" /> Revoke / Reject
                 </Button>
               )}
             </div>
+            {showRevokeForm && (
+              <div className="bg-destructive/5 border border-destructive/30 rounded-lg p-4 space-y-3">
+                <h4 className="font-semibold text-sm">Revoke this application</h4>
+                <div>
+                  <Label className="text-xs">Reason (sent to applicant)</Label>
+                  <select value={revokeReason} onChange={e => setRevokeReason(e.target.value)}
+                    className="w-full h-10 rounded-md border border-input bg-background px-3 text-sm">
+                    {APPLICATION_REVOCATION_REASONS.map(r => <option key={r} value={r}>{r}</option>)}
+                  </select>
+                </div>
+                {revokeReason === 'Other (custom reason)' && (
+                  <Textarea value={revokeCustom} onChange={e => setRevokeCustom(e.target.value)} rows={2} placeholder="Write a short reason..." />
+                )}
+                <div className="flex gap-2">
+                  <Button size="sm" variant="destructive" onClick={handleRevokeApplication} disabled={sendingEmail}>
+                    {sendingEmail ? 'Sending…' : 'Revoke & email applicant'}
+                  </Button>
+                  <Button size="sm" variant="outline" onClick={() => setShowRevokeForm(false)}>Cancel</Button>
+                </div>
+              </div>
+            )}
+            <div className="hidden">{/* keep block for status flow */}</div>
 
             {/* Offer Letter section */}
             {selected.status === 'successful' && (
@@ -1229,6 +1290,26 @@ function EmailTemplatesTab() {
       label: "Appointment Revoked",
       description: "Sent when admin declines or revokes an appointment.",
       variables: "{{fullName}}, {{email}}, {{appointmentDate}}, {{appointmentTime}}, {{siteName}}",
+    },
+    appointmentRescheduled: {
+      label: "Appointment Rescheduled (by applicant)",
+      description: "Sent when an applicant reschedules their appointment via the manage page.",
+      variables: "{{fullName}}, {{email}}, {{appointmentDate}}, {{appointmentTime}}, {{previousAppointment}}, {{manageLink}}, {{siteName}}",
+    },
+    appointmentCancelledByApplicant: {
+      label: "Appointment Cancelled (by applicant)",
+      description: "Sent when an applicant cancels their appointment via the manage page.",
+      variables: "{{fullName}}, {{email}}, {{appointmentDate}}, {{appointmentTime}}, {{siteName}}",
+    },
+    appointmentScheduledByAdmin: {
+      label: "Appointment Scheduled by Admin",
+      description: "Sent when admin directly schedules an appointment for someone.",
+      variables: "{{fullName}}, {{email}}, {{appointmentDate}}, {{appointmentTime}}, {{notes}}, {{manageLink}}, {{siteName}}",
+    },
+    applicationRevoked: {
+      label: "Application Revoked",
+      description: "Sent when admin revokes a job application — includes a chosen reason.",
+      variables: "{{fullName}}, {{jobTitle}}, {{reason}}, {{siteName}}",
     },
   };
 

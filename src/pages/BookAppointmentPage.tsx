@@ -155,9 +155,14 @@ export default function BookAppointmentPage() {
               </div>
             )}
 
-            <Button variant="outline" onClick={() => { setConfirmed(null); setTime(""); }}>
-              Book another time
-            </Button>
+            <div className="flex flex-wrap gap-2 justify-center">
+              <a href={`/appointments/manage/${confirmed.id}`}>
+                <Button variant="outline">Manage / reschedule / cancel</Button>
+              </a>
+              <Button variant="ghost" onClick={() => { setConfirmed(null); setTime(""); }}>
+                Book another time
+              </Button>
+            </div>
           </div>
         ) : (
           <form onSubmit={handleSubmit} className="bg-card border rounded-xl p-6 sm:p-8 space-y-6">
