@@ -528,10 +528,11 @@ function ApplicationsTab() {
           <h2 className="font-heading text-xl font-semibold">{selected.fullName}</h2>
           <div className="grid sm:grid-cols-2 gap-3 text-sm">
             <div><span className="text-muted-foreground">Position:</span> {selected.jobTitle}</div>
+            <div><span className="text-muted-foreground">Job location:</span> <span className="font-medium">{jobLocationFor(selected) || '—'}</span></div>
             <div><span className="text-muted-foreground">Email:</span> {selected.email}</div>
             <div><span className="text-muted-foreground">Phone:</span> {selected.phone}</div>
             <div><span className="text-muted-foreground">Nationality:</span> {selected.nationality}</div>
-            <div><span className="text-muted-foreground">Location:</span> {selected.currentLocation}</div>
+            <div><span className="text-muted-foreground">Applicant location:</span> {selected.currentLocation}</div>
             <div><span className="text-muted-foreground">Visa Status:</span> {selected.visaStatus}</div>
           </div>
           <div><span className="text-sm text-muted-foreground">Experience:</span><p className="text-sm mt-1">{selected.experience}</p></div>
