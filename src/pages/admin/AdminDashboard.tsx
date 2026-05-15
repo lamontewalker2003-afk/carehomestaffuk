@@ -267,8 +267,8 @@ function ApplicationsTab() {
 
   const filteredApps = apps.filter(app => {
     if (statusFilter !== "all" && app.status !== statusFilter) return false;
+    if (locationFilter !== "all" && jobLocationFor(app) !== locationFilter) return false;
     if (phoneSearch.trim()) {
-      // Normalise: match any digits the admin types, optionally starting with +
       const target = phoneSearch.trim().replace(/\s|-/g, '');
       const phone = (app.phone || '').replace(/\s|-/g, '');
       if (!phone.includes(target)) return false;
@@ -277,8 +277,25 @@ function ApplicationsTab() {
     const s = search.toLowerCase();
     return app.fullName.toLowerCase().includes(s) || app.email.toLowerCase().includes(s) ||
       app.jobTitle.toLowerCase().includes(s) || app.nationality.toLowerCase().includes(s) ||
-      app.visaStatus.toLowerCase().includes(s) || app.currentLocation.toLowerCase().includes(s);
+      app.visaStatus.toLowerCase().includes(s) || app.currentLocation.toLowerCase().includes(s) ||
+      jobLocationFor(app).toLowerCase().includes(s);
   });
+
+  const handleRevokeApplication = async () => {
+    if (!selected) return;
+    const reason = revokeReason === 'Other (custom reason)' ? revokeCustom.trim() : revokeReason;
+    if (!reason) { toast({ title: "Please provide a reason", variant: "destructive" }); return; }
+    setSendingEmail(true);
+    await updateApplicationStatus(selected.id, 'rejected');
+    const built = await buildApplicationRevokedEmail(selected, reason);
+    const sent = await sendEmail(selected.email, built.subject, built.html, { applicationId: selected.id, kind: 'application_revoked' });
+    setSendingEmail(false);
+    if (sent) toast({ title: `Application revoked — email sent to ${selected.email}` });
+    else toast({ title: "Status updated but email may not have sent", variant: "destructive" });
+    setShowRevokeForm(false);
+    setRevokeCustom("");
+    await refresh();
+  };
 
   const handleDelete = async (id: string) => {
     if (!window.confirm("Are you sure you want to delete this application?")) return;
