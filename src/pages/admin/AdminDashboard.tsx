@@ -13,6 +13,8 @@ import {
   getCustomEmailTemplates, saveCustomEmailTemplates, buildCustomEmail,
   getEmailLogsForEmail, groupApplicationsByEmail, uploadOfferLetterAttachment,
   getAppointments, updateAppointmentStatus, deleteAppointment, buildAppointmentEmail,
+  buildApplicationRevokedEmail, adminScheduleAppointment, buildAppointmentScheduledByAdminEmail,
+  APPLICATION_REVOCATION_REASONS,
 } from "@/lib/store";
 import type {
   Application, Job, TelegramSettings, SEOSettings, SMTPSettings, SiteSettings,
