@@ -104,12 +104,28 @@ export interface EmailTemplateFields {
 export interface EmailTemplates {
   applicationConfirmation: EmailTemplateFields;
   applicationSuccess: EmailTemplateFields;
+  applicationRevoked: EmailTemplateFields;
   offerLetter: EmailTemplateFields;
   contactConfirmation: EmailTemplateFields;
   appointmentConfirmation: EmailTemplateFields;
   appointmentAccepted: EmailTemplateFields;
   appointmentRevoked: EmailTemplateFields;
+  appointmentRescheduled: EmailTemplateFields;
+  appointmentCancelledByApplicant: EmailTemplateFields;
+  appointmentScheduledByAdmin: EmailTemplateFields;
 }
+
+// Predefined revocation reasons admins can choose from. "Other" lets them write a custom reason.
+export const APPLICATION_REVOCATION_REASONS = [
+  'The position has now been filled',
+  'You did not meet the UK Health & Care Worker visa eligibility criteria',
+  'Your experience does not match the role requirements at this time',
+  'Insufficient supporting documentation provided',
+  'Application is on hold — we encourage you to reapply in 3 months',
+  'Duplicate application detected',
+  'Other (custom reason)',
+] as const;
+export type ApplicationRevocationReason = typeof APPLICATION_REVOCATION_REASONS[number];
 
 // ---- APPOINTMENTS ----
 export interface Appointment {
