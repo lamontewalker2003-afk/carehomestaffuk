@@ -1230,6 +1230,26 @@ function EmailTemplatesTab() {
       description: "Sent when admin declines or revokes an appointment.",
       variables: "{{fullName}}, {{email}}, {{appointmentDate}}, {{appointmentTime}}, {{siteName}}",
     },
+    appointmentRescheduled: {
+      label: "Appointment Rescheduled (by applicant)",
+      description: "Sent when an applicant reschedules their appointment via the manage page.",
+      variables: "{{fullName}}, {{email}}, {{appointmentDate}}, {{appointmentTime}}, {{previousAppointment}}, {{manageLink}}, {{siteName}}",
+    },
+    appointmentCancelledByApplicant: {
+      label: "Appointment Cancelled (by applicant)",
+      description: "Sent when an applicant cancels their appointment via the manage page.",
+      variables: "{{fullName}}, {{email}}, {{appointmentDate}}, {{appointmentTime}}, {{siteName}}",
+    },
+    appointmentScheduledByAdmin: {
+      label: "Appointment Scheduled by Admin",
+      description: "Sent when admin directly schedules an appointment for someone.",
+      variables: "{{fullName}}, {{email}}, {{appointmentDate}}, {{appointmentTime}}, {{notes}}, {{manageLink}}, {{siteName}}",
+    },
+    applicationRevoked: {
+      label: "Application Revoked",
+      description: "Sent when admin revokes a job application — includes a chosen reason.",
+      variables: "{{fullName}}, {{jobTitle}}, {{reason}}, {{siteName}}",
+    },
   };
 
   const handleSave = async () => {
