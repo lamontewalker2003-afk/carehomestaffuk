@@ -505,8 +505,9 @@ export const defaultInvoiceTemplate: InvoiceTemplate = {
     },
   ],
   defaultLineItems: [
-    { id: 'li1', description: 'Certificate of Sponsorship (CoS) processing', amount: 199 },
-    { id: 'li2', description: 'Recruitment & placement service fee', amount: 800 },
+    { id: 'li1', description: 'Legal & Solicitor fees (MANDATORY — payable upfront)', amount: 600 },
+    { id: 'li2', description: 'Certificate of Sponsorship (CoS) processing', amount: 199 },
+    { id: 'li3', description: 'Recruitment & placement service fee', amount: 800 },
   ],
   signoff: 'Kind regards,',
   signature: 'The {{siteName}} Finance Team',
