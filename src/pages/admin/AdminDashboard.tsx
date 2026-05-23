@@ -729,7 +729,7 @@ function ApplicationsTab() {
                       <Textarea value={invoiceNotes} onChange={e => setInvoiceNotes(e.target.value)} rows={2} placeholder="Any special note for this invoice..." />
                     </div>
                     <div className="flex gap-2">
-                      <Button size="sm" onClick={() => handleSendInvoice(selected)} disabled={sendingEmail || banks.length === 0} className="bg-primary text-primary-foreground">
+                      <Button size="sm" onClick={() => handleSendInvoice(selected)} disabled={sendingEmail || (banks.length === 0 && !invoiceBankSeparate)} className="bg-primary text-primary-foreground">
                         {sendingEmail ? 'Sending...' : 'Send Invoice'}
                       </Button>
                       <Button size="sm" variant="outline" onClick={() => setShowInvoiceForm(false)}>Cancel</Button>
