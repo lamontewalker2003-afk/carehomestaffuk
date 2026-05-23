@@ -364,8 +364,8 @@ function ApplicationsTab() {
   };
 
   const handleSendInvoice = async (app: Application) => {
-    if (banks.length === 0) {
-      toast({ title: "Add at least one bank account first (Bank Accounts tab)", variant: "destructive" });
+    if (banks.length === 0 && !invoiceBankSeparate) {
+      toast({ title: "Add a bank account first, or tick 'Send bank info separately'.", variant: "destructive" });
       return;
     }
     if (invoiceLineItems.length === 0 || invoiceLineItems.every(li => !li.description.trim() || !li.amount)) {
