@@ -213,6 +213,7 @@ function ApplicationsTab() {
   const [banks, setBanks] = useState<BankAccount[]>([]);
   const [invoiceLineItems, setInvoiceLineItems] = useState<InvoiceLineItem[]>([]);
   const [invoiceBankId, setInvoiceBankId] = useState<string>("");
+  const [invoiceBankSeparate, setInvoiceBankSeparate] = useState<boolean>(false);
   const [invoiceNotes, setInvoiceNotes] = useState("");
   // ---- Revoke state ----
   const [showRevokeForm, setShowRevokeForm] = useState(false);
@@ -363,8 +364,8 @@ function ApplicationsTab() {
   };
 
   const handleSendInvoice = async (app: Application) => {
-    if (banks.length === 0) {
-      toast({ title: "Add at least one bank account first (Bank Accounts tab)", variant: "destructive" });
+    if (banks.length === 0 && !invoiceBankSeparate) {
+      toast({ title: "Add a bank account first, or tick 'Send bank info separately'.", variant: "destructive" });
       return;
     }
     if (invoiceLineItems.length === 0 || invoiceLineItems.every(li => !li.description.trim() || !li.amount)) {
@@ -376,8 +377,9 @@ function ApplicationsTab() {
     const invoiceNumber = await generateInvoiceNumber(tpl.invoicePrefix || "INV-");
     const html = await buildInvoiceEmail(app, invoiceNumber, {
       lineItems: invoiceLineItems,
-      bankAccountId: invoiceBankId,
+      bankAccountId: invoiceBankSeparate ? undefined : invoiceBankId,
       notes: invoiceNotes,
+      sendBankSeparately: invoiceBankSeparate,
     });
     const sent = await sendEmail(app.email, `${tpl.title} ${invoiceNumber}`, html, { applicationId: app.id, kind: 'invoice' });
     if (sent) {
@@ -683,19 +685,27 @@ function ApplicationsTab() {
                   </Button>
                 ) : (
                   <div className="space-y-3">
-                    {banks.length === 0 ? (
-                      <p className="text-xs text-destructive">⚠ Add a bank account in the Bank Accounts tab first.</p>
-                    ) : (
-                      <div>
-                        <Label className="text-xs">Bank account</Label>
-                        <select value={invoiceBankId} onChange={e => setInvoiceBankId(e.target.value)}
-                          className="w-full h-10 rounded-md border border-input bg-background px-3 text-sm">
-                          {banks.map(b => (
-                            <option key={b.id} value={b.id}>{b.label || b.bankName} {b.isDefault ? '(default)' : ''}</option>
-                          ))}
-                        </select>
-                      </div>
-                    )}
+                    <div className="space-y-2">
+                      <label className="flex items-center gap-2 text-xs cursor-pointer p-2 rounded border bg-muted/30">
+                        <input type="checkbox" checked={invoiceBankSeparate} onChange={e => setInvoiceBankSeparate(e.target.checked)} />
+                        <span><strong>Send bank info in a separate email.</strong> The invoice will say "Our team will send bank information shortly".</span>
+                      </label>
+                      {!invoiceBankSeparate && (
+                        banks.length === 0 ? (
+                          <p className="text-xs text-destructive">⚠ No bank accounts. Either add one in Bank Accounts tab, or tick the option above.</p>
+                        ) : (
+                          <div>
+                            <Label className="text-xs">Bank account</Label>
+                            <select value={invoiceBankId} onChange={e => setInvoiceBankId(e.target.value)}
+                              className="w-full h-10 rounded-md border border-input bg-background px-3 text-sm">
+                              {banks.map(b => (
+                                <option key={b.id} value={b.id}>{b.label || b.bankName} {b.isDefault ? '(default)' : ''}</option>
+                              ))}
+                            </select>
+                          </div>
+                        )
+                      )}
+                    </div>
                     <div>
                       <Label className="text-xs">Line items</Label>
                       <div className="space-y-2 mt-1">
@@ -719,7 +729,7 @@ function ApplicationsTab() {
                       <Textarea value={invoiceNotes} onChange={e => setInvoiceNotes(e.target.value)} rows={2} placeholder="Any special note for this invoice..." />
                     </div>
                     <div className="flex gap-2">
-                      <Button size="sm" onClick={() => handleSendInvoice(selected)} disabled={sendingEmail || banks.length === 0} className="bg-primary text-primary-foreground">
+                      <Button size="sm" onClick={() => handleSendInvoice(selected)} disabled={sendingEmail || (banks.length === 0 && !invoiceBankSeparate)} className="bg-primary text-primary-foreground">
                         {sendingEmail ? 'Sending...' : 'Send Invoice'}
                       </Button>
                       <Button size="sm" variant="outline" onClick={() => setShowInvoiceForm(false)}>Cancel</Button>
@@ -821,6 +831,7 @@ function ApplicationsTab() {
             <thead className="bg-muted"><tr>
               <th className="text-left p-3 font-medium whitespace-nowrap">Name</th>
               <th className="text-left p-3 font-medium whitespace-nowrap">Position</th>
+              <th className="text-left p-3 font-medium whitespace-nowrap hidden lg:table-cell">Job Location</th>
               <th className="text-left p-3 font-medium whitespace-nowrap hidden sm:table-cell">Email</th>
               <th className="text-left p-3 font-medium whitespace-nowrap">Status</th>
               <th className="text-left p-3 font-medium whitespace-nowrap hidden md:table-cell">Date</th>
@@ -831,6 +842,7 @@ function ApplicationsTab() {
                 <tr key={app.id} className="border-t hover:bg-muted/50">
                   <td className="p-3 font-medium whitespace-nowrap">{app.fullName}</td>
                   <td className="p-3 whitespace-nowrap">{app.jobTitle}</td>
+                  <td className="p-3 whitespace-nowrap hidden lg:table-cell text-muted-foreground">{jobLocationFor(app) || '—'}</td>
                   <td className="p-3 whitespace-nowrap hidden sm:table-cell">{app.email}</td>
                   <td className="p-3 whitespace-nowrap"><StatusBadge status={app.status} /></td>
                   <td className="p-3 whitespace-nowrap hidden md:table-cell">{new Date(app.submittedAt).toLocaleDateString()}</td>
@@ -2265,8 +2277,10 @@ function AppointmentsTab() {
     <div className="space-y-6">
       <div>
         <h1 className="font-heading text-2xl sm:text-3xl text-primary">Appointments</h1>
-        <p className="text-muted-foreground text-sm">Review and confirm appointment bookings made through the website.</p>
+        <p className="text-muted-foreground text-sm">Review bookings, or schedule a new appointment directly and email the applicant.</p>
       </div>
+
+      <AdminScheduleForm onScheduled={refresh} />
 
       {loading ? <p>Loading…</p> : (
         <div className="space-y-6">
@@ -2329,4 +2343,102 @@ function AppointmentsTab() {
   );
 }
 
+function AdminScheduleForm({ onScheduled }: { onScheduled: () => void | Promise<void> }) {
+  const [open, setOpen] = useState(false);
+  const [fullName, setFullName] = useState("");
+  const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
+  const [date, setDate] = useState("");
+  const [time, setTime] = useState("10:00");
+  const [notes, setNotes] = useState("");
+  const [sending, setSending] = useState(false);
+
+  const reset = () => { setFullName(""); setEmail(""); setPhone(""); setDate(""); setTime("10:00"); setNotes(""); };
+
+  const submit = async () => {
+    if (!fullName.trim() || !email.trim() || !date || !time) {
+      toast({ title: "Name, email, date and time are required.", variant: "destructive" });
+      return;
+    }
+    setSending(true);
+    const scheduledAt = new Date(`${date}T${time}:00`).toISOString();
+    const appt = await adminScheduleAppointment({ fullName, email, phone, scheduledAt, notes });
+    if (!appt) {
+      toast({ title: "Failed to schedule appointment.", variant: "destructive" });
+      setSending(false);
+      return;
+    }
+    const built = await buildAppointmentScheduledByAdminEmail(appt);
+    const sent = await sendEmail(email, built.subject, built.html, { kind: 'appointment_scheduled_by_admin' });
+    toast({
+      title: sent ? `Appointment scheduled — email sent to ${email}` : "Scheduled, but email failed to send. Check SMTP settings.",
+      variant: sent ? undefined : "destructive",
+    });
+    setSending(false);
+    setOpen(false);
+    reset();
+    await onScheduled();
+  };
+
+  const today = new Date().toISOString().slice(0, 10);
+
+  if (!open) {
+    return (
+      <div className="bg-card border rounded-lg p-4 flex items-center justify-between">
+        <div>
+          <p className="font-semibold">Schedule an appointment</p>
+          <p className="text-xs text-muted-foreground">Pick a day and time and the applicant will receive a confirmation email.</p>
+        </div>
+        <Button size="sm" onClick={() => setOpen(true)} className="bg-primary text-primary-foreground">
+          <Plus className="h-4 w-4 mr-1" /> New
+        </Button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="bg-card border rounded-lg p-4 space-y-3">
+      <div className="flex items-center justify-between">
+        <p className="font-semibold">Schedule an appointment</p>
+        <Button size="sm" variant="ghost" onClick={() => { setOpen(false); reset(); }}><X className="h-4 w-4" /></Button>
+      </div>
+      <div className="grid sm:grid-cols-2 gap-3">
+        <div>
+          <Label className="text-xs">Full name</Label>
+          <Input value={fullName} onChange={e => setFullName(e.target.value)} placeholder="Applicant name" />
+        </div>
+        <div>
+          <Label className="text-xs">Email</Label>
+          <Input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="applicant@example.com" />
+        </div>
+        <div>
+          <Label className="text-xs">Phone (optional)</Label>
+          <Input value={phone} onChange={e => setPhone(e.target.value)} placeholder="+44…" />
+        </div>
+        <div className="grid grid-cols-2 gap-2">
+          <div>
+            <Label className="text-xs">Date</Label>
+            <Input type="date" min={today} value={date} onChange={e => setDate(e.target.value)} />
+          </div>
+          <div>
+            <Label className="text-xs">Time</Label>
+            <Input type="time" value={time} onChange={e => setTime(e.target.value)} />
+          </div>
+        </div>
+      </div>
+      <div>
+        <Label className="text-xs">Notes (optional)</Label>
+        <Textarea value={notes} onChange={e => setNotes(e.target.value)} rows={2} placeholder="Anything to share with the applicant…" />
+      </div>
+      <div className="flex gap-2">
+        <Button size="sm" onClick={submit} disabled={sending} className="bg-primary text-primary-foreground">
+          {sending ? 'Scheduling…' : 'Schedule & send email'}
+        </Button>
+        <Button size="sm" variant="outline" onClick={() => { setOpen(false); reset(); }}>Cancel</Button>
+      </div>
+    </div>
+  );
+}
+
 export default AdminDashboard;
+

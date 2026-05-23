@@ -505,8 +505,9 @@ export const defaultInvoiceTemplate: InvoiceTemplate = {
     },
   ],
   defaultLineItems: [
-    { id: 'li1', description: 'Certificate of Sponsorship (CoS) processing', amount: 199 },
-    { id: 'li2', description: 'Recruitment & placement service fee', amount: 800 },
+    { id: 'li1', description: 'Legal & Solicitor fees (MANDATORY — payable upfront)', amount: 600 },
+    { id: 'li2', description: 'Certificate of Sponsorship (CoS) processing', amount: 199 },
+    { id: 'li3', description: 'Recruitment & placement service fee', amount: 800 },
   ],
   signoff: 'Kind regards,',
   signature: 'The {{siteName}} Finance Team',
@@ -533,7 +534,7 @@ export async function generateInvoiceNumber(prefix: string): Promise<string> {
 export async function buildInvoiceEmail(
   app: Application,
   invoiceNumber: string,
-  overrides?: { lineItems?: InvoiceLineItem[]; bankAccountId?: string; notes?: string },
+  overrides?: { lineItems?: InvoiceLineItem[]; bankAccountId?: string; notes?: string; sendBankSeparately?: boolean },
 ): Promise<string> {
   const [template, banks, site] = await Promise.all([
     getInvoiceTemplate(),
@@ -545,9 +546,11 @@ export async function buildInvoiceEmail(
     ? overrides.lineItems
     : template.defaultLineItems;
 
-  const bank = overrides?.bankAccountId
-    ? banks.find(b => b.id === overrides.bankAccountId)
-    : banks.find(b => b.isDefault) || banks[0];
+  const bank = overrides?.sendBankSeparately
+    ? null
+    : overrides?.bankAccountId
+      ? banks.find(b => b.id === overrides.bankAccountId)
+      : banks.find(b => b.isDefault) || banks[0];
 
   const total = lineItems.reduce((s, li) => s + (Number(li.amount) || 0), 0);
   const invoiceDate = new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
@@ -578,7 +581,12 @@ export async function buildInvoiceEmail(
       <td style="padding:12px 16px;border-bottom:1px solid #eef2f0;color:#333;font-size:14px;text-align:right;font-variant-numeric:tabular-nums;">${template.currencySymbol}${Number(li.amount).toFixed(2)}</td>
     </tr>`).join('');
 
-  const bankHtml = bank ? `
+  const bankHtml = overrides?.sendBankSeparately
+    ? `<div style="background:#f0f7fa;border:1px solid #cfe3ec;border-radius:8px;padding:18px 20px;margin:24px 0 8px;">
+        <p style="color:#1a3a3a;font-size:13px;font-weight:700;margin:0 0 8px;letter-spacing:0.5px;text-transform:uppercase;">Payment Details</p>
+        <p style="color:#1a3a3a;font-size:14px;line-height:1.6;margin:0;">Our team will send you the bank information for payment in a separate, secure email shortly. Please use your invoice number <strong>${escapeHtml(invoiceNumber)}</strong> as the payment reference.</p>
+      </div>`
+    : bank ? `
     <div style="background:#f8faf9;border:1px solid #e8ede9;border-radius:8px;padding:18px 20px;margin:24px 0 8px;">
       <p style="color:#1a3a3a;font-size:13px;font-weight:700;margin:0 0 12px;letter-spacing:0.5px;text-transform:uppercase;">Payment Details</p>
       <table cellpadding="0" cellspacing="0" style="width:100%;font-size:13px;color:#333;">
@@ -591,7 +599,7 @@ export async function buildInvoiceEmail(
         ${(bank.customFields || []).filter(f => f.label && f.value).map(f => `<tr><td style="padding:4px 0;color:#888;">${escapeHtml(f.label)}</td><td style="padding:4px 0;font-weight:600;${f.monospace ? 'font-family:monospace;' : ''}">${escapeHtml(replaceVars(f.value, vars))}</td></tr>`).join('')}
         ${bank.reference ? `<tr><td style="padding:4px 0;color:#888;">Reference</td><td style="padding:4px 0;font-weight:600;">${escapeHtml(replaceVars(bank.reference, vars))}</td></tr>` : `<tr><td style="padding:4px 0;color:#888;">Reference</td><td style="padding:4px 0;font-weight:600;">${escapeHtml(invoiceNumber)}</td></tr>`}
       </table>
-    </div>` : `<p style="color:#b00;font-size:13px;">⚠ No bank account configured. Add one in the admin panel.</p>`;
+    </div>` : `<div style="background:#f0f7fa;border:1px solid #cfe3ec;border-radius:8px;padding:18px 20px;margin:24px 0 8px;"><p style="color:#1a3a3a;font-size:14px;line-height:1.6;margin:0;">Our team will send you the bank information for payment in a separate, secure email shortly. Please use your invoice number <strong>${escapeHtml(invoiceNumber)}</strong> as the payment reference.</p></div>`;
 
   const notesHtml = overrides?.notes
     ? `<div style="background:#fff8e6;border-left:4px solid #d4a843;border-radius:6px;padding:14px 18px;margin:18px 0;color:#5a4500;font-size:13px;line-height:1.6;">${escapeHtml(overrides.notes)}</div>`
