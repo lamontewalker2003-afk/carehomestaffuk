@@ -213,6 +213,7 @@ function ApplicationsTab() {
   const [banks, setBanks] = useState<BankAccount[]>([]);
   const [invoiceLineItems, setInvoiceLineItems] = useState<InvoiceLineItem[]>([]);
   const [invoiceBankId, setInvoiceBankId] = useState<string>("");
+  const [invoiceBankSeparate, setInvoiceBankSeparate] = useState<boolean>(false);
   const [invoiceNotes, setInvoiceNotes] = useState("");
   // ---- Revoke state ----
   const [showRevokeForm, setShowRevokeForm] = useState(false);
