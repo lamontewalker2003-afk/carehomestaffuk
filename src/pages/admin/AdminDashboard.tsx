@@ -831,6 +831,7 @@ function ApplicationsTab() {
             <thead className="bg-muted"><tr>
               <th className="text-left p-3 font-medium whitespace-nowrap">Name</th>
               <th className="text-left p-3 font-medium whitespace-nowrap">Position</th>
+              <th className="text-left p-3 font-medium whitespace-nowrap hidden lg:table-cell">Job Location</th>
               <th className="text-left p-3 font-medium whitespace-nowrap hidden sm:table-cell">Email</th>
               <th className="text-left p-3 font-medium whitespace-nowrap">Status</th>
               <th className="text-left p-3 font-medium whitespace-nowrap hidden md:table-cell">Date</th>
@@ -841,6 +842,7 @@ function ApplicationsTab() {
                 <tr key={app.id} className="border-t hover:bg-muted/50">
                   <td className="p-3 font-medium whitespace-nowrap">{app.fullName}</td>
                   <td className="p-3 whitespace-nowrap">{app.jobTitle}</td>
+                  <td className="p-3 whitespace-nowrap hidden lg:table-cell text-muted-foreground">{jobLocationFor(app) || '—'}</td>
                   <td className="p-3 whitespace-nowrap hidden sm:table-cell">{app.email}</td>
                   <td className="p-3 whitespace-nowrap"><StatusBadge status={app.status} /></td>
                   <td className="p-3 whitespace-nowrap hidden md:table-cell">{new Date(app.submittedAt).toLocaleDateString()}</td>
