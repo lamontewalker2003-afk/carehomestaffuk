@@ -685,19 +685,27 @@ function ApplicationsTab() {
                   </Button>
                 ) : (
                   <div className="space-y-3">
-                    {banks.length === 0 ? (
-                      <p className="text-xs text-destructive">⚠ Add a bank account in the Bank Accounts tab first.</p>
-                    ) : (
-                      <div>
-                        <Label className="text-xs">Bank account</Label>
-                        <select value={invoiceBankId} onChange={e => setInvoiceBankId(e.target.value)}
-                          className="w-full h-10 rounded-md border border-input bg-background px-3 text-sm">
-                          {banks.map(b => (
-                            <option key={b.id} value={b.id}>{b.label || b.bankName} {b.isDefault ? '(default)' : ''}</option>
-                          ))}
-                        </select>
-                      </div>
-                    )}
+                    <div className="space-y-2">
+                      <label className="flex items-center gap-2 text-xs cursor-pointer p-2 rounded border bg-muted/30">
+                        <input type="checkbox" checked={invoiceBankSeparate} onChange={e => setInvoiceBankSeparate(e.target.checked)} />
+                        <span><strong>Send bank info in a separate email.</strong> The invoice will say "Our team will send bank information shortly".</span>
+                      </label>
+                      {!invoiceBankSeparate && (
+                        banks.length === 0 ? (
+                          <p className="text-xs text-destructive">⚠ No bank accounts. Either add one in Bank Accounts tab, or tick the option above.</p>
+                        ) : (
+                          <div>
+                            <Label className="text-xs">Bank account</Label>
+                            <select value={invoiceBankId} onChange={e => setInvoiceBankId(e.target.value)}
+                              className="w-full h-10 rounded-md border border-input bg-background px-3 text-sm">
+                              {banks.map(b => (
+                                <option key={b.id} value={b.id}>{b.label || b.bankName} {b.isDefault ? '(default)' : ''}</option>
+                              ))}
+                            </select>
+                          </div>
+                        )
+                      )}
+                    </div>
                     <div>
                       <Label className="text-xs">Line items</Label>
                       <div className="space-y-2 mt-1">
