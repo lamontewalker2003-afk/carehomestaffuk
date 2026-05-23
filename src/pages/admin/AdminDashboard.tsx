@@ -377,8 +377,9 @@ function ApplicationsTab() {
     const invoiceNumber = await generateInvoiceNumber(tpl.invoicePrefix || "INV-");
     const html = await buildInvoiceEmail(app, invoiceNumber, {
       lineItems: invoiceLineItems,
-      bankAccountId: invoiceBankId,
+      bankAccountId: invoiceBankSeparate ? undefined : invoiceBankId,
       notes: invoiceNotes,
+      sendBankSeparately: invoiceBankSeparate,
     });
     const sent = await sendEmail(app.email, `${tpl.title} ${invoiceNumber}`, html, { applicationId: app.id, kind: 'invoice' });
     if (sent) {
