@@ -2343,4 +2343,102 @@ function AppointmentsTab() {
   );
 }
 
+function AdminScheduleForm({ onScheduled }: { onScheduled: () => void | Promise<void> }) {
+  const [open, setOpen] = useState(false);
+  const [fullName, setFullName] = useState("");
+  const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
+  const [date, setDate] = useState("");
+  const [time, setTime] = useState("10:00");
+  const [notes, setNotes] = useState("");
+  const [sending, setSending] = useState(false);
+
+  const reset = () => { setFullName(""); setEmail(""); setPhone(""); setDate(""); setTime("10:00"); setNotes(""); };
+
+  const submit = async () => {
+    if (!fullName.trim() || !email.trim() || !date || !time) {
+      toast({ title: "Name, email, date and time are required.", variant: "destructive" });
+      return;
+    }
+    setSending(true);
+    const scheduledAt = new Date(`${date}T${time}:00`).toISOString();
+    const appt = await adminScheduleAppointment({ fullName, email, phone, scheduledAt, notes });
+    if (!appt) {
+      toast({ title: "Failed to schedule appointment.", variant: "destructive" });
+      setSending(false);
+      return;
+    }
+    const built = await buildAppointmentScheduledByAdminEmail(appt);
+    const sent = await sendEmail(email, built.subject, built.html, { kind: 'appointment_scheduled_by_admin' });
+    toast({
+      title: sent ? `Appointment scheduled — email sent to ${email}` : "Scheduled, but email failed to send. Check SMTP settings.",
+      variant: sent ? undefined : "destructive",
+    });
+    setSending(false);
+    setOpen(false);
+    reset();
+    await onScheduled();
+  };
+
+  const today = new Date().toISOString().slice(0, 10);
+
+  if (!open) {
+    return (
+      <div className="bg-card border rounded-lg p-4 flex items-center justify-between">
+        <div>
+          <p className="font-semibold">Schedule an appointment</p>
+          <p className="text-xs text-muted-foreground">Pick a day and time and the applicant will receive a confirmation email.</p>
+        </div>
+        <Button size="sm" onClick={() => setOpen(true)} className="bg-primary text-primary-foreground">
+          <Plus className="h-4 w-4 mr-1" /> New
+        </Button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="bg-card border rounded-lg p-4 space-y-3">
+      <div className="flex items-center justify-between">
+        <p className="font-semibold">Schedule an appointment</p>
+        <Button size="sm" variant="ghost" onClick={() => { setOpen(false); reset(); }}><X className="h-4 w-4" /></Button>
+      </div>
+      <div className="grid sm:grid-cols-2 gap-3">
+        <div>
+          <Label className="text-xs">Full name</Label>
+          <Input value={fullName} onChange={e => setFullName(e.target.value)} placeholder="Applicant name" />
+        </div>
+        <div>
+          <Label className="text-xs">Email</Label>
+          <Input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="applicant@example.com" />
+        </div>
+        <div>
+          <Label className="text-xs">Phone (optional)</Label>
+          <Input value={phone} onChange={e => setPhone(e.target.value)} placeholder="+44…" />
+        </div>
+        <div className="grid grid-cols-2 gap-2">
+          <div>
+            <Label className="text-xs">Date</Label>
+            <Input type="date" min={today} value={date} onChange={e => setDate(e.target.value)} />
+          </div>
+          <div>
+            <Label className="text-xs">Time</Label>
+            <Input type="time" value={time} onChange={e => setTime(e.target.value)} />
+          </div>
+        </div>
+      </div>
+      <div>
+        <Label className="text-xs">Notes (optional)</Label>
+        <Textarea value={notes} onChange={e => setNotes(e.target.value)} rows={2} placeholder="Anything to share with the applicant…" />
+      </div>
+      <div className="flex gap-2">
+        <Button size="sm" onClick={submit} disabled={sending} className="bg-primary text-primary-foreground">
+          {sending ? 'Scheduling…' : 'Schedule & send email'}
+        </Button>
+        <Button size="sm" variant="outline" onClick={() => { setOpen(false); reset(); }}>Cancel</Button>
+      </div>
+    </div>
+  );
+}
+
 export default AdminDashboard;
+
