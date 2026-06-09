@@ -88,6 +88,12 @@ export interface SiteSettings {
   // Always exactly 4 entries each — admin edits value + label only.
   homepageStats: { value: string; label: string }[];
   testimonialStats: { value: string; label: string }[];
+  // Banner shown at top of the Apply page (admin can toggle on/off)
+  applicationBanner: { enabled: boolean; message: string };
+  // Partner companies that issue Certificates of Sponsorship through us
+  cosPartners: { name: string; website?: string }[];
+  // Care homes we work with directly
+  careHomePartners: { name: string; website?: string }[];
 }
 
 // A single template = an editable email built from friendly fields,
