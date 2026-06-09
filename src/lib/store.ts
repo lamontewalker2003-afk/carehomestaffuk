@@ -894,6 +894,30 @@ export async function uploadOfferLetterAttachment(args: {
   }
 }
 
+// Upload a partner logo image (base64) to public storage and return public URL.
+export async function uploadPartnerLogo(args: {
+  filename: string;
+  contentBase64: string;
+  contentType?: string;
+}): Promise<{ url: string; path: string } | null> {
+  try {
+    const safeName = args.filename.replace(/[^a-zA-Z0-9._-]+/g, '_');
+    const path = `partner-logos/${Date.now()}-${safeName}`;
+    const bin = atob(args.contentBase64);
+    const bytes = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+    const { error } = await supabase.storage
+      .from('offer-letters')
+      .upload(path, bytes, { contentType: args.contentType || 'image/png', upsert: false });
+    if (error) { console.error('Partner logo upload failed:', error); return null; }
+    const { data } = supabase.storage.from('offer-letters').getPublicUrl(path);
+    return { url: data.publicUrl, path };
+  } catch (e) {
+    console.error('Partner logo upload exception:', e);
+    return null;
+  }
+}
+
 // ---- APPOINTMENTS ----
 function mapDbAppointment(row: any): Appointment {
   return {
