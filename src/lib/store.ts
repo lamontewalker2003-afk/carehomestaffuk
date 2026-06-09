@@ -398,6 +398,20 @@ export const defaultSiteSettings: SiteSettings = {
     { value: '98%', label: 'Satisfaction Rate' },
     { value: '4.9/5', label: 'Average Rating' },
   ],
+  applicationBanner: {
+    enabled: true,
+    message: 'All applications are reviewed within 3–5 working days. Visa sponsorship available for eligible candidates.',
+  },
+  cosPartners: [
+    { name: 'Sunrise Care Group' },
+    { name: 'Bluebell Healthcare Ltd' },
+    { name: 'Heritage Care Partners' },
+  ],
+  careHomePartners: [
+    { name: 'Oakwood Care Home' },
+    { name: 'Rosewood Manor' },
+    { name: 'Meadowview Residential' },
+  ],
 };
 
 export async function getSiteSettings(): Promise<SiteSettings> {
