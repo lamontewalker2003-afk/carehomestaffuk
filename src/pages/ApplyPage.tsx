@@ -130,6 +130,15 @@ const ApplyPage = () => {
           </div>
         </div>
 
+        {site?.applicationBanner?.enabled && site.applicationBanner.message && (
+          <div className="bg-accent/15 border-y border-accent/30">
+            <div className="container py-3 text-sm text-foreground/90 flex items-start gap-2">
+              <span className="font-semibold text-accent-foreground">Notice:</span>
+              <span>{site.applicationBanner.message}</span>
+            </div>
+          </div>
+        )}
+
         <div className="container py-10 max-w-2xl">
           <form onSubmit={handleSubmit} className="space-y-6">
             <div>
