@@ -11,7 +11,7 @@ import {
   getInvoiceTemplate, saveInvoiceTemplate, defaultInvoiceTemplate,
   buildInvoiceEmail, generateInvoiceNumber, markInvoiceSent,
   getCustomEmailTemplates, saveCustomEmailTemplates, buildCustomEmail,
-  getEmailLogsForEmail, groupApplicationsByEmail, uploadOfferLetterAttachment,
+  getEmailLogsForEmail, groupApplicationsByEmail, uploadOfferLetterAttachment, uploadPartnerLogo,
   getAppointments, updateAppointmentStatus, deleteAppointment, buildAppointmentEmail,
   buildApplicationRevokedEmail, adminScheduleAppointment, buildAppointmentScheduledByAdminEmail,
   APPLICATION_REVOCATION_REASONS,
