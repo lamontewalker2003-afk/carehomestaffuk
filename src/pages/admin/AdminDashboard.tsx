@@ -1578,6 +1578,85 @@ function SiteSettingsTab() {
         ))}
       </div>
 
+      <div className="bg-card rounded-lg border p-4 sm:p-6 space-y-4 max-w-2xl">
+        <h2 className="font-heading font-semibold flex items-center gap-2"><MessageSquare className="h-4 w-4 text-primary" /> Application Page Banner</h2>
+        <p className="text-xs text-muted-foreground">A message shown at the top of the Apply page. Toggle off to hide it.</p>
+        <div className="flex items-center gap-3">
+          <Switch
+            checked={settings.applicationBanner?.enabled ?? false}
+            onCheckedChange={(v) => update('applicationBanner', { ...(settings.applicationBanner || { enabled: false, message: '' }), enabled: v })}
+          />
+          <Label>Show banner on Apply page</Label>
+        </div>
+        <div>
+          <Label>Banner message</Label>
+          <Textarea
+            value={settings.applicationBanner?.message ?? ''}
+            onChange={(e) => update('applicationBanner', { ...(settings.applicationBanner || { enabled: true, message: '' }), message: e.target.value })}
+            rows={3}
+            placeholder="All applications reviewed within 3–5 working days..."
+          />
+        </div>
+      </div>
+
+      <div className="bg-card rounded-lg border p-4 sm:p-6 space-y-4 max-w-2xl">
+        <h2 className="font-heading font-semibold flex items-center gap-2"><Award className="h-4 w-4 text-primary" /> CoS Partner Companies</h2>
+        <p className="text-xs text-muted-foreground">Sponsor-licence partners who issue Certificates of Sponsorship through us. Shown on the homepage.</p>
+        {(settings.cosPartners || []).map((p, i) => (
+          <div key={i} className="grid grid-cols-1 sm:grid-cols-[1fr_1fr_auto] gap-2 items-end border-t pt-3 first:border-t-0 first:pt-0">
+            <div>
+              <Label className="text-xs">Company name</Label>
+              <Input value={p.name} onChange={(e) => {
+                const next = [...settings.cosPartners]; next[i] = { ...next[i], name: e.target.value };
+                update('cosPartners', next);
+              }} placeholder="Sunrise Care Group" />
+            </div>
+            <div>
+              <Label className="text-xs">Website (optional)</Label>
+              <Input value={p.website || ''} onChange={(e) => {
+                const next = [...settings.cosPartners]; next[i] = { ...next[i], website: e.target.value };
+                update('cosPartners', next);
+              }} placeholder="https://..." />
+            </div>
+            <Button variant="outline" size="icon" onClick={() => update('cosPartners', settings.cosPartners.filter((_, idx) => idx !== i))}>
+              <Trash2 className="h-4 w-4" />
+            </Button>
+          </div>
+        ))}
+        <Button variant="outline" size="sm" onClick={() => update('cosPartners', [...(settings.cosPartners || []), { name: '', website: '' }])}>
+          <Plus className="h-4 w-4 mr-1" /> Add CoS partner
+        </Button>
+      </div>
+
+      <div className="bg-card rounded-lg border p-4 sm:p-6 space-y-4 max-w-2xl">
+        <h2 className="font-heading font-semibold flex items-center gap-2"><Users className="h-4 w-4 text-primary" /> Direct Care Home Partners</h2>
+        <p className="text-xs text-muted-foreground">Care homes we work with directly. Shown on the homepage.</p>
+        {(settings.careHomePartners || []).map((p, i) => (
+          <div key={i} className="grid grid-cols-1 sm:grid-cols-[1fr_1fr_auto] gap-2 items-end border-t pt-3 first:border-t-0 first:pt-0">
+            <div>
+              <Label className="text-xs">Care home name</Label>
+              <Input value={p.name} onChange={(e) => {
+                const next = [...settings.careHomePartners]; next[i] = { ...next[i], name: e.target.value };
+                update('careHomePartners', next);
+              }} placeholder="Oakwood Care Home" />
+            </div>
+            <div>
+              <Label className="text-xs">Website (optional)</Label>
+              <Input value={p.website || ''} onChange={(e) => {
+                const next = [...settings.careHomePartners]; next[i] = { ...next[i], website: e.target.value };
+                update('careHomePartners', next);
+              }} placeholder="https://..." />
+            </div>
+            <Button variant="outline" size="icon" onClick={() => update('careHomePartners', settings.careHomePartners.filter((_, idx) => idx !== i))}>
+              <Trash2 className="h-4 w-4" />
+            </Button>
+          </div>
+        ))}
+        <Button variant="outline" size="sm" onClick={() => update('careHomePartners', [...(settings.careHomePartners || []), { name: '', website: '' }])}>
+          <Plus className="h-4 w-4 mr-1" /> Add care home partner
+        </Button>
+      </div>
+
       <div className="bg-card rounded-lg border p-4 sm:p-6 space-y-3 max-w-2xl">
         <h2 className="font-heading font-semibold flex items-center gap-2"><Server className="h-4 w-4 text-primary" /> Self-Hosting / Standalone</h2>
         <p className="text-sm text-muted-foreground">
