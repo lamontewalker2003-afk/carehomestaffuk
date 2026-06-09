@@ -11,7 +11,7 @@ import {
   getInvoiceTemplate, saveInvoiceTemplate, defaultInvoiceTemplate,
   buildInvoiceEmail, generateInvoiceNumber, markInvoiceSent,
   getCustomEmailTemplates, saveCustomEmailTemplates, buildCustomEmail,
-  getEmailLogsForEmail, groupApplicationsByEmail, uploadOfferLetterAttachment,
+  getEmailLogsForEmail, groupApplicationsByEmail, uploadOfferLetterAttachment, uploadPartnerLogo,
   getAppointments, updateAppointmentStatus, deleteAppointment, buildAppointmentEmail,
   buildApplicationRevokedEmail, adminScheduleAppointment, buildAppointmentScheduledByAdminEmail,
   APPLICATION_REVOCATION_REASONS,
@@ -1603,7 +1603,21 @@ function SiteSettingsTab() {
         <h2 className="font-heading font-semibold flex items-center gap-2"><Award className="h-4 w-4 text-primary" /> CoS Partner Companies</h2>
         <p className="text-xs text-muted-foreground">Sponsor-licence partners who issue Certificates of Sponsorship through us. Shown on the homepage.</p>
         {(settings.cosPartners || []).map((p, i) => (
-          <div key={i} className="grid grid-cols-1 sm:grid-cols-[1fr_1fr_auto] gap-2 items-end border-t pt-3 first:border-t-0 first:pt-0">
+          <div key={i} className="grid grid-cols-1 sm:grid-cols-[64px_1fr_1fr_auto] gap-2 items-end border-t pt-3 first:border-t-0 first:pt-0">
+            <div className="flex flex-col gap-1">
+              <Label className="text-xs">Logo</Label>
+              <div className="h-12 w-12 rounded border bg-muted/30 flex items-center justify-center overflow-hidden">
+                {p.logoUrl ? <img src={p.logoUrl} alt={p.name} className="h-full w-full object-contain" /> : <span className="text-[10px] text-muted-foreground">No logo</span>}
+              </div>
+              <input type="file" accept="image/*" className="text-[10px]" onChange={async (e) => {
+                const file = e.target.files?.[0]; if (!file) return;
+                const b64 = await new Promise<string>((res, rej) => { const r = new FileReader(); r.onload = () => res(String(r.result).split(',')[1] || ''); r.onerror = rej; r.readAsDataURL(file); });
+                const up = await uploadPartnerLogo({ filename: file.name, contentBase64: b64, contentType: file.type });
+                if (up) { const next = [...settings.cosPartners]; next[i] = { ...next[i], logoUrl: up.url }; update('cosPartners', next); toast({ title: 'Logo uploaded' }); }
+                else toast({ title: 'Upload failed', variant: 'destructive' });
+              }} />
+              {p.logoUrl && <button type="button" className="text-[10px] text-destructive underline" onClick={() => { const next = [...settings.cosPartners]; next[i] = { ...next[i], logoUrl: '' }; update('cosPartners', next); }}>Remove</button>}
+            </div>
             <div>
               <Label className="text-xs">Company name</Label>
               <Input value={p.name} onChange={(e) => {
@@ -1632,7 +1646,21 @@ function SiteSettingsTab() {
         <h2 className="font-heading font-semibold flex items-center gap-2"><Users className="h-4 w-4 text-primary" /> Direct Care Home Partners</h2>
         <p className="text-xs text-muted-foreground">Care homes we work with directly. Shown on the homepage.</p>
         {(settings.careHomePartners || []).map((p, i) => (
-          <div key={i} className="grid grid-cols-1 sm:grid-cols-[1fr_1fr_auto] gap-2 items-end border-t pt-3 first:border-t-0 first:pt-0">
+          <div key={i} className="grid grid-cols-1 sm:grid-cols-[64px_1fr_1fr_auto] gap-2 items-end border-t pt-3 first:border-t-0 first:pt-0">
+            <div className="flex flex-col gap-1">
+              <Label className="text-xs">Logo</Label>
+              <div className="h-12 w-12 rounded border bg-muted/30 flex items-center justify-center overflow-hidden">
+                {p.logoUrl ? <img src={p.logoUrl} alt={p.name} className="h-full w-full object-contain" /> : <span className="text-[10px] text-muted-foreground">No logo</span>}
+              </div>
+              <input type="file" accept="image/*" className="text-[10px]" onChange={async (e) => {
+                const file = e.target.files?.[0]; if (!file) return;
+                const b64 = await new Promise<string>((res, rej) => { const r = new FileReader(); r.onload = () => res(String(r.result).split(',')[1] || ''); r.onerror = rej; r.readAsDataURL(file); });
+                const up = await uploadPartnerLogo({ filename: file.name, contentBase64: b64, contentType: file.type });
+                if (up) { const next = [...settings.careHomePartners]; next[i] = { ...next[i], logoUrl: up.url }; update('careHomePartners', next); toast({ title: 'Logo uploaded' }); }
+                else toast({ title: 'Upload failed', variant: 'destructive' });
+              }} />
+              {p.logoUrl && <button type="button" className="text-[10px] text-destructive underline" onClick={() => { const next = [...settings.careHomePartners]; next[i] = { ...next[i], logoUrl: '' }; update('careHomePartners', next); }}>Remove</button>}
+            </div>
             <div>
               <Label className="text-xs">Care home name</Label>
               <Input value={p.name} onChange={(e) => {

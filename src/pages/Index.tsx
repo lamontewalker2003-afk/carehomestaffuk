@@ -144,9 +144,10 @@ const Index = () => {
                       href={p.website || '#'}
                       target={p.website ? '_blank' : undefined}
                       rel={p.website ? 'noopener noreferrer' : undefined}
-                      className="rounded-lg border bg-card p-4 text-center text-sm font-medium hover:border-primary hover:shadow-sm transition"
+                      className="rounded-lg border bg-card p-4 flex flex-col items-center justify-center gap-3 text-center text-sm font-medium hover:border-primary hover:shadow-sm transition min-h-[120px]"
                     >
-                      {p.name}
+                      {p.logoUrl && <img src={p.logoUrl} alt={p.name} className="h-12 w-auto max-w-full object-contain" loading="lazy" />}
+                      <span>{p.name}</span>
                     </a>
                   ))}
                 </div>
@@ -165,9 +166,10 @@ const Index = () => {
                       href={p.website || '#'}
                       target={p.website ? '_blank' : undefined}
                       rel={p.website ? 'noopener noreferrer' : undefined}
-                      className="rounded-lg border bg-card p-4 text-center text-sm font-medium hover:border-primary hover:shadow-sm transition"
+                      className="rounded-lg border bg-card p-4 flex flex-col items-center justify-center gap-3 text-center text-sm font-medium hover:border-primary hover:shadow-sm transition min-h-[120px]"
                     >
-                      {p.name}
+                      {p.logoUrl && <img src={p.logoUrl} alt={p.name} className="h-12 w-auto max-w-full object-contain" loading="lazy" />}
+                      <span>{p.name}</span>
                     </a>
                   ))}
                 </div>

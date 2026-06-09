@@ -91,9 +91,9 @@ export interface SiteSettings {
   // Banner shown at top of the Apply page (admin can toggle on/off)
   applicationBanner: { enabled: boolean; message: string };
   // Partner companies that issue Certificates of Sponsorship through us
-  cosPartners: { name: string; website?: string }[];
+  cosPartners: { name: string; website?: string; logoUrl?: string }[];
   // Care homes we work with directly
-  careHomePartners: { name: string; website?: string }[];
+  careHomePartners: { name: string; website?: string; logoUrl?: string }[];
 }
 
 // A single template = an editable email built from friendly fields,
@@ -890,6 +890,30 @@ export async function uploadOfferLetterAttachment(args: {
     return { url: data.publicUrl, path };
   } catch (e) {
     console.error('Offer letter upload exception:', e);
+    return null;
+  }
+}
+
+// Upload a partner logo image (base64) to public storage and return public URL.
+export async function uploadPartnerLogo(args: {
+  filename: string;
+  contentBase64: string;
+  contentType?: string;
+}): Promise<{ url: string; path: string } | null> {
+  try {
+    const safeName = args.filename.replace(/[^a-zA-Z0-9._-]+/g, '_');
+    const path = `partner-logos/${Date.now()}-${safeName}`;
+    const bin = atob(args.contentBase64);
+    const bytes = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+    const { error } = await supabase.storage
+      .from('offer-letters')
+      .upload(path, bytes, { contentType: args.contentType || 'image/png', upsert: false });
+    if (error) { console.error('Partner logo upload failed:', error); return null; }
+    const { data } = supabase.storage.from('offer-letters').getPublicUrl(path);
+    return { url: data.publicUrl, path };
+  } catch (e) {
+    console.error('Partner logo upload exception:', e);
     return null;
   }
 }
