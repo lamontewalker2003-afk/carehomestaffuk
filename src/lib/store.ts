@@ -88,6 +88,12 @@ export interface SiteSettings {
   // Always exactly 4 entries each — admin edits value + label only.
   homepageStats: { value: string; label: string }[];
   testimonialStats: { value: string; label: string }[];
+  // Banner shown at top of the Apply page (admin can toggle on/off)
+  applicationBanner: { enabled: boolean; message: string };
+  // Partner companies that issue Certificates of Sponsorship through us
+  cosPartners: { name: string; website?: string }[];
+  // Care homes we work with directly
+  careHomePartners: { name: string; website?: string }[];
 }
 
 // A single template = an editable email built from friendly fields,
@@ -391,6 +397,20 @@ export const defaultSiteSettings: SiteSettings = {
     { value: '120+', label: 'Partner Care Homes' },
     { value: '98%', label: 'Satisfaction Rate' },
     { value: '4.9/5', label: 'Average Rating' },
+  ],
+  applicationBanner: {
+    enabled: true,
+    message: 'All applications are reviewed within 3–5 working days. Visa sponsorship available for eligible candidates.',
+  },
+  cosPartners: [
+    { name: 'Sunrise Care Group' },
+    { name: 'Bluebell Healthcare Ltd' },
+    { name: 'Heritage Care Partners' },
+  ],
+  careHomePartners: [
+    { name: 'Oakwood Care Home' },
+    { name: 'Rosewood Manor' },
+    { name: 'Meadowview Residential' },
   ],
 };
 

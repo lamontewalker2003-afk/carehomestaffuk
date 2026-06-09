@@ -127,6 +127,56 @@ const Index = () => {
         </div>
       </section>
 
+      {/* Partners */}
+      {((site.cosPartners?.length || 0) > 0 || (site.careHomePartners?.length || 0) > 0) && (
+        <section className="py-16 border-t">
+          <div className="container space-y-12">
+            {(site.cosPartners?.length || 0) > 0 && (
+              <div>
+                <div className="text-center mb-8">
+                  <h2 className="font-heading text-2xl font-bold mb-2">Our CoS Sponsor Partners</h2>
+                  <p className="text-muted-foreground max-w-lg mx-auto">Licensed sponsor companies that issue Certificates of Sponsorship for Health and Care Worker visa applicants through our network.</p>
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+                  {site.cosPartners.map((p, i) => (
+                    <a
+                      key={i}
+                      href={p.website || '#'}
+                      target={p.website ? '_blank' : undefined}
+                      rel={p.website ? 'noopener noreferrer' : undefined}
+                      className="rounded-lg border bg-card p-4 text-center text-sm font-medium hover:border-primary hover:shadow-sm transition"
+                    >
+                      {p.name}
+                    </a>
+                  ))}
+                </div>
+              </div>
+            )}
+            {(site.careHomePartners?.length || 0) > 0 && (
+              <div>
+                <div className="text-center mb-8">
+                  <h2 className="font-heading text-2xl font-bold mb-2">Care Homes We Work With Directly</h2>
+                  <p className="text-muted-foreground max-w-lg mx-auto">Trusted care providers we partner with directly to place qualified staff.</p>
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+                  {site.careHomePartners.map((p, i) => (
+                    <a
+                      key={i}
+                      href={p.website || '#'}
+                      target={p.website ? '_blank' : undefined}
+                      rel={p.website ? 'noopener noreferrer' : undefined}
+                      className="rounded-lg border bg-card p-4 text-center text-sm font-medium hover:border-primary hover:shadow-sm transition"
+                    >
+                      {p.name}
+                    </a>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        </section>
+      )}
+
       {/* Why Choose Us */}
       <section className="py-16 bg-secondary">
         <div className="container">
