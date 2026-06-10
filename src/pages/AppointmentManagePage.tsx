@@ -59,16 +59,30 @@ export default function AppointmentManagePage() {
   const minDay = allowedDays[0];
   const maxDay = allowedDays[allowedDays.length - 1];
 
+  // Email lookup (when no id in URL)
+  const [lookupEmail, setLookupEmail] = useState("");
+  const [lookupResults, setLookupResults] = useState<Appointment[] | null>(null);
+  const [lookupBusy, setLookupBusy] = useState(false);
+
   useEffect(() => {
     (async () => {
+      const s = await getSiteSettings();
+      setSite(s);
       if (!id) { setLoading(false); return; }
-      const [a, s, slots] = await Promise.all([
-        getAppointmentById(id), getSiteSettings(), getBookedSlots(),
-      ]);
-      setAppt(a); setSite(s); setBookedISO(slots);
+      const [a, slots] = await Promise.all([getAppointmentById(id), getBookedSlots()]);
+      setAppt(a); setBookedISO(slots);
       setLoading(false);
     })();
   }, [id]);
+
+  const handleLookup = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLookupBusy(true);
+    const list = await getAppointmentsByEmail(lookupEmail);
+    setLookupResults(list);
+    setLookupBusy(false);
+  };
+
 
   const isWorkingDay = (d: Date) => allowedDays.some(a => isSameDay(a, d));
 
