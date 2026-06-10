@@ -13,6 +13,7 @@ import { cn } from "@/lib/utils";
 import { toast } from "@/hooks/use-toast";
 import {
   getAppointmentById,
+  getAppointmentsByEmail,
   rescheduleAppointment,
   updateAppointmentStatus,
   buildAppointmentRescheduledEmail,
@@ -23,6 +24,8 @@ import {
   type Appointment,
   type SiteSettings,
 } from "@/lib/store";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 
 function nextWorkingDays(count: number): Date[] {
   const days: Date[] = [];
@@ -56,16 +59,30 @@ export default function AppointmentManagePage() {
   const minDay = allowedDays[0];
   const maxDay = allowedDays[allowedDays.length - 1];
 
+  // Email lookup (when no id in URL)
+  const [lookupEmail, setLookupEmail] = useState("");
+  const [lookupResults, setLookupResults] = useState<Appointment[] | null>(null);
+  const [lookupBusy, setLookupBusy] = useState(false);
+
   useEffect(() => {
     (async () => {
+      const s = await getSiteSettings();
+      setSite(s);
       if (!id) { setLoading(false); return; }
-      const [a, s, slots] = await Promise.all([
-        getAppointmentById(id), getSiteSettings(), getBookedSlots(),
-      ]);
-      setAppt(a); setSite(s); setBookedISO(slots);
+      const [a, slots] = await Promise.all([getAppointmentById(id), getBookedSlots()]);
+      setAppt(a); setBookedISO(slots);
       setLoading(false);
     })();
   }, [id]);
+
+  const handleLookup = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLookupBusy(true);
+    const list = await getAppointmentsByEmail(lookupEmail);
+    setLookupResults(list);
+    setLookupBusy(false);
+  };
+
 
   const isWorkingDay = (d: Date) => allowedDays.some(a => isSameDay(a, d));
 
@@ -125,6 +142,41 @@ export default function AppointmentManagePage() {
       <main className="flex-1 container py-12 max-w-2xl">
         {loading ? (
           <div className="flex items-center justify-center py-20"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>
+        ) : !id ? (
+          <div className="bg-card border rounded-xl p-6 sm:p-8 space-y-5">
+            <div>
+              <h1 className="font-heading text-2xl sm:text-3xl text-primary">Find your appointment</h1>
+              <p className="text-muted-foreground text-sm mt-1">Enter the email you used to book. We'll show your appointment so you can reschedule or cancel it.</p>
+            </div>
+            <form onSubmit={handleLookup} className="space-y-3">
+              <Label htmlFor="lookup-email">Your email</Label>
+              <Input id="lookup-email" type="email" required placeholder="you@example.com" value={lookupEmail} onChange={(e) => setLookupEmail(e.target.value)} />
+              <Button type="submit" disabled={lookupBusy} className="bg-primary text-primary-foreground">
+                {lookupBusy ? "Searching…" : "Find my appointment"}
+              </Button>
+            </form>
+            {lookupResults && (
+              lookupResults.length === 0 ? (
+                <div className="text-sm text-muted-foreground border-t pt-4">
+                  No appointments found for that email. <Link to="/book-appointment" className="text-primary underline">Book a new one</Link>.
+                </div>
+              ) : (
+                <ul className="space-y-2 border-t pt-4">
+                  {lookupResults.map(a => (
+                    <li key={a.id} className="flex flex-wrap items-center justify-between gap-3 p-3 rounded-lg border bg-muted/30">
+                      <div className="text-sm">
+                        <p className="font-semibold">{format(new Date(a.scheduledAt), "EEE d MMM yyyy 'at' HH:mm")}</p>
+                        <p className="text-xs text-muted-foreground capitalize">Status: {a.status}</p>
+                      </div>
+                      <Link to={`/appointments/manage/${a.id}`}>
+                        <Button size="sm" variant="outline">Open / reschedule</Button>
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              )
+            )}
+          </div>
         ) : !appt ? (
           <div className="bg-card border rounded-xl p-8 text-center space-y-4">
             <XCircle className="h-12 w-12 text-destructive mx-auto" />

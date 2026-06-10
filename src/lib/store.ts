@@ -1381,6 +1381,18 @@ export async function getAppointmentById(id: string): Promise<Appointment | null
   return mapDbAppointment(data);
 }
 
+/** Lookup appointments by applicant email (used by the public manage page). */
+export async function getAppointmentsByEmail(email: string): Promise<Appointment[]> {
+  const clean = email.trim().toLowerCase();
+  if (!clean) return [];
+  const { data, error } = await supabase
+    .from('appointments').select('*')
+    .ilike('email', clean)
+    .order('scheduled_at', { ascending: false });
+  if (error || !data) return [];
+  return data.map(mapDbAppointment);
+}
+
 export async function rescheduleAppointment(id: string, newISO: string): Promise<Appointment | null> {
   const { data, error } = await supabase.from('appointments')
     .update({ scheduled_at: newISO, status: 'pending' })
