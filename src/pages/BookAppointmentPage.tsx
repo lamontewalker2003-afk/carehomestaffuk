@@ -128,6 +128,10 @@ export default function BookAppointmentPage() {
         <div className="mb-8 text-center">
           <h1 className="font-heading text-3xl sm:text-4xl text-primary">Book an Appointment</h1>
           <p className="text-muted-foreground mt-2">Pick a working day and time within the next 7 working days.</p>
+          <p className="text-sm mt-3">
+            Already booked?{" "}
+            <a href="/appointments/manage" className="text-primary underline font-medium">Reschedule or cancel your meeting</a>
+          </p>
         </div>
 
         {confirmed ? (
