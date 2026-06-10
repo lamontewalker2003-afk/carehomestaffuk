@@ -51,6 +51,7 @@ const App = () => (
             <Route path="/bestadmin/dashboard" element={<AdminDashboard />} />
             <Route path="/setup" element={<SetupWizard />} />
             <Route path="/book-appointment" element={<BookAppointmentPage />} />
+            <Route path="/appointments/manage" element={<AppointmentManagePage />} />
             <Route path="/appointments/manage/:id" element={<AppointmentManagePage />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
