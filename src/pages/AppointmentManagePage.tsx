@@ -13,6 +13,7 @@ import { cn } from "@/lib/utils";
 import { toast } from "@/hooks/use-toast";
 import {
   getAppointmentById,
+  getAppointmentsByEmail,
   rescheduleAppointment,
   updateAppointmentStatus,
   buildAppointmentRescheduledEmail,
@@ -23,6 +24,8 @@ import {
   type Appointment,
   type SiteSettings,
 } from "@/lib/store";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 
 function nextWorkingDays(count: number): Date[] {
   const days: Date[] = [];
