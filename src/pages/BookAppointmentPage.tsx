@@ -159,9 +159,22 @@ export default function BookAppointmentPage() {
               <a href={`/appointments/manage/${confirmed.id}`}>
                 <Button variant="outline">Manage / reschedule / cancel</Button>
               </a>
+              <a href="/appointments/manage">
+                <Button variant="outline">Reschedule via email lookup</Button>
+              </a>
               <Button variant="ghost" onClick={() => { setConfirmed(null); setTime(""); }}>
                 Book another time
               </Button>
+            </div>
+
+            <div className="text-left bg-amber-50 dark:bg-amber-950/20 border border-amber-300/60 dark:border-amber-700/40 rounded-lg p-4 text-sm">
+              <p className="font-semibold text-amber-900 dark:text-amber-200 mb-1">⚠️ Appointment booking fee — please read</p>
+              <p className="text-amber-900/90 dark:text-amber-100/90">
+                Please note: confirmed consultation appointments carry a small administration/consultation fee, payable before
+                the meeting takes place. Our team will contact you with the exact amount and secure payment instructions
+                shortly after this booking is reviewed. Your slot will only be finalised once payment is received. If you
+                do not wish to proceed, you may cancel free of charge from the manage page above.
+              </p>
             </div>
           </div>
         ) : (
