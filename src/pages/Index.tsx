@@ -6,7 +6,7 @@ import { SiteFooter } from "@/components/SiteFooter";
 import { JobCard } from "@/components/JobCard";
 import { getJobs, getSiteSettings, defaultSiteSettings } from "@/lib/store";
 import type { Job, SiteSettings } from "@/lib/store";
-import { Shield, Users, Heart, ArrowRight, Award, Building2, Globe2, CheckCircle2 } from "lucide-react";
+import { Shield, Users, Heart, ArrowRight, Award, Building2, Globe2, CheckCircle2, FileText, Sparkles } from "lucide-react";
 import heroCare from "@/assets/hero-care.jpg";
 
 const features = [
@@ -50,14 +50,14 @@ const Index = () => {
         <div className="container py-20 lg:py-28 grid lg:grid-cols-2 gap-12 items-center">
           <div className="space-y-6">
             <span className="inline-block text-xs font-semibold tracking-wider uppercase bg-hero-accent/20 text-hero-accent px-3 py-1 rounded-full">
-              ✦ Trusted Across the UK
+              ✦ UK Jobs · Visa Sponsorship · Free CV & Cover Letter Tools
             </span>
             <h1 className="text-4xl lg:text-5xl font-bold text-hero-foreground leading-tight">
-              Compassionate Staff for{" "}
-              <span className="text-hero-accent">Every Care Home</span>
+              Land Your Next Job in the{" "}
+              <span className="text-hero-accent">United Kingdom</span>
             </h1>
-            <p className="text-hero-foreground/70 text-lg max-w-md">
-              We connect care homes with fully vetted nurses, carers, and support workers — with full visa sponsorship support for international candidates.
+            <p className="text-hero-foreground/80 text-lg max-w-xl">
+              From healthcare and hospitality to warehousing, retail and skilled trades — we help UK residents and international applicants find sponsored roles, switch visas (PSW, Student, Dependant), and land interviews. Try our free <strong>AI CV Builder</strong> and <strong>Cover Letter Generator</strong> — no signup needed.
             </p>
             <div className="flex flex-wrap gap-3">
               <Link to="/jobs">
@@ -65,12 +65,21 @@ const Index = () => {
                   Browse Jobs
                 </Button>
               </Link>
-              <Link to="/apply">
+              <Link to="/cv-builder">
                 <Button size="lg" className="bg-card text-primary hover:bg-card/90 font-semibold border-2 border-accent">
-                  Apply as a Worker
+                  <Sparkles className="h-4 w-4 mr-2" /> Build my CV (Free)
+                </Button>
+              </Link>
+              <Link to="/apply">
+                <Button size="lg" variant="ghost" className="text-hero-foreground hover:bg-hero-foreground/10 font-semibold">
+                  Apply as a Worker <ArrowRight className="h-4 w-4 ml-2" />
                 </Button>
               </Link>
             </div>
+            <p className="text-xs text-hero-foreground/60 pt-1">
+              <FileText className="h-3 w-3 inline mr-1" />
+              CV Builder & Cover Letter Generator are open to guests — try them before applying.
+            </p>
           </div>
           <div className="hidden lg:block">
             <img

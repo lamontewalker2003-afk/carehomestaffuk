@@ -6,6 +6,7 @@ import { Helmet } from "react-helmet-async";
 
 import { SiteHeader } from "@/components/SiteHeader";
 import { SiteFooter } from "@/components/SiteFooter";
+import { WhatsAppLink } from "@/components/WhatsAppButton";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -127,12 +128,7 @@ export default function AppointmentManagePage() {
     toast({ title: "Appointment cancelled." });
   };
 
-  const whatsappNumber = site?.whatsappNumber || "";
-  const whatsappLink = appt && whatsappNumber
-    ? `https://wa.me/${whatsappNumber.replace(/\D/g, "")}?text=${encodeURIComponent(
-        `Hello ${site?.siteName || ""}, I am ${appt.fullName} regarding my appointment.`,
-      )}`
-    : "";
+  const whatsappAvailable = !!(site?.whatsappNumber || "").replace(/\D/g, "");
 
   return (
     <div className="min-h-screen flex flex-col bg-background">
@@ -214,12 +210,12 @@ export default function AppointmentManagePage() {
                 <Button variant="destructive" onClick={handleCancel} disabled={busy}>
                   <XCircle className="h-4 w-4 mr-2" /> Cancel appointment
                 </Button>
-                {whatsappLink && (
-                  <a href={whatsappLink} target="_blank" rel="noopener noreferrer">
-                    <Button variant="outline" className="bg-[#25D366] hover:bg-[#1ebe5b] text-white border-transparent">
-                      <MessageCircle className="h-4 w-4 mr-2" /> Chat on WhatsApp
+                {whatsappAvailable && (
+                  <WhatsAppLink className="inline-flex">
+                    <Button variant="outline" className="bg-[#25D366] hover:bg-[#1ebe5b] text-white border-transparent" asChild={false}>
+                      <span className="inline-flex items-center"><MessageCircle className="h-4 w-4 mr-2" /> Chat on WhatsApp</span>
                     </Button>
-                  </a>
+                  </WhatsAppLink>
                 )}
               </div>
             ) : (

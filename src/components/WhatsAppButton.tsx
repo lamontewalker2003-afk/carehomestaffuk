@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, ReactNode } from "react";
 import { getSiteSettings } from "@/lib/store";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -23,61 +23,91 @@ export function normaliseUkMobile(raw: string): string | null {
   if (n.startsWith("0")) n = "44" + n.slice(1);
   if (n.startsWith("7") && n.length === 10) n = "44" + n;
   if (!n.startsWith("44")) return null;
-  // 44 + 10 digits, mobile starts with 7
   if (n.length !== 12 || n[2] !== "7") return null;
   return n;
 }
 
+export function getStoredUkMobile(): string | null {
+  if (typeof window === "undefined") return null;
+  const stored = localStorage.getItem(LS_KEY);
+  if (!stored) return null;
+  return normaliseUkMobile(stored);
+}
+
+let openGateGlobal: ((onVerified: (uk: string) => void) => void) | null = null;
+
+/**
+ * Opens WhatsApp to the given business number, gating behind UK number verification.
+ * Always opens the bare wa.me link — NEVER a pre-filled message.
+ */
+export function openWhatsAppGated(businessNumber: string) {
+  const num = (businessNumber || "").replace(/[^\d]/g, "");
+  if (!num) {
+    toast({ title: "WhatsApp not configured", variant: "destructive" });
+    return;
+  }
+  const open = () => window.open(`https://wa.me/${num}`, "_blank", "noopener,noreferrer");
+  const verified = getStoredUkMobile();
+  if (verified) { open(); return; }
+  if (openGateGlobal) { openGateGlobal(() => open()); return; }
+  // Fallback (gate not mounted yet) — open anyway
+  open();
+}
+
+/** Wraps any clickable element to trigger the gated WhatsApp open. */
+export function WhatsAppLink({ children, className }: { children: ReactNode; className?: string }) {
+  const [num, setNum] = useState("");
+  useEffect(() => { getSiteSettings().then(s => setNum((s.whatsappNumber || "").replace(/[^\d]/g, ""))); }, []);
+  if (!num) return null;
+  return (
+    <button type="button" className={className} onClick={(e) => { e.preventDefault(); openWhatsAppGated(num); }}>
+      {children}
+    </button>
+  );
+}
+
 export function WhatsAppButton() {
   const [number, setNumber] = useState("");
-  const [message, setMessage] = useState("");
   const [label, setLabel] = useState("Chat with us on WhatsApp");
   const [showLabel, setShowLabel] = useState(false);
   const [gateOpen, setGateOpen] = useState(false);
   const [userPhone, setUserPhone] = useState("");
   const [errorMsg, setErrorMsg] = useState("");
+  const [pendingCb, setPendingCb] = useState<((uk: string) => void) | null>(null);
 
   useEffect(() => {
     getSiteSettings().then(s => {
       setNumber((s.whatsappNumber || "").replace(/[^\d]/g, ""));
-      setMessage(s.whatsappMessage || "");
       if (s.whatsappLabel) setLabel(s.whatsappLabel);
     });
+    // Register global gate opener so other components can use it
+    openGateGlobal = (cb) => {
+      setErrorMsg(""); setUserPhone(""); setPendingCb(() => cb); setGateOpen(true);
+    };
     const t1 = setTimeout(() => setShowLabel(true), 3000);
     const t2 = setTimeout(() => setShowLabel(false), 8000);
-    return () => { clearTimeout(t1); clearTimeout(t2); };
+    return () => { clearTimeout(t1); clearTimeout(t2); openGateGlobal = null; };
   }, []);
 
   if (!number) return null;
 
-  const buildWaHref = (userInternational: string) => {
-    const base = `https://wa.me/${number}`;
-    const text = `${message ? message + "\n\n" : ""}— Sent from a UK WhatsApp number: +${userInternational}`;
-    return `${base}?text=${encodeURIComponent(text)}`;
-  };
+  const openWa = () => window.open(`https://wa.me/${number}`, "_blank", "noopener,noreferrer");
 
   const handleClick = (e: React.MouseEvent) => {
     e.preventDefault();
-    const stored = typeof window !== "undefined" ? localStorage.getItem(LS_KEY) : null;
-    if (stored && normaliseUkMobile(stored)) {
-      window.open(buildWaHref(normaliseUkMobile(stored)!), "_blank", "noopener,noreferrer");
-      return;
-    }
-    setErrorMsg("");
-    setUserPhone("");
-    setGateOpen(true);
+    const stored = getStoredUkMobile();
+    if (stored) { openWa(); return; }
+    setErrorMsg(""); setUserPhone(""); setPendingCb(() => openWa); setGateOpen(true);
   };
 
   const handleSubmitGate = () => {
     const ok = normaliseUkMobile(userPhone);
-    if (!ok) {
-      setErrorMsg("Please enter a valid UK mobile number (e.g. 07123 456789 or +44 7123 456789).");
-      return;
-    }
+    if (!ok) { setErrorMsg("Please enter a valid UK mobile number (e.g. 07123 456789 or +44 7123 456789)."); return; }
     localStorage.setItem(LS_KEY, ok);
     setGateOpen(false);
     toast({ title: "Opening WhatsApp…", description: `Verified UK number +${ok}` });
-    window.open(buildWaHref(ok), "_blank", "noopener,noreferrer");
+    pendingCb?.(ok);
+    setPendingCb(null);
   };
 
   return (
@@ -109,7 +139,7 @@ export function WhatsAppButton() {
         </span>
       </button>
 
-      <Dialog open={gateOpen} onOpenChange={setGateOpen}>
+      <Dialog open={gateOpen} onOpenChange={(o) => { setGateOpen(o); if (!o) setPendingCb(null); }}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>Verify your UK WhatsApp number</DialogTitle>

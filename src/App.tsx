@@ -23,6 +23,7 @@ import AdminDashboard from "./pages/admin/AdminDashboard.tsx";
 import SetupWizard from "./pages/SetupWizard.tsx";
 import BookAppointmentPage from "./pages/BookAppointmentPage.tsx";
 import AppointmentManagePage from "./pages/AppointmentManagePage.tsx";
+import CVBuilderPage from "./pages/CVBuilderPage.tsx";
 import NotFound from "./pages/NotFound.tsx";
 
 const queryClient = new QueryClient();
@@ -53,6 +54,8 @@ const App = () => (
             <Route path="/book-appointment" element={<BookAppointmentPage />} />
             <Route path="/appointments/manage" element={<AppointmentManagePage />} />
             <Route path="/appointments/manage/:id" element={<AppointmentManagePage />} />
+            <Route path="/cv-builder" element={<CVBuilderPage />} />
+            <Route path="/cover-letter" element={<CVBuilderPage />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
           <CookieConsent />
