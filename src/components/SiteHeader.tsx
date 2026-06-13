@@ -2,14 +2,15 @@ import { Link, useLocation } from "react-router-dom";
 import { useState } from "react";
 import { Menu, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { AnnouncementBar } from "@/components/AnnouncementBar";
 
 const navItems = [
   { label: "Home", to: "/" },
   { label: "Jobs", to: "/jobs" },
+  { label: "CV Builder", to: "/cv-builder" },
   { label: "Visa Info", to: "/visa-info" },
   { label: "About", to: "/about" },
   { label: "FAQ", to: "/faq" },
-  { label: "Testimonials", to: "/testimonials" },
   { label: "Book Appointment", to: "/book-appointment" },
   { label: "Contact", to: "/contact" },
 ];
@@ -20,6 +21,7 @@ export function SiteHeader() {
 
   return (
     <header className="sticky top-0 z-50 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80">
+      <AnnouncementBar />
       <div className="container flex h-16 items-center justify-between">
         <Link to="/" className="flex items-center gap-1">
           <span className="font-heading text-xl font-bold text-primary">CareHomeStaff</span>

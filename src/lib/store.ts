@@ -94,6 +94,14 @@ export interface SiteSettings {
   cosPartners: { name: string; website?: string; logoUrl?: string }[];
   // Care homes we work with directly
   careHomePartners: { name: string; website?: string; logoUrl?: string }[];
+  // Sitewide announcement bar (admin-controlled, shown above the header)
+  announcement?: {
+    enabled: boolean;
+    message: string;
+    link?: string;
+    ctaLabel?: string;
+    variant?: 'info' | 'success' | 'warning';
+  };
 }
 
 // A single template = an editable email built from friendly fields,
@@ -412,6 +420,13 @@ export const defaultSiteSettings: SiteSettings = {
     { name: 'Rosewood Manor' },
     { name: 'Meadowview Residential' },
   ],
+  announcement: {
+    enabled: true,
+    message: '✦ UK Health & Care Worker visa sponsorship available — limited CoS slots for 2026 intakes.',
+    link: '/visa-info',
+    ctaLabel: 'Check eligibility',
+    variant: 'info',
+  },
 };
 
 export async function getSiteSettings(): Promise<SiteSettings> {
