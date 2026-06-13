@@ -1600,6 +1600,60 @@ function SiteSettingsTab() {
       </div>
 
       <div className="bg-card rounded-lg border p-4 sm:p-6 space-y-4 max-w-2xl">
+        <h2 className="font-heading font-semibold flex items-center gap-2">
+          <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-primary text-primary-foreground text-[10px]">!</span>
+          Sitewide Announcement Bar
+        </h2>
+        <p className="text-xs text-muted-foreground">Shown at the very top of every page above the header. Use it for visa updates, deadlines, intake openings, etc.</p>
+        <div className="flex items-center gap-3">
+          <Switch
+            checked={settings.announcement?.enabled ?? false}
+            onCheckedChange={(v) => update('announcement', { ...(settings.announcement || { enabled: false, message: '' }), enabled: v })}
+          />
+          <Label>Show announcement bar</Label>
+        </div>
+        <div>
+          <Label>Message</Label>
+          <Textarea
+            rows={2}
+            value={settings.announcement?.message ?? ''}
+            onChange={(e) => update('announcement', { ...(settings.announcement || { enabled: true, message: '' }), message: e.target.value })}
+            placeholder="✦ UK Health & Care Worker visa sponsorship available — limited CoS slots for 2026 intakes."
+          />
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <Label>CTA label (optional)</Label>
+            <Input
+              value={settings.announcement?.ctaLabel ?? ''}
+              onChange={(e) => update('announcement', { ...(settings.announcement || { enabled: true, message: '' }), ctaLabel: e.target.value })}
+              placeholder="Check eligibility"
+            />
+          </div>
+          <div>
+            <Label>CTA link (optional)</Label>
+            <Input
+              value={settings.announcement?.link ?? ''}
+              onChange={(e) => update('announcement', { ...(settings.announcement || { enabled: true, message: '' }), link: e.target.value })}
+              placeholder="/visa-info"
+            />
+          </div>
+        </div>
+        <div>
+          <Label>Style</Label>
+          <select
+            className="w-full mt-1 h-10 rounded-md border border-input bg-background px-3 text-sm"
+            value={settings.announcement?.variant ?? 'info'}
+            onChange={(e) => update('announcement', { ...(settings.announcement || { enabled: true, message: '' }), variant: e.target.value as 'info' | 'success' | 'warning' })}
+          >
+            <option value="info">Info (primary colour)</option>
+            <option value="success">Success (green)</option>
+            <option value="warning">Warning (amber)</option>
+          </select>
+        </div>
+      </div>
+
+      <div className="bg-card rounded-lg border p-4 sm:p-6 space-y-4 max-w-2xl">
         <h2 className="font-heading font-semibold flex items-center gap-2"><Award className="h-4 w-4 text-primary" /> CoS Partner Companies</h2>
         <p className="text-xs text-muted-foreground">Sponsor-licence partners who issue Certificates of Sponsorship through us. Shown on the homepage.</p>
         {(settings.cosPartners || []).map((p, i) => (
