@@ -115,6 +115,11 @@ const pageMeta: Record<string, { title: string; description: string }> = {
     description:
       "Reschedule or cancel your CareHomeStaffUK consultation. Look up your booking by email and pick a new working-day slot.",
   },
+  "/cv-builder": {
+    title: "Free AI CV Builder & Cover Letter Generator — UK Jobs 2026 | CareHomeStaffUK",
+    description:
+      "Build a UK-style ATS-friendly CV and tailored cover letter in seconds — free, no signup. Optimised for care workers, healthcare assistants, nurses, hospitality, warehouse and Skilled Worker visa applicants.",
+  },
 };
 
 export function SEOHead() {
