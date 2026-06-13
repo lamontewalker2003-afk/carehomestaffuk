@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import PhoneInput, { isValidPhoneNumber } from "react-phone-number-input";
 import "react-phone-number-input/style.css";
 import { getJobs, saveApplication, sendToTelegram, sendEmail, buildApplicationConfirmationEmail, getSiteSettings } from "@/lib/store";
+import { WhatsAppLink } from "@/components/WhatsAppButton";
 import type { Job, SiteSettings } from "@/lib/store";
 import { toast } from "@/hooks/use-toast";
 import { CheckCircle, MessageCircle } from "lucide-react";
@@ -87,11 +88,7 @@ const ApplyPage = () => {
   };
 
   if (submitted) {
-    const waNumber = (site?.whatsappNumber || "").replace(/[^\d]/g, "");
-    const waMsg = encodeURIComponent(
-      `Hi, I just submitted an application for ${selectedJob?.title || "a position"} (name: ${form.fullName}, email: ${form.email}).`
-    );
-    const waHref = waNumber ? `https://wa.me/${waNumber}?text=${waMsg}` : null;
+    const waAvailable = !!(site?.whatsappNumber || "").replace(/[^\d]/g, "");
     return (
       <div className="min-h-screen flex flex-col">
         <SiteHeader />
@@ -102,14 +99,14 @@ const ApplyPage = () => {
             <p className="text-muted-foreground">
               Thank you for your application. A confirmation email has been sent to your inbox. Our team will review your details and get back to you within 3-5 working days.
             </p>
-            {waHref && (
+            {waAvailable && (
               <div className="space-y-2 pt-2">
                 <p className="text-sm font-medium">Want a faster response? Message us on WhatsApp:</p>
-                <a href={waHref} target="_blank" rel="noopener noreferrer">
-                  <Button size="lg" className="bg-[#25D366] hover:bg-[#1ebe5a] text-white">
-                    <MessageCircle className="h-5 w-5 mr-2" /> Message us on WhatsApp
+                <WhatsAppLink className="inline-flex">
+                  <Button size="lg" className="bg-[#25D366] hover:bg-[#1ebe5a] text-white" asChild={false}>
+                    <span className="inline-flex items-center"><MessageCircle className="h-5 w-5 mr-2" /> Message us on WhatsApp</span>
                   </Button>
-                </a>
+                </WhatsAppLink>
               </div>
             )}
           </div>
