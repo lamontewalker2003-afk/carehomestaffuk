@@ -107,12 +107,7 @@ export default function BookAppointmentPage() {
     setBookedISO(prev => [...prev, slot.iso]);
   };
 
-  const whatsappNumber = site?.whatsappNumber || "";
-  const whatsappLink = confirmed && whatsappNumber
-    ? `https://wa.me/${whatsappNumber.replace(/\D/g, "")}?text=${encodeURIComponent(
-        `Hello ${site?.siteName || ""}, I just booked an appointment for ${format(new Date(confirmed.scheduledAt), "EEE d MMM yyyy 'at' HH:mm")}. My name is ${confirmed.fullName}.`,
-      )}`
-    : "";
+  const whatsappAvailable = !!(site?.whatsappNumber || "").replace(/\D/g, "");
 
   return (
     <div className="min-h-screen flex flex-col bg-background">
@@ -148,14 +143,14 @@ export default function BookAppointmentPage() {
               </p>
             </div>
 
-            {whatsappLink && (
+            {whatsappAvailable && (
               <div className="bg-muted/40 rounded-lg p-5 space-y-3">
                 <p className="text-sm">Want to start a conversation now? Message us on WhatsApp:</p>
-                <a href={whatsappLink} target="_blank" rel="noopener noreferrer">
-                  <Button className="bg-[#25D366] hover:bg-[#1ebe5b] text-white">
-                    <MessageCircle className="h-4 w-4 mr-2" /> Chat on WhatsApp ({whatsappNumber})
+                <WhatsAppLink className="inline-flex">
+                  <Button className="bg-[#25D366] hover:bg-[#1ebe5b] text-white" asChild={false}>
+                    <span className="inline-flex items-center"><MessageCircle className="h-4 w-4 mr-2" /> Chat on WhatsApp</span>
                   </Button>
-                </a>
+                </WhatsAppLink>
               </div>
             )}
 
