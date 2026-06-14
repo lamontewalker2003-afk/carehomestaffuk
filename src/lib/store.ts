@@ -40,6 +40,10 @@ export interface Application {
   qualifications: string;
   coverLetter: string;
   cvFileName: string;
+  cvUrl: string;
+  cvStoragePath: string;
+  cvContentType: string;
+  sponsorCompany: string;
   submittedAt: string;
   status: string;
   offerLetterSent: boolean;
@@ -94,6 +98,9 @@ export interface SiteSettings {
   cosPartners: { name: string; website?: string; logoUrl?: string }[];
   // Care homes we work with directly
   careHomePartners: { name: string; website?: string; logoUrl?: string }[];
+  // UK companies certified to offer CoS that applicants browse on the
+  // dedicated Sponsor Companies page (admin add / update / delete).
+  sponsorCompanies?: SponsorCompany[];
   // Sitewide announcement bar (admin-controlled, shown above the header)
   announcement?: {
     enabled: boolean;
@@ -102,6 +109,18 @@ export interface SiteSettings {
     ctaLabel?: string;
     variant?: 'info' | 'success' | 'warning';
   };
+}
+
+export interface SponsorCompany {
+  id: string;
+  name: string;
+  sector?: string;
+  location?: string;
+  website?: string;
+  logoUrl?: string;
+  description?: string;
+  rolesOffered?: string;
+  socCodes?: string;
 }
 
 // A single template = an editable email built from friendly fields,
