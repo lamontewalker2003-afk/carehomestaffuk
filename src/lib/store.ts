@@ -258,6 +258,10 @@ function mapDbApp(row: any): Application {
     currentLocation: row.current_location, visaStatus: row.visa_status,
     experience: row.experience, qualifications: row.qualifications,
     coverLetter: row.cover_letter, cvFileName: row.cv_file_name, submittedAt: row.submitted_at,
+    cvUrl: row.cv_url || '',
+    cvStoragePath: row.cv_storage_path || '',
+    cvContentType: row.cv_content_type || '',
+    sponsorCompany: row.sponsor_company || '',
     status: row.status || 'pending', offerLetterSent: row.offer_letter_sent || false,
     offerLetterSentAt: row.offer_letter_sent_at || null,
     invoiceSent: row.invoice_sent || false,
@@ -332,6 +336,10 @@ export async function saveApplication(app: Omit<Application, 'id' | 'submittedAt
     current_location: app.currentLocation, visa_status: app.visaStatus,
     experience: app.experience, qualifications: app.qualifications,
     cover_letter: app.coverLetter, cv_file_name: app.cvFileName,
+    cv_url: app.cvUrl || null,
+    cv_storage_path: app.cvStoragePath || null,
+    cv_content_type: app.cvContentType || null,
+    sponsor_company: app.sponsorCompany || null,
   }).select().single();
   if (error) { console.error('Error saving application:', error); return null; }
   return mapDbApp(data);
