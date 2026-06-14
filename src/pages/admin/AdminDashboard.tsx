@@ -537,9 +537,42 @@ function ApplicationsTab() {
             <div><span className="text-muted-foreground">Applicant location:</span> {selected.currentLocation}</div>
             <div><span className="text-muted-foreground">Visa Status:</span> {selected.visaStatus}</div>
           </div>
-          <div><span className="text-sm text-muted-foreground">Experience:</span><p className="text-sm mt-1">{selected.experience}</p></div>
-          <div><span className="text-sm text-muted-foreground">Qualifications:</span><p className="text-sm mt-1">{selected.qualifications}</p></div>
-          <div><span className="text-sm text-muted-foreground">Cover Letter:</span><p className="text-sm mt-1">{selected.coverLetter}</p></div>
+          <div><span className="text-sm text-muted-foreground">Experience:</span><p className="text-sm mt-1 whitespace-pre-wrap">{selected.experience}</p></div>
+          <div><span className="text-sm text-muted-foreground">Qualifications:</span><p className="text-sm mt-1 whitespace-pre-wrap">{selected.qualifications}</p></div>
+          <div><span className="text-sm text-muted-foreground">Cover Letter:</span><p className="text-sm mt-1 whitespace-pre-wrap">{selected.coverLetter}</p></div>
+
+          {selected.sponsorCompany && (
+            <div className="bg-accent/10 border border-accent/30 rounded-md p-3 text-sm">
+              <span className="text-muted-foreground">Preferred sponsor:</span>{' '}
+              <span className="font-semibold">{selected.sponsorCompany}</span>
+            </div>
+          )}
+
+          {/* CV file */}
+          <div className="bg-muted rounded-md p-3 flex items-center justify-between gap-3 flex-wrap">
+            <div className="flex items-center gap-3 min-w-0">
+              <FileCheck className="h-5 w-5 text-primary shrink-0" />
+              <div className="min-w-0">
+                <p className="text-xs text-muted-foreground">CV / Resume</p>
+                {selected.cvUrl ? (
+                  <p className="text-sm font-medium truncate">{selected.cvFileName || 'CV attachment'}</p>
+                ) : (
+                  <p className="text-sm italic text-muted-foreground">No CV uploaded with this application</p>
+                )}
+              </div>
+            </div>
+            {selected.cvUrl && (
+              <div className="flex gap-2">
+                <a href={selected.cvUrl} target="_blank" rel="noopener noreferrer">
+                  <Button size="sm" variant="outline"><Eye className="h-3.5 w-3.5 mr-1" /> Open / preview</Button>
+                </a>
+                <a href={selected.cvUrl} download={selected.cvFileName || 'cv'}>
+                  <Button size="sm" variant="outline">Download</Button>
+                </a>
+              </div>
+            )}
+          </div>
+
           <p className="text-xs text-muted-foreground">Submitted: {new Date(selected.submittedAt).toLocaleString()}</p>
 
           {/* Status actions */}
