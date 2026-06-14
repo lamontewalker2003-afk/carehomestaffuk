@@ -974,6 +974,52 @@ export async function uploadPartnerLogo(args: {
   }
 }
 
+// Allowed CV MIME types — documents only. NO executables / images / archives.
+export const ALLOWED_CV_MIME_TYPES: Record<string, string> = {
+  'application/pdf': '.pdf',
+  'application/msword': '.doc',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document': '.docx',
+  'application/vnd.oasis.opendocument.text': '.odt',
+  'text/plain': '.txt',
+  'application/rtf': '.rtf',
+};
+export const CV_MAX_BYTES = 8 * 1024 * 1024; // 8 MB
+
+// Upload an applicant CV (base64) to the public storage bucket and
+// return the public URL + storage path.
+export async function uploadApplicantCv(args: {
+  filename: string;
+  contentBase64: string;
+  contentType: string;
+  email?: string;
+}): Promise<{ url: string; path: string } | null> {
+  try {
+    if (!ALLOWED_CV_MIME_TYPES[args.contentType]) {
+      console.warn('CV upload rejected — disallowed type:', args.contentType);
+      return null;
+    }
+    const safeName = args.filename.replace(/[^a-zA-Z0-9._-]+/g, '_').slice(-100);
+    const folder = (args.email || 'anonymous').replace(/[^a-zA-Z0-9._-]+/g, '_').toLowerCase();
+    const path = `applicant-cvs/${folder}/${Date.now()}-${safeName}`;
+    const bin = atob(args.contentBase64);
+    const bytes = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+    if (bytes.byteLength > CV_MAX_BYTES) {
+      console.warn('CV upload rejected — too large');
+      return null;
+    }
+    const { error } = await supabase.storage
+      .from('offer-letters')
+      .upload(path, bytes, { contentType: args.contentType, upsert: false });
+    if (error) { console.error('CV upload failed:', error); return null; }
+    const { data } = supabase.storage.from('offer-letters').getPublicUrl(path);
+    return { url: data.publicUrl, path };
+  } catch (e) {
+    console.error('CV upload exception:', e);
+    return null;
+  }
+}
+
 // ---- APPOINTMENTS ----
 function mapDbAppointment(row: any): Appointment {
   return {
