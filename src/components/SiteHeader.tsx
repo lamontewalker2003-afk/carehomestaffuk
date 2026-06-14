@@ -7,11 +7,11 @@ import { AnnouncementBar } from "@/components/AnnouncementBar";
 const navItems = [
   { label: "Home", to: "/" },
   { label: "Jobs", to: "/jobs" },
+  { label: "CoS Sponsors", to: "/sponsor-companies" },
   { label: "CV Builder", to: "/cv-builder" },
   { label: "Visa Info", to: "/visa-info" },
-  { label: "About", to: "/about" },
   { label: "FAQ", to: "/faq" },
-  { label: "Book Appointment", to: "/book-appointment" },
+  { label: "Book", to: "/book-appointment" },
   { label: "Contact", to: "/contact" },
 ];
 
