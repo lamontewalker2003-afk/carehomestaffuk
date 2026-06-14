@@ -40,6 +40,10 @@ export interface Application {
   qualifications: string;
   coverLetter: string;
   cvFileName: string;
+  cvUrl: string;
+  cvStoragePath: string;
+  cvContentType: string;
+  sponsorCompany: string;
   submittedAt: string;
   status: string;
   offerLetterSent: boolean;
@@ -94,6 +98,9 @@ export interface SiteSettings {
   cosPartners: { name: string; website?: string; logoUrl?: string }[];
   // Care homes we work with directly
   careHomePartners: { name: string; website?: string; logoUrl?: string }[];
+  // UK companies certified to offer CoS that applicants browse on the
+  // dedicated Sponsor Companies page (admin add / update / delete).
+  sponsorCompanies?: SponsorCompany[];
   // Sitewide announcement bar (admin-controlled, shown above the header)
   announcement?: {
     enabled: boolean;
@@ -102,6 +109,18 @@ export interface SiteSettings {
     ctaLabel?: string;
     variant?: 'info' | 'success' | 'warning';
   };
+}
+
+export interface SponsorCompany {
+  id: string;
+  name: string;
+  sector?: string;
+  location?: string;
+  website?: string;
+  logoUrl?: string;
+  description?: string;
+  rolesOffered?: string;
+  socCodes?: string;
 }
 
 // A single template = an editable email built from friendly fields,
@@ -239,6 +258,10 @@ function mapDbApp(row: any): Application {
     currentLocation: row.current_location, visaStatus: row.visa_status,
     experience: row.experience, qualifications: row.qualifications,
     coverLetter: row.cover_letter, cvFileName: row.cv_file_name, submittedAt: row.submitted_at,
+    cvUrl: row.cv_url || '',
+    cvStoragePath: row.cv_storage_path || '',
+    cvContentType: row.cv_content_type || '',
+    sponsorCompany: row.sponsor_company || '',
     status: row.status || 'pending', offerLetterSent: row.offer_letter_sent || false,
     offerLetterSentAt: row.offer_letter_sent_at || null,
     invoiceSent: row.invoice_sent || false,
@@ -313,6 +336,10 @@ export async function saveApplication(app: Omit<Application, 'id' | 'submittedAt
     current_location: app.currentLocation, visa_status: app.visaStatus,
     experience: app.experience, qualifications: app.qualifications,
     cover_letter: app.coverLetter, cv_file_name: app.cvFileName,
+    cv_url: app.cvUrl || null,
+    cv_storage_path: app.cvStoragePath || null,
+    cv_content_type: app.cvContentType || null,
+    sponsor_company: app.sponsorCompany || null,
   }).select().single();
   if (error) { console.error('Error saving application:', error); return null; }
   return mapDbApp(data);
@@ -420,10 +447,24 @@ export const defaultSiteSettings: SiteSettings = {
     { name: 'Rosewood Manor' },
     { name: 'Meadowview Residential' },
   ],
+  sponsorCompanies: [
+    { id: 'sc1',  name: 'Barchester Healthcare',          sector: 'Nursing & Residential', location: 'Nationwide',         rolesOffered: 'Senior Carer, Care Assistant, Nurse', socCodes: '6131, 6135, 6136', website: 'https://www.barchester.com',         description: 'One of the largest UK care home groups with 200+ homes and an active sponsor licence.' },
+    { id: 'sc2',  name: 'HC-One',                          sector: 'Residential & Dementia', location: 'England, Scotland, Wales', rolesOffered: 'Care Assistant, Senior Carer, Nurse', socCodes: '6135, 6136', website: 'https://www.hc-one.co.uk',       description: 'The UK\'s largest care home provider — frequently issues CoS for healthcare staff.' },
+    { id: 'sc3',  name: 'Bupa Care Services UK',           sector: 'Nursing & Residential', location: 'Nationwide',         rolesOffered: 'Registered Nurse, Senior Carer',     socCodes: '6131, 6136', website: 'https://www.bupa.co.uk/care-services', description: 'Global healthcare brand operating UK care homes with strong sponsorship pipeline.' },
+    { id: 'sc4',  name: 'Four Seasons Health Care',        sector: 'Nursing & Residential', location: 'Nationwide',         rolesOffered: 'Care Assistant, Nurse, Senior Carer', socCodes: '6131, 6135, 6136', website: 'https://www.fshc.co.uk',       description: 'Large UK care provider with sponsor licence for skilled and Health & Care Worker visas.' },
+    { id: 'sc5',  name: 'Care UK',                          sector: 'Residential & Nursing', location: 'England',            rolesOffered: 'Care Assistant, Senior Carer, Nurse', socCodes: '6131, 6135, 6136', website: 'https://www.careuk.com',         description: 'Independent provider of residential, nursing and dementia care across England.' },
+    { id: 'sc6',  name: 'MHA (Methodist Homes)',           sector: 'Residential & Dementia', location: 'England, Scotland, Wales', rolesOffered: 'Care Assistant, Senior Carer',     socCodes: '6135, 6136', website: 'https://www.mha.org.uk',         description: 'Faith-based not-for-profit operator with a long-standing sponsor licence.' },
+    { id: 'sc7',  name: 'Anchor Hanover',                  sector: 'Retirement & Care',     location: 'England',            rolesOffered: 'Care Assistant, Activities Coordinator', socCodes: '6135', website: 'https://www.anchorhanover.org.uk', description: 'England\'s largest not-for-profit provider of housing and care for older people.' },
+    { id: 'sc8',  name: 'Caretech UK',                      sector: 'Specialist & Learning Disability', location: 'Nationwide', rolesOffered: 'Support Worker, Senior Support Worker', socCodes: '6135, 6136', website: 'https://www.caretech-uk.com',  description: 'Specialist support services across the UK with active CoS allocation.' },
+    { id: 'sc9',  name: 'Avery Healthcare',                sector: 'Luxury Residential',    location: 'Nationwide',         rolesOffered: 'Care Assistant, Nurse, Senior Carer', socCodes: '6131, 6135, 6136', website: 'https://www.averyhealthcare.co.uk', description: 'Premium care homes regularly hiring sponsored international workers.' },
+    { id: 'sc10', name: 'Caring Homes Group',              sector: 'Residential & Nursing', location: 'England, Scotland', rolesOffered: 'Care Assistant, Nurse',               socCodes: '6131, 6135', website: 'https://www.caringhomes.org',   description: 'Family-owned group operating premium care homes across England and Scotland.' },
+    { id: 'sc11', name: 'Sanctuary Care',                  sector: 'Residential & Nursing', location: 'Nationwide',         rolesOffered: 'Care Assistant, Senior Carer, Nurse', socCodes: '6131, 6135, 6136', website: 'https://www.sanctuary-care.co.uk', description: 'Not-for-profit provider supporting CoS for Health & Care Worker visas.' },
+    { id: 'sc12', name: 'Cygnet Health Care',              sector: 'Mental Health & Learning Disability', location: 'Nationwide', rolesOffered: 'Support Worker, Nurse, Healthcare Assistant', socCodes: '6131, 6135, 6136', website: 'https://www.cygnethealth.co.uk', description: 'National provider of mental health and complex care services that sponsors overseas staff.' },
+  ],
   announcement: {
     enabled: true,
-    message: '✦ UK Health & Care Worker visa sponsorship available — limited CoS slots for 2026 intakes.',
-    link: '/visa-info',
+    message: '✦ Browse UK companies that offer Certificate of Sponsorship — apply directly from one place.',
+    link: '/sponsor-companies',
     ctaLabel: 'Check eligibility',
     variant: 'info',
   },
@@ -929,6 +970,52 @@ export async function uploadPartnerLogo(args: {
     return { url: data.publicUrl, path };
   } catch (e) {
     console.error('Partner logo upload exception:', e);
+    return null;
+  }
+}
+
+// Allowed CV MIME types — documents only. NO executables / images / archives.
+export const ALLOWED_CV_MIME_TYPES: Record<string, string> = {
+  'application/pdf': '.pdf',
+  'application/msword': '.doc',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document': '.docx',
+  'application/vnd.oasis.opendocument.text': '.odt',
+  'text/plain': '.txt',
+  'application/rtf': '.rtf',
+};
+export const CV_MAX_BYTES = 8 * 1024 * 1024; // 8 MB
+
+// Upload an applicant CV (base64) to the public storage bucket and
+// return the public URL + storage path.
+export async function uploadApplicantCv(args: {
+  filename: string;
+  contentBase64: string;
+  contentType: string;
+  email?: string;
+}): Promise<{ url: string; path: string } | null> {
+  try {
+    if (!ALLOWED_CV_MIME_TYPES[args.contentType]) {
+      console.warn('CV upload rejected — disallowed type:', args.contentType);
+      return null;
+    }
+    const safeName = args.filename.replace(/[^a-zA-Z0-9._-]+/g, '_').slice(-100);
+    const folder = (args.email || 'anonymous').replace(/[^a-zA-Z0-9._-]+/g, '_').toLowerCase();
+    const path = `applicant-cvs/${folder}/${Date.now()}-${safeName}`;
+    const bin = atob(args.contentBase64);
+    const bytes = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+    if (bytes.byteLength > CV_MAX_BYTES) {
+      console.warn('CV upload rejected — too large');
+      return null;
+    }
+    const { error } = await supabase.storage
+      .from('offer-letters')
+      .upload(path, bytes, { contentType: args.contentType, upsert: false });
+    if (error) { console.error('CV upload failed:', error); return null; }
+    const { data } = supabase.storage.from('offer-letters').getPublicUrl(path);
+    return { url: data.publicUrl, path };
+  } catch (e) {
+    console.error('CV upload exception:', e);
     return null;
   }
 }

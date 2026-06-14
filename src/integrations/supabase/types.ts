@@ -36,7 +36,10 @@ export type Database = {
         Row: {
           cover_letter: string
           current_location: string
+          cv_content_type: string | null
           cv_file_name: string
+          cv_storage_path: string | null
+          cv_url: string | null
           email: string
           experience: string
           full_name: string
@@ -51,6 +54,7 @@ export type Database = {
           offer_letter_sent_at: string | null
           phone: string
           qualifications: string
+          sponsor_company: string | null
           status: string
           submitted_at: string
           visa_status: string
@@ -58,7 +62,10 @@ export type Database = {
         Insert: {
           cover_letter?: string
           current_location?: string
+          cv_content_type?: string | null
           cv_file_name?: string
+          cv_storage_path?: string | null
+          cv_url?: string | null
           email: string
           experience?: string
           full_name: string
@@ -73,6 +80,7 @@ export type Database = {
           offer_letter_sent_at?: string | null
           phone: string
           qualifications?: string
+          sponsor_company?: string | null
           status?: string
           submitted_at?: string
           visa_status?: string
@@ -80,7 +88,10 @@ export type Database = {
         Update: {
           cover_letter?: string
           current_location?: string
+          cv_content_type?: string | null
           cv_file_name?: string
+          cv_storage_path?: string | null
+          cv_url?: string | null
           email?: string
           experience?: string
           full_name?: string
@@ -95,6 +106,7 @@ export type Database = {
           offer_letter_sent_at?: string | null
           phone?: string
           qualifications?: string
+          sponsor_company?: string | null
           status?: string
           submitted_at?: string
           visa_status?: string

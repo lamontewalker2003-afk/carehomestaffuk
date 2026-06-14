@@ -537,9 +537,42 @@ function ApplicationsTab() {
             <div><span className="text-muted-foreground">Applicant location:</span> {selected.currentLocation}</div>
             <div><span className="text-muted-foreground">Visa Status:</span> {selected.visaStatus}</div>
           </div>
-          <div><span className="text-sm text-muted-foreground">Experience:</span><p className="text-sm mt-1">{selected.experience}</p></div>
-          <div><span className="text-sm text-muted-foreground">Qualifications:</span><p className="text-sm mt-1">{selected.qualifications}</p></div>
-          <div><span className="text-sm text-muted-foreground">Cover Letter:</span><p className="text-sm mt-1">{selected.coverLetter}</p></div>
+          <div><span className="text-sm text-muted-foreground">Experience:</span><p className="text-sm mt-1 whitespace-pre-wrap">{selected.experience}</p></div>
+          <div><span className="text-sm text-muted-foreground">Qualifications:</span><p className="text-sm mt-1 whitespace-pre-wrap">{selected.qualifications}</p></div>
+          <div><span className="text-sm text-muted-foreground">Cover Letter:</span><p className="text-sm mt-1 whitespace-pre-wrap">{selected.coverLetter}</p></div>
+
+          {selected.sponsorCompany && (
+            <div className="bg-accent/10 border border-accent/30 rounded-md p-3 text-sm">
+              <span className="text-muted-foreground">Preferred sponsor:</span>{' '}
+              <span className="font-semibold">{selected.sponsorCompany}</span>
+            </div>
+          )}
+
+          {/* CV file */}
+          <div className="bg-muted rounded-md p-3 flex items-center justify-between gap-3 flex-wrap">
+            <div className="flex items-center gap-3 min-w-0">
+              <FileCheck className="h-5 w-5 text-primary shrink-0" />
+              <div className="min-w-0">
+                <p className="text-xs text-muted-foreground">CV / Resume</p>
+                {selected.cvUrl ? (
+                  <p className="text-sm font-medium truncate">{selected.cvFileName || 'CV attachment'}</p>
+                ) : (
+                  <p className="text-sm italic text-muted-foreground">No CV uploaded with this application</p>
+                )}
+              </div>
+            </div>
+            {selected.cvUrl && (
+              <div className="flex gap-2">
+                <a href={selected.cvUrl} target="_blank" rel="noopener noreferrer">
+                  <Button size="sm" variant="outline"><Eye className="h-3.5 w-3.5 mr-1" /> Open / preview</Button>
+                </a>
+                <a href={selected.cvUrl} download={selected.cvFileName || 'cv'}>
+                  <Button size="sm" variant="outline">Download</Button>
+                </a>
+              </div>
+            )}
+          </div>
+
           <p className="text-xs text-muted-foreground">Submitted: {new Date(selected.submittedAt).toLocaleString()}</p>
 
           {/* Status actions */}
@@ -1738,6 +1771,47 @@ function SiteSettingsTab() {
           <Plus className="h-4 w-4 mr-1" /> Add care home partner
         </Button>
       </div>
+
+      {/* CoS Sponsor Companies (full directory shown on /sponsor-companies) */}
+      <div className="bg-card rounded-lg border p-4 sm:p-6 space-y-4 max-w-3xl">
+        <h2 className="font-heading font-semibold flex items-center gap-2"><Briefcase className="h-4 w-4 text-primary" /> CoS Sponsor Companies Directory</h2>
+        <p className="text-xs text-muted-foreground">UK companies certified to offer Certificates of Sponsorship. Shown on the public <code>/sponsor-companies</code> page. Add, update or delete entries as the list changes.</p>
+        {(settings.sponsorCompanies || []).map((c, i) => (
+          <div key={c.id || i} className="border rounded-md p-3 space-y-2">
+            <div className="grid sm:grid-cols-[64px_1fr_auto] gap-2 items-start">
+              <div className="flex flex-col gap-1">
+                <Label className="text-xs">Logo</Label>
+                <div className="h-12 w-12 rounded border bg-muted/30 flex items-center justify-center overflow-hidden">
+                  {c.logoUrl ? <img src={c.logoUrl} alt={c.name} className="h-full w-full object-contain" /> : <span className="text-[10px] text-muted-foreground">None</span>}
+                </div>
+                <input type="file" accept="image/*" className="text-[10px]" onChange={async (e) => {
+                  const file = e.target.files?.[0]; if (!file) return;
+                  const b64 = await new Promise<string>((res, rej) => { const r = new FileReader(); r.onload = () => res(String(r.result).split(',')[1] || ''); r.onerror = rej; r.readAsDataURL(file); });
+                  const up = await uploadPartnerLogo({ filename: file.name, contentBase64: b64, contentType: file.type });
+                  if (up) { const next = [...(settings.sponsorCompanies || [])]; next[i] = { ...next[i], logoUrl: up.url }; update('sponsorCompanies', next); toast({ title: 'Logo uploaded' }); }
+                  else toast({ title: 'Upload failed', variant: 'destructive' });
+                }} />
+              </div>
+              <div className="grid sm:grid-cols-2 gap-2">
+                <div><Label className="text-xs">Company name *</Label><Input value={c.name} onChange={(e) => { const next = [...(settings.sponsorCompanies || [])]; next[i] = { ...next[i], name: e.target.value }; update('sponsorCompanies', next); }} placeholder="Barchester Healthcare" /></div>
+                <div><Label className="text-xs">Sector</Label><Input value={c.sector || ''} onChange={(e) => { const next = [...(settings.sponsorCompanies || [])]; next[i] = { ...next[i], sector: e.target.value }; update('sponsorCompanies', next); }} placeholder="Nursing & Residential" /></div>
+                <div><Label className="text-xs">Location</Label><Input value={c.location || ''} onChange={(e) => { const next = [...(settings.sponsorCompanies || [])]; next[i] = { ...next[i], location: e.target.value }; update('sponsorCompanies', next); }} placeholder="Nationwide / Glasgow / Manchester" /></div>
+                <div><Label className="text-xs">Website</Label><Input value={c.website || ''} onChange={(e) => { const next = [...(settings.sponsorCompanies || [])]; next[i] = { ...next[i], website: e.target.value }; update('sponsorCompanies', next); }} placeholder="https://..." /></div>
+                <div><Label className="text-xs">Roles offered</Label><Input value={c.rolesOffered || ''} onChange={(e) => { const next = [...(settings.sponsorCompanies || [])]; next[i] = { ...next[i], rolesOffered: e.target.value }; update('sponsorCompanies', next); }} placeholder="Care Assistant, Senior Carer, Nurse" /></div>
+                <div><Label className="text-xs">SOC codes</Label><Input value={c.socCodes || ''} onChange={(e) => { const next = [...(settings.sponsorCompanies || [])]; next[i] = { ...next[i], socCodes: e.target.value }; update('sponsorCompanies', next); }} placeholder="6131, 6135, 6136" /></div>
+                <div className="sm:col-span-2"><Label className="text-xs">Description</Label><Textarea rows={2} value={c.description || ''} onChange={(e) => { const next = [...(settings.sponsorCompanies || [])]; next[i] = { ...next[i], description: e.target.value }; update('sponsorCompanies', next); }} placeholder="Short summary shown on the directory card." /></div>
+              </div>
+              <Button variant="outline" size="icon" onClick={() => update('sponsorCompanies', (settings.sponsorCompanies || []).filter((_, idx) => idx !== i))}>
+                <Trash2 className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+        ))}
+        <Button variant="outline" size="sm" onClick={() => update('sponsorCompanies', [...(settings.sponsorCompanies || []), { id: `sc-${Date.now()}`, name: '' }])}>
+          <Plus className="h-4 w-4 mr-1" /> Add sponsor company
+        </Button>
+      </div>
+
 
       <div className="bg-card rounded-lg border p-4 sm:p-6 space-y-3 max-w-2xl">
         <h2 className="font-heading font-semibold flex items-center gap-2"><Server className="h-4 w-4 text-primary" /> Self-Hosting / Standalone</h2>

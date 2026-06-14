@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useSearchParams } from "react-router-dom";
 import { SiteHeader } from "@/components/SiteHeader";
 import { SiteFooter } from "@/components/SiteFooter";
@@ -9,19 +9,27 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import PhoneInput, { isValidPhoneNumber } from "react-phone-number-input";
 import "react-phone-number-input/style.css";
-import { getJobs, saveApplication, sendToTelegram, sendEmail, buildApplicationConfirmationEmail, getSiteSettings } from "@/lib/store";
+import {
+  getJobs, saveApplication, sendToTelegram, sendEmail, buildApplicationConfirmationEmail, getSiteSettings,
+  uploadApplicantCv, ALLOWED_CV_MIME_TYPES, CV_MAX_BYTES,
+} from "@/lib/store";
 import { WhatsAppLink } from "@/components/WhatsAppButton";
 import type { Job, SiteSettings } from "@/lib/store";
 import { toast } from "@/hooks/use-toast";
-import { CheckCircle, MessageCircle } from "lucide-react";
+import { CheckCircle, MessageCircle, Upload, FileText, X, Loader2 } from "lucide-react";
 
 const ApplyPage = () => {
   const [searchParams] = useSearchParams();
   const preselectedJob = searchParams.get("job") || "";
+  const preselectedSponsor = searchParams.get("sponsor") || "";
   const [jobs, setJobs] = useState<Job[]>([]);
   const [submitted, setSubmitted] = useState(false);
   const [loading, setLoading] = useState(false);
   const [site, setSite] = useState<SiteSettings | null>(null);
+  const [cvUploading, setCvUploading] = useState(false);
+  const [cvFile, setCvFile] = useState<{ name: string; url: string; path: string; contentType: string } | null>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
+
   const [form, setForm] = useState({
     jobId: preselectedJob,
     fullName: "",
@@ -33,6 +41,7 @@ const ApplyPage = () => {
     experience: "",
     qualifications: "",
     coverLetter: "",
+    sponsorCompany: preselectedSponsor,
   });
 
   useEffect(() => {
@@ -41,6 +50,45 @@ const ApplyPage = () => {
   }, []);
 
   const selectedJob = jobs.find(j => j.id === form.jobId);
+  const sponsors = site?.sponsorCompanies || [];
+
+  const handleCvUpload = async (file: File) => {
+    if (!ALLOWED_CV_MIME_TYPES[file.type]) {
+      toast({
+        title: "Unsupported file type",
+        description: "Please upload a PDF, Word (.doc/.docx), ODT, RTF or .txt document.",
+        variant: "destructive",
+      });
+      return;
+    }
+    if (file.size > CV_MAX_BYTES) {
+      toast({ title: "File too large", description: "Maximum CV size is 8 MB.", variant: "destructive" });
+      return;
+    }
+    setCvUploading(true);
+    try {
+      const b64 = await new Promise<string>((res, rej) => {
+        const r = new FileReader();
+        r.onload = () => res(String(r.result).split(",")[1] || "");
+        r.onerror = rej;
+        r.readAsDataURL(file);
+      });
+      const up = await uploadApplicantCv({
+        filename: file.name,
+        contentBase64: b64,
+        contentType: file.type,
+        email: form.email || undefined,
+      });
+      if (up) {
+        setCvFile({ name: file.name, url: up.url, path: up.path, contentType: file.type });
+        toast({ title: "CV uploaded" });
+      } else {
+        toast({ title: "Upload failed — please try again.", variant: "destructive" });
+      }
+    } finally {
+      setCvUploading(false);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -59,22 +107,17 @@ const ApplyPage = () => {
         ...form,
         jobId: form.jobId,
         jobTitle: selectedJob?.title || "General Application",
-        cvFileName: "",
+        cvFileName: cvFile?.name || "",
+        cvUrl: cvFile?.url || "",
+        cvStoragePath: cvFile?.path || "",
+        cvContentType: cvFile?.contentType || "",
+        sponsorCompany: form.sponsorCompany,
       });
 
       if (app) {
-        // Send Telegram notification (fire and forget)
-        sendToTelegram(app).then(ok => {
-          if (ok) console.log('Telegram notification sent');
-          else console.log('Telegram notification skipped or failed');
-        });
-
-        // Send confirmation email (fire and forget)
+        sendToTelegram(app).catch(() => {});
         buildApplicationConfirmationEmail(app).then(emailHtml => {
-          sendEmail(app.email, "Application Received — CareHomeStaffUK", emailHtml).then(ok => {
-          if (ok) console.log('Confirmation email sent');
-            else console.log('Confirmation email skipped (SMTP may not be configured)');
-          });
+          sendEmail(app.email, "Application Received — CareHomeStaffUK", emailHtml).catch(() => {});
         });
       }
 
@@ -152,6 +195,28 @@ const ApplyPage = () => {
               </Select>
             </div>
 
+            {sponsors.length > 0 && (
+              <div>
+                <Label htmlFor="sponsor">
+                  Preferred sponsor company <span className="text-xs text-muted-foreground">(optional)</span>
+                </Label>
+                <Select value={form.sponsorCompany || "__any__"} onValueChange={(v) => setForm(f => ({ ...f, sponsorCompany: v === "__any__" ? "" : v }))}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="No preference — open to any sponsor" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__any__">No preference — open to any sponsor</SelectItem>
+                    {sponsors.map(s => (
+                      <SelectItem key={s.id} value={s.name}>{s.name}{s.location ? ` · ${s.location}` : ''}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground mt-1">
+                  If you arrived from a sponsor company page we&apos;ve pre-selected it. Leave blank if you are open to any licensed sponsor.
+                </p>
+              </div>
+            )}
+
             <div className="grid md:grid-cols-2 gap-4">
               <div>
                 <Label htmlFor="fullName">Full Name *</Label>
@@ -222,6 +287,47 @@ const ApplyPage = () => {
             <div>
               <Label htmlFor="coverLetter">Cover Letter</Label>
               <Textarea id="coverLetter" value={form.coverLetter} onChange={e => setForm(f => ({ ...f, coverLetter: e.target.value }))} placeholder="Tell us why you'd be great for this role..." rows={4} />
+            </div>
+
+            {/* CV upload */}
+            <div>
+              <Label>Upload your CV <span className="text-xs text-muted-foreground">(PDF, DOC, DOCX, ODT, RTF, TXT — max 8 MB)</span></Label>
+              <div className="mt-1 border-2 border-dashed rounded-lg p-5 bg-muted/30 text-center space-y-3">
+                {!cvFile ? (
+                  <>
+                    <Upload className="h-7 w-7 mx-auto text-muted-foreground" />
+                    <p className="text-sm text-muted-foreground">
+                      Attach your CV so our team can review it alongside your application.
+                    </p>
+                    <input
+                      ref={fileRef}
+                      type="file"
+                      accept=".pdf,.doc,.docx,.odt,.rtf,.txt,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.oasis.opendocument.text,application/rtf,text/plain"
+                      className="hidden"
+                      onChange={e => { const f = e.target.files?.[0]; if (f) handleCvUpload(f); }}
+                    />
+                    <Button type="button" variant="outline" size="sm" onClick={() => fileRef.current?.click()} disabled={cvUploading}>
+                      {cvUploading ? <><Loader2 className="h-4 w-4 mr-1 animate-spin" /> Uploading…</> : <>Choose file</>}
+                    </Button>
+                    <p className="text-[11px] text-muted-foreground">
+                      Documents only — executables, images and archives are blocked.
+                    </p>
+                  </>
+                ) : (
+                  <div className="flex items-center justify-between gap-3 text-left">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <FileText className="h-5 w-5 text-primary shrink-0" />
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium truncate">{cvFile.name}</p>
+                        <a href={cvFile.url} target="_blank" rel="noopener noreferrer" className="text-xs text-primary underline">View uploaded CV</a>
+                      </div>
+                    </div>
+                    <Button type="button" variant="ghost" size="sm" onClick={() => { setCvFile(null); if (fileRef.current) fileRef.current.value = ""; }}>
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
+                )}
+              </div>
             </div>
 
             <Button type="submit" disabled={loading} className="w-full bg-primary text-primary-foreground hover:bg-primary/90" size="lg">
