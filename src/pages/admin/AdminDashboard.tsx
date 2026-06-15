@@ -542,6 +542,18 @@ function ApplicationsTab() {
         </div>
       </div>
 
+      {!selected && selectedCount > 0 && (
+        <div className="bg-destructive/10 border border-destructive/30 rounded-lg p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <p className="text-sm font-medium">{selectedCount} selected for deletion</p>
+          <div className="flex gap-2">
+            <Button size="sm" variant="outline" onClick={() => setSelectedIds(new Set())}>Clear</Button>
+            <Button size="sm" variant="destructive" onClick={handleBulkDelete}>
+              <Trash2 className="h-4 w-4 mr-1" /> Delete selected
+            </Button>
+          </div>
+        </div>
+      )}
+
 
       {selected ? (
         <div className="bg-card rounded-lg border p-4 sm:p-6 space-y-5">
@@ -890,6 +902,15 @@ function ApplicationsTab() {
         <div className="bg-card rounded-lg border overflow-x-auto">
           <table className="w-full text-sm">
             <thead className="bg-muted"><tr>
+              <th className="p-3 w-10">
+                <input
+                  type="checkbox"
+                  aria-label="Select all filtered applications"
+                  checked={allFilteredSelected}
+                  onChange={toggleAllFiltered}
+                  className="h-4 w-4 rounded border-input"
+                />
+              </th>
               <th className="text-left p-3 font-medium whitespace-nowrap">Name</th>
               <th className="text-left p-3 font-medium whitespace-nowrap">Position</th>
               <th className="text-left p-3 font-medium whitespace-nowrap hidden lg:table-cell">Job Location</th>
@@ -901,6 +922,15 @@ function ApplicationsTab() {
             <tbody>
               {filteredApps.map(app => (
                 <tr key={app.id} className="border-t hover:bg-muted/50">
+                  <td className="p-3">
+                    <input
+                      type="checkbox"
+                      aria-label={`Select ${app.fullName}`}
+                      checked={selectedIds.has(app.id)}
+                      onChange={() => toggleSelected(app.id)}
+                      className="h-4 w-4 rounded border-input"
+                    />
+                  </td>
                   <td className="p-3 font-medium whitespace-nowrap">{app.fullName}</td>
                   <td className="p-3 whitespace-nowrap">{app.jobTitle}</td>
                   <td className="p-3 whitespace-nowrap hidden lg:table-cell text-muted-foreground">{jobLocationFor(app) || '—'}</td>
