@@ -173,6 +173,7 @@ function sanitiseText(s: string): string {
     .replace(/—/g, ", ")
     .replace(/–/g, "-")
     .replace(/^#+\s*/gm, "")
+    .replace(/^\s*[-•]+\s*/gm, "")
     .replace(/[*]+/g, "")
     .trim();
 }
