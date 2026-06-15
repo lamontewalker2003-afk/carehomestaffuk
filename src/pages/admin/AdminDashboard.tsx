@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import {
-  isAdminLoggedIn, adminLogout, getApplications, deleteApplication, getJobs,
+  isAdminLoggedIn, adminLogout, getApplications, deleteApplication, deleteApplications, getJobs,
   getTelegramSettings, saveTelegramSettings, addJob, deleteJob, updateJob,
   getSEOSettings, saveSEOSettings, getSMTPSettings, saveSMTPSettings,
   getSiteSettings, saveSiteSettings, getEmailTemplates, saveEmailTemplates,
@@ -204,6 +204,7 @@ function ApplicationsTab() {
   const [locationFilter, setLocationFilter] = useState("all");
   const [groupByEmail, setGroupByEmail] = useState(false);
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [sendingEmail, setSendingEmail] = useState(false);
   const [offerOverrides, setOfferOverrides] = useState<Partial<EmailTemplateFields>>({});
   const [showOfferForm, setShowOfferForm] = useState(false);
@@ -281,6 +282,8 @@ function ApplicationsTab() {
       app.visaStatus.toLowerCase().includes(s) || app.currentLocation.toLowerCase().includes(s) ||
       jobLocationFor(app).toLowerCase().includes(s);
   });
+  const selectedCount = selectedIds.size;
+  const allFilteredSelected = filteredApps.length > 0 && filteredApps.every(app => selectedIds.has(app.id));
 
   const handleRevokeApplication = async () => {
     if (!selected) return;
@@ -301,9 +304,34 @@ function ApplicationsTab() {
   const handleDelete = async (id: string) => {
     if (!window.confirm("Are you sure you want to delete this application?")) return;
     await deleteApplication(id);
+    setSelectedIds(s => { const n = new Set(s); n.delete(id); return n; });
     await refresh();
     if (selected?.id === id) setSelected(null);
     toast({ title: "Application deleted" });
+  };
+
+  const toggleSelected = (id: string) => {
+    setSelectedIds(s => { const n = new Set(s); n.has(id) ? n.delete(id) : n.add(id); return n; });
+  };
+
+  const toggleAllFiltered = () => {
+    setSelectedIds(s => {
+      const n = new Set(s);
+      if (allFilteredSelected) filteredApps.forEach(app => n.delete(app.id));
+      else filteredApps.forEach(app => n.add(app.id));
+      return n;
+    });
+  };
+
+  const handleBulkDelete = async () => {
+    const ids = Array.from(selectedIds);
+    if (ids.length === 0) return;
+    if (!window.confirm(`Delete ${ids.length} selected application${ids.length === 1 ? '' : 's'} and uploaded CV file${ids.length === 1 ? '' : 's'}? This cannot be undone.`)) return;
+    await deleteApplications(ids);
+    setSelectedIds(new Set());
+    if (selected && ids.includes(selected.id)) setSelected(null);
+    await refresh();
+    toast({ title: `${ids.length} application${ids.length === 1 ? '' : 's'} deleted` });
   };
 
   const handleStatusChange = async (id: string, status: string) => {
@@ -513,6 +541,18 @@ function ApplicationsTab() {
           </Button>
         </div>
       </div>
+
+      {!selected && selectedCount > 0 && (
+        <div className="bg-destructive/10 border border-destructive/30 rounded-lg p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <p className="text-sm font-medium">{selectedCount} selected for deletion</p>
+          <div className="flex gap-2">
+            <Button size="sm" variant="outline" onClick={() => setSelectedIds(new Set())}>Clear</Button>
+            <Button size="sm" variant="destructive" onClick={handleBulkDelete}>
+              <Trash2 className="h-4 w-4 mr-1" /> Delete selected
+            </Button>
+          </div>
+        </div>
+      )}
 
 
       {selected ? (
@@ -862,6 +902,15 @@ function ApplicationsTab() {
         <div className="bg-card rounded-lg border overflow-x-auto">
           <table className="w-full text-sm">
             <thead className="bg-muted"><tr>
+              <th className="p-3 w-10">
+                <input
+                  type="checkbox"
+                  aria-label="Select all filtered applications"
+                  checked={allFilteredSelected}
+                  onChange={toggleAllFiltered}
+                  className="h-4 w-4 rounded border-input"
+                />
+              </th>
               <th className="text-left p-3 font-medium whitespace-nowrap">Name</th>
               <th className="text-left p-3 font-medium whitespace-nowrap">Position</th>
               <th className="text-left p-3 font-medium whitespace-nowrap hidden lg:table-cell">Job Location</th>
@@ -873,6 +922,15 @@ function ApplicationsTab() {
             <tbody>
               {filteredApps.map(app => (
                 <tr key={app.id} className="border-t hover:bg-muted/50">
+                  <td className="p-3">
+                    <input
+                      type="checkbox"
+                      aria-label={`Select ${app.fullName}`}
+                      checked={selectedIds.has(app.id)}
+                      onChange={() => toggleSelected(app.id)}
+                      className="h-4 w-4 rounded border-input"
+                    />
+                  </td>
                   <td className="p-3 font-medium whitespace-nowrap">{app.fullName}</td>
                   <td className="p-3 whitespace-nowrap">{app.jobTitle}</td>
                   <td className="p-3 whitespace-nowrap hidden lg:table-cell text-muted-foreground">{jobLocationFor(app) || '—'}</td>

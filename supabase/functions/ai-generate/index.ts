@@ -5,11 +5,77 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+function stripUnsafeFormatting(value: string): string {
+  return (value || "")
+    .replace(/```(?:json)?/gi, "")
+    .replace(/```/g, "")
+    .replace(/[—]/g, ", ")
+    .replace(/[–]/g, "-")
+    .replace(/^[#*\s]+/gm, "")
+    .replace(/[★✦➤•]/g, "")
+    .trim();
+}
+
+function extractJsonFromResponse(raw: string): unknown | null {
+  const cleaned = stripUnsafeFormatting(raw);
+  const candidates = [cleaned];
+  const firstObject = cleaned.indexOf("{");
+  const lastObject = cleaned.lastIndexOf("}");
+  if (firstObject >= 0 && lastObject > firstObject) candidates.push(cleaned.slice(firstObject, lastObject + 1));
+  const firstArray = cleaned.indexOf("[");
+  const lastArray = cleaned.lastIndexOf("]");
+  if (firstArray >= 0 && lastArray > firstArray) candidates.push(cleaned.slice(firstArray, lastArray + 1));
+  for (const candidate of candidates) {
+    try { return JSON.parse(candidate); } catch (_) {
+      try { return JSON.parse(candidate.replace(/,\s*([}\]])/g, "$1").replace(/[\u0000-\u001F]+/g, " ")); } catch (_) { /* keep trying */ }
+    }
+  }
+  return null;
+}
+
+function fallbackDocument(kind: string, payload: Record<string, string>, raw: string) {
+  if (kind === "cover_letter") {
+    return {
+      greeting: "Dear Hiring Manager,",
+      paragraphs: [
+        `I am writing to apply for the ${payload.jobTitle || "advertised role"} at ${payload.companyName || "your organisation"}. I bring relevant UK job market experience, a reliable work ethic, and a clear understanding of the standards expected by employers.`,
+        payload.keyStrengths || raw || "My strengths include strong communication, punctuality, safeguarding awareness, teamwork, and the ability to follow policies accurately while delivering consistent service.",
+        payload.rightToWork ? `My current right to work status is ${payload.rightToWork}. I would welcome the opportunity to discuss how my background matches your requirements.` : "I would welcome the opportunity to discuss how my background matches your requirements.",
+      ],
+      signOff: "Yours sincerely,",
+      signature: payload.fullName || "Applicant",
+    };
+  }
+  return {
+    name: payload.fullName || "Applicant",
+    contact: { email: payload.email || "", phone: payload.phone || "", city: payload.city || "", rightToWork: payload.rightToWork || "" },
+    summary: raw || `${payload.fullName || "Candidate"} is a motivated UK job seeker targeting ${payload.targetRole || "a suitable role"}, with ${payload.yearsExperience || "relevant"} experience and a professional approach to work.`,
+    skills: String(payload.skills || "Communication, Teamwork, Reliability, Time management").split(",").map((s) => stripUnsafeFormatting(s)).filter(Boolean).slice(0, 8),
+    experience: [{ role: payload.targetRole || "Relevant role", company: "Previous employer", location: payload.city || "United Kingdom", dates: "Recent experience", bullets: String(payload.workHistory || "Delivered dependable service, followed workplace procedures, supported team targets").split("\n").map((s) => stripUnsafeFormatting(s.replace(/^-\s*/, ""))).filter(Boolean).slice(0, 5) }],
+    education: payload.education ? [{ qualification: payload.education, institution: "", dates: "" }] : [],
+    certifications: String(payload.certifications || "").split(",").map((s) => stripUnsafeFormatting(s)).filter(Boolean),
+    languages: String(payload.languages || "English").split(",").map((s) => stripUnsafeFormatting(s)).filter(Boolean),
+    references: "Available on request",
+  };
+}
+
+function isUsableDocument(kind: string, parsed: unknown): boolean {
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return false;
+  const doc = parsed as Record<string, unknown>;
+  if (kind === "cover_letter") return Array.isArray(doc.paragraphs) && doc.paragraphs.length > 0;
+  return typeof doc.name === "string" || typeof doc.summary === "string" || Array.isArray(doc.experience);
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
     const { kind, payload } = await req.json();
+    if (kind !== "cv" && kind !== "cover_letter") {
+      return new Response(JSON.stringify({ success: false, error: "Unsupported generation type" }), {
+        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
     const apiKey = Deno.env.get("LOVABLE_API_KEY");
     if (!apiKey) {
       return new Response(JSON.stringify({ success: false, error: "AI key not configured" }), {
@@ -76,10 +142,12 @@ ${STYLE_RULES}`;
 
     const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
-      headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+      headers: { "Lovable-API-Key": apiKey, "Content-Type": "application/json" },
       body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
+        model: "google/gemini-3-flash-preview",
         response_format: { type: "json_object" },
+        temperature: 0.2,
+        max_tokens: 8192,
         messages: [
           { role: "system", content: system },
           { role: "user", content: user },
@@ -106,10 +174,9 @@ ${STYLE_RULES}`;
 
     const data = await res.json();
     const raw: string = data?.choices?.[0]?.message?.content || "";
-    // Strip any code fences just in case
-    const cleaned = raw.replace(/^```(?:json)?/i, "").replace(/```$/i, "").trim();
-    let parsed: unknown = null;
-    try { parsed = JSON.parse(cleaned); } catch { parsed = null; }
+    const cleaned = stripUnsafeFormatting(raw);
+    const candidate = extractJsonFromResponse(raw);
+    const parsed = isUsableDocument(kind, candidate) ? candidate : fallbackDocument(kind, payload || {}, cleaned);
 
     return new Response(JSON.stringify({ success: true, content: cleaned, data: parsed }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
