@@ -304,9 +304,34 @@ function ApplicationsTab() {
   const handleDelete = async (id: string) => {
     if (!window.confirm("Are you sure you want to delete this application?")) return;
     await deleteApplication(id);
+    setSelectedIds(s => { const n = new Set(s); n.delete(id); return n; });
     await refresh();
     if (selected?.id === id) setSelected(null);
     toast({ title: "Application deleted" });
+  };
+
+  const toggleSelected = (id: string) => {
+    setSelectedIds(s => { const n = new Set(s); n.has(id) ? n.delete(id) : n.add(id); return n; });
+  };
+
+  const toggleAllFiltered = () => {
+    setSelectedIds(s => {
+      const n = new Set(s);
+      if (allFilteredSelected) filteredApps.forEach(app => n.delete(app.id));
+      else filteredApps.forEach(app => n.add(app.id));
+      return n;
+    });
+  };
+
+  const handleBulkDelete = async () => {
+    const ids = Array.from(selectedIds);
+    if (ids.length === 0) return;
+    if (!window.confirm(`Delete ${ids.length} selected application${ids.length === 1 ? '' : 's'} and uploaded CV file${ids.length === 1 ? '' : 's'}? This cannot be undone.`)) return;
+    await deleteApplications(ids);
+    setSelectedIds(new Set());
+    if (selected && ids.includes(selected.id)) setSelected(null);
+    await refresh();
+    toast({ title: `${ids.length} application${ids.length === 1 ? '' : 's'} deleted` });
   };
 
   const handleStatusChange = async (id: string, status: string) => {
