@@ -160,7 +160,45 @@ async function callAi(kind: "cv" | "cover_letter", payload: any): Promise<{ data
   const { data, error } = await supabase.functions.invoke("ai-generate", { body: { kind, payload } });
   if (error) throw new Error(error.message || "Generation failed");
   if (!data?.success) throw new Error(data?.error || "Generation failed");
-  return { data: data.data, raw: data.content };
+  const parsed = data.data || parseAiJson(data.content) || fallbackGeneratedDocument(kind, payload, data.content || "");
+  return { data: parsed, raw: data.content || "" };
+}
+
+function parseAiJson(raw: string): any | null {
+  const cleaned = String(raw || "").replace(/```(?:json)?/gi, "").replace(/```/g, "").trim();
+  const first = cleaned.indexOf("{");
+  const last = cleaned.lastIndexOf("}");
+  const candidates = [cleaned, first >= 0 && last > first ? cleaned.slice(first, last + 1) : ""].filter(Boolean);
+  for (const candidate of candidates) {
+    try { return JSON.parse(candidate); } catch (_) { /* try next */ }
+  }
+  return null;
+}
+
+function fallbackGeneratedDocument(kind: "cv" | "cover_letter", payload: any, raw: string): CvJson | CoverJson {
+  if (kind === "cover_letter") {
+    return {
+      greeting: "Dear Hiring Manager,",
+      paragraphs: [
+        `I am applying for the ${payload.jobTitle || "advertised role"} at ${payload.companyName || "your organisation"}.`,
+        sanitiseText(payload.keyStrengths || raw || "I bring strong communication, reliability, teamwork, and a professional approach to the role."),
+        payload.rightToWork ? `My current right to work status is ${payload.rightToWork}. I would welcome the opportunity to discuss my application.` : "I would welcome the opportunity to discuss my application.",
+      ],
+      signOff: "Yours sincerely,",
+      signature: payload.fullName || "Applicant",
+    };
+  }
+  return {
+    name: payload.fullName || "Applicant",
+    contact: { email: payload.email || "", phone: payload.phone || "", city: payload.city || "", rightToWork: payload.rightToWork || "" },
+    summary: sanitiseText(raw || `${payload.fullName || "Candidate"} is targeting ${payload.targetRole || "a UK role"} and brings a reliable, professional approach.`),
+    skills: String(payload.skills || "Communication, Reliability, Teamwork").split(",").map(sanitiseText).filter(Boolean),
+    experience: [{ role: payload.targetRole || "Relevant role", company: "Previous employer", location: payload.city || "United Kingdom", dates: "Recent experience", bullets: String(payload.workHistory || "Delivered reliable support and followed workplace procedures").split("\n").map(sanitiseText).filter(Boolean) }],
+    education: payload.education ? [{ qualification: payload.education, institution: "", dates: "" }] : [],
+    certifications: String(payload.certifications || "").split(",").map(sanitiseText).filter(Boolean),
+    languages: String(payload.languages || "English").split(",").map(sanitiseText).filter(Boolean),
+    references: "Available on request",
+  };
 }
 
 function escapeHtml(s: string): string {
