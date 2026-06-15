@@ -59,6 +59,13 @@ function fallbackDocument(kind: string, payload: Record<string, string>, raw: st
   };
 }
 
+function isUsableDocument(kind: string, parsed: unknown): boolean {
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return false;
+  const doc = parsed as Record<string, unknown>;
+  if (kind === "cover_letter") return Array.isArray(doc.paragraphs) && doc.paragraphs.length > 0;
+  return typeof doc.name === "string" || typeof doc.summary === "string" || Array.isArray(doc.experience);
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
@@ -168,7 +175,8 @@ ${STYLE_RULES}`;
     const data = await res.json();
     const raw: string = data?.choices?.[0]?.message?.content || "";
     const cleaned = stripUnsafeFormatting(raw);
-    const parsed = extractJsonFromResponse(raw) || fallbackDocument(kind, payload || {}, cleaned);
+    const candidate = extractJsonFromResponse(raw);
+    const parsed = isUsableDocument(kind, candidate) ? candidate : fallbackDocument(kind, payload || {}, cleaned);
 
     return new Response(JSON.stringify({ success: true, content: cleaned, data: parsed }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
