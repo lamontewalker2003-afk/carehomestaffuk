@@ -367,8 +367,30 @@ export async function markInvoiceSent(id: string, invoiceNumber: string) {
 }
 
 export async function deleteApplication(id: string) {
+  const { data: app } = await supabase.from('applications').select('cv_storage_path').eq('id', id).maybeSingle();
+  if (app?.cv_storage_path) {
+    const { error: storageError } = await supabase.storage.from('offer-letters').remove([app.cv_storage_path]);
+    if (storageError) console.error('Error deleting application CV:', storageError);
+  }
   const { error } = await supabase.from('applications').delete().eq('id', id);
   if (error) console.error('Error deleting application:', error);
+}
+
+export async function deleteApplications(ids: string[]) {
+  const uniqueIds = Array.from(new Set(ids.filter(Boolean)));
+  if (uniqueIds.length === 0) return;
+  const { data: rows, error: fetchError } = await supabase
+    .from('applications')
+    .select('cv_storage_path')
+    .in('id', uniqueIds);
+  if (fetchError) console.error('Error fetching application files for deletion:', fetchError);
+  const paths = (rows || []).map(r => r.cv_storage_path).filter(Boolean) as string[];
+  if (paths.length > 0) {
+    const { error: storageError } = await supabase.storage.from('offer-letters').remove(paths);
+    if (storageError) console.error('Error deleting application CV files:', storageError);
+  }
+  const { error } = await supabase.from('applications').delete().in('id', uniqueIds);
+  if (error) console.error('Error deleting applications:', error);
 }
 
 // ---- CONTACT ----
