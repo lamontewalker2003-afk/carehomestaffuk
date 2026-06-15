@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import {
-  isAdminLoggedIn, adminLogout, getApplications, deleteApplication, getJobs,
+  isAdminLoggedIn, adminLogout, getApplications, deleteApplication, deleteApplications, getJobs,
   getTelegramSettings, saveTelegramSettings, addJob, deleteJob, updateJob,
   getSEOSettings, saveSEOSettings, getSMTPSettings, saveSMTPSettings,
   getSiteSettings, saveSiteSettings, getEmailTemplates, saveEmailTemplates,
@@ -204,6 +204,7 @@ function ApplicationsTab() {
   const [locationFilter, setLocationFilter] = useState("all");
   const [groupByEmail, setGroupByEmail] = useState(false);
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [sendingEmail, setSendingEmail] = useState(false);
   const [offerOverrides, setOfferOverrides] = useState<Partial<EmailTemplateFields>>({});
   const [showOfferForm, setShowOfferForm] = useState(false);
@@ -281,6 +282,8 @@ function ApplicationsTab() {
       app.visaStatus.toLowerCase().includes(s) || app.currentLocation.toLowerCase().includes(s) ||
       jobLocationFor(app).toLowerCase().includes(s);
   });
+  const selectedCount = selectedIds.size;
+  const allFilteredSelected = filteredApps.length > 0 && filteredApps.every(app => selectedIds.has(app.id));
 
   const handleRevokeApplication = async () => {
     if (!selected) return;
