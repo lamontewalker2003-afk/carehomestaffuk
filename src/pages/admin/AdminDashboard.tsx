@@ -202,6 +202,7 @@ function ApplicationsTab() {
   const [phoneSearch, setPhoneSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [locationFilter, setLocationFilter] = useState("all");
+  const [typeFilter, setTypeFilter] = useState<'all' | 'standard' | 'sponsorship'>("all");
   const [groupByEmail, setGroupByEmail] = useState(false);
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
