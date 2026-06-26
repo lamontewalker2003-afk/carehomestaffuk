@@ -34,6 +34,7 @@ export type Database = {
       }
       applications: {
         Row: {
+          application_type: string
           cover_letter: string
           current_location: string
           cv_content_type: string | null
@@ -60,6 +61,7 @@ export type Database = {
           visa_status: string
         }
         Insert: {
+          application_type?: string
           cover_letter?: string
           current_location?: string
           cv_content_type?: string | null
@@ -86,6 +88,7 @@ export type Database = {
           visa_status?: string
         }
         Update: {
+          application_type?: string
           cover_letter?: string
           current_location?: string
           cv_content_type?: string | null
