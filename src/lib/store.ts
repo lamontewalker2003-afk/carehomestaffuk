@@ -452,6 +452,8 @@ export const defaultSiteSettings: SiteSettings = {
   whatsappNumber: '441234567890',
   whatsappMessage: 'Hello! I would like to enquire about UK care work opportunities.',
   whatsappLabel: 'Chat with us on WhatsApp',
+  whatsappEnabled: true,
+  hideWhatsappAfterApply: false,
   footerTagline: 'Connecting care homes with compassionate, qualified healthcare professionals across the United Kingdom. Visa sponsorship available.',
   footerCompanyName: 'CareHomeStaffUK',
   footerYear: '',
