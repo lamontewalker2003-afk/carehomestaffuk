@@ -531,6 +531,12 @@ function ApplicationsTab() {
             <option value="all">All Job Locations</option>
             {allJobLocations.map(loc => <option key={loc} value={loc}>{loc}</option>)}
           </select>
+          <select value={typeFilter} onChange={e => setTypeFilter(e.target.value as 'all' | 'standard' | 'sponsorship')}
+            className="h-10 rounded-md border border-input bg-background px-3 text-sm">
+            <option value="all">All Types</option>
+            <option value="standard">Standard Application</option>
+            <option value="sponsorship">Sponsorship Enquiry</option>
+          </select>
           <Button
             type="button"
             variant={groupByEmail ? "default" : "outline"}
