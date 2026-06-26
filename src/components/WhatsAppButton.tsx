@@ -75,6 +75,7 @@ export function WhatsAppLink({ children, className }: { children: ReactNode; cla
 export function WhatsAppButton() {
   const [number, setNumber] = useState("");
   const [label, setLabel] = useState("Chat with us on WhatsApp");
+  const [enabled, setEnabled] = useState(true);
   const [showLabel, setShowLabel] = useState(false);
   const [gateOpen, setGateOpen] = useState(false);
   const [userPhone, setUserPhone] = useState("");
@@ -85,6 +86,7 @@ export function WhatsAppButton() {
     getSiteSettings().then(s => {
       setNumber((s.whatsappNumber || "").replace(/[^\d]/g, ""));
       if (s.whatsappLabel) setLabel(s.whatsappLabel);
+      setEnabled(s.whatsappEnabled !== false);
     });
     // Register global gate opener so other components can use it
     openGateGlobal = (cb) => {
@@ -95,7 +97,7 @@ export function WhatsAppButton() {
     return () => { clearTimeout(t1); clearTimeout(t2); openGateGlobal = null; };
   }, []);
 
-  if (!number) return null;
+  if (!number || !enabled) return null;
 
   const openWa = () => window.open(`https://wa.me/${number}`, "_blank", "noopener,noreferrer");
 
