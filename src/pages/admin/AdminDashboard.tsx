@@ -1601,6 +1601,26 @@ function SiteSettingsTab() {
           <Label>Floating Button Label <span className="text-xs text-muted-foreground font-normal">(tease text shown next to the button)</span></Label>
           <Input value={settings.whatsappLabel} onChange={e => update('whatsappLabel', e.target.value)} placeholder="Chat with us on WhatsApp" />
         </div>
+        <div className="flex items-center justify-between gap-3 rounded-md border p-3 bg-muted/30">
+          <div className="space-y-0.5">
+            <Label className="text-sm">Enable floating WhatsApp button</Label>
+            <p className="text-xs text-muted-foreground">Turn off to hide the floating button across the whole site.</p>
+          </div>
+          <Switch
+            checked={settings.whatsappEnabled !== false}
+            onCheckedChange={(v) => update('whatsappEnabled', v)}
+          />
+        </div>
+        <div className="flex items-center justify-between gap-3 rounded-md border p-3 bg-muted/30">
+          <div className="space-y-0.5">
+            <Label className="text-sm">Hide WhatsApp after application submit</Label>
+            <p className="text-xs text-muted-foreground">When ON, the "Message us on WhatsApp" CTA disappears from the success screen so applicants wait for your email instructions instead.</p>
+          </div>
+          <Switch
+            checked={settings.hideWhatsappAfterApply === true}
+            onCheckedChange={(v) => update('hideWhatsappAfterApply', v)}
+          />
+        </div>
       </div>
 
       <div className="bg-card rounded-lg border p-4 sm:p-6 space-y-4 max-w-2xl">
