@@ -44,6 +44,13 @@ export interface Application {
   cvStoragePath: string;
   cvContentType: string;
   sponsorCompany: string;
+  /**
+   * 'standard' — a normal job application.
+   * 'sponsorship' — a general "Register interest" submission from the Sponsor
+   *  Companies page. Admin assigns the actual sponsor company privately later;
+   *  the applicant never sees which company they'll be matched with.
+   */
+  applicationType: 'standard' | 'sponsorship';
   submittedAt: string;
   status: string;
   offerLetterSent: boolean;
