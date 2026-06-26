@@ -90,6 +90,10 @@ export interface SiteSettings {
   whatsappNumber: string; // international format with no +, e.g. 441234567890
   whatsappMessage: string;
   whatsappLabel: string;  // floating button tease label
+  /** Master switch for the floating WhatsApp button. When false, the button and any in-page WhatsApp CTAs are hidden site-wide. */
+  whatsappEnabled?: boolean;
+  /** When true, hide the WhatsApp success CTA on the apply-success screen so admin can follow up by email instead. */
+  hideWhatsappAfterApply?: boolean;
   footerTagline: string;
   // Footer copyright controls
   footerCompanyName: string;   // shown in © line
