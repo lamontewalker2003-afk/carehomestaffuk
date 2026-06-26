@@ -54,11 +54,17 @@ export function openWhatsAppGated(businessNumber: string) {
   open();
 }
 
-/** Wraps any clickable element to trigger the gated WhatsApp open. */
+/** Wraps any clickable element to trigger the gated WhatsApp open. Hidden when admin disables WhatsApp globally. */
 export function WhatsAppLink({ children, className }: { children: ReactNode; className?: string }) {
   const [num, setNum] = useState("");
-  useEffect(() => { getSiteSettings().then(s => setNum((s.whatsappNumber || "").replace(/[^\d]/g, ""))); }, []);
-  if (!num) return null;
+  const [enabled, setEnabled] = useState(true);
+  useEffect(() => {
+    getSiteSettings().then(s => {
+      setNum((s.whatsappNumber || "").replace(/[^\d]/g, ""));
+      setEnabled(s.whatsappEnabled !== false);
+    });
+  }, []);
+  if (!num || !enabled) return null;
   return (
     <button type="button" className={className} onClick={(e) => { e.preventDefault(); openWhatsAppGated(num); }}>
       {children}
