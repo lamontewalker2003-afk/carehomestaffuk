@@ -61,6 +61,8 @@ const SponsorCompaniesPage = () => {
                 </Button>
               </Link>
             </div>
+          </div>
+        </section>
 
         <section className="container py-10 max-w-6xl space-y-6">
           <div className="grid sm:grid-cols-[1fr_220px] gap-3">
