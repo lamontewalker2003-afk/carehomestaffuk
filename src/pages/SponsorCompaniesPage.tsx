@@ -52,8 +52,15 @@ const SponsorCompaniesPage = () => {
               UK Companies Offering Certificate of Sponsorship
             </h1>
             <p className="text-hero-foreground/80 max-w-2xl mx-auto">
-              These UK employers are certified by the Home Office to issue Certificates of Sponsorship for Health and Care Worker visa applicants. Apply directly to a company below, or message our team on WhatsApp for personal guidance.
+              These UK employers are certified by the Home Office to issue Certificates of Sponsorship for Health and Care Worker visa applicants. Submit one general eligibility check below — our team privately reviews your profile and confidentially matches you to the right licensed sponsor.
             </p>
+            <div className="flex flex-wrap gap-2 justify-center pt-2">
+              <Link to="/apply?type=sponsorship">
+                <Button size="lg" className="bg-hero-accent text-hero-foreground hover:bg-hero-accent/90">
+                  Check eligibility & register interest <ArrowRight className="h-4 w-4 ml-2" />
+                </Button>
+              </Link>
+            </div>
           </div>
         </section>
 
@@ -110,18 +117,11 @@ const SponsorCompaniesPage = () => {
                   )}
 
                   <div className="flex flex-wrap items-center gap-2 mt-auto pt-2 border-t">
-                    <Link to={`/apply?sponsor=${encodeURIComponent(c.name)}`} className="flex-1 min-w-[120px]">
-                      <Button size="sm" className="w-full bg-primary text-primary-foreground hover:bg-primary/90">
-                        Apply <ArrowRight className="h-3.5 w-3.5 ml-1" />
-                      </Button>
-                    </Link>
-                    <WhatsAppLink className="inline-flex">
-                      <Button size="sm" variant="outline" className="border-[#25D366] text-[#1a8e4a] hover:bg-[#25D366] hover:text-white" asChild={false}>
-                        <span className="inline-flex items-center"><MessageCircle className="h-3.5 w-3.5 mr-1" /> Enquire</span>
-                      </Button>
-                    </WhatsAppLink>
+                    <Badge className="bg-primary/10 text-primary border border-primary/20 font-normal">
+                      <ShieldCheck className="h-3 w-3 mr-1" /> Licensed sponsor
+                    </Badge>
                     {c.website && (
-                      <a href={c.website} target="_blank" rel="noopener noreferrer" aria-label={`${c.name} website`} className="text-muted-foreground hover:text-primary p-1.5 rounded-md hover:bg-muted">
+                      <a href={c.website} target="_blank" rel="noopener noreferrer" aria-label={`${c.name} website`} className="ml-auto text-muted-foreground hover:text-primary p-1.5 rounded-md hover:bg-muted">
                         <Globe className="h-4 w-4" />
                       </a>
                     )}
@@ -132,18 +132,15 @@ const SponsorCompaniesPage = () => {
           )}
 
           <div className="bg-primary/5 border border-primary/20 rounded-xl p-6 text-center mt-6">
-            <h2 className="font-heading text-xl font-semibold mb-2">Not sure which sponsor is right for you?</h2>
+            <h2 className="font-heading text-xl font-semibold mb-2">How matching works</h2>
             <p className="text-sm text-muted-foreground max-w-xl mx-auto mb-4">
-              Our team can match you with the licensed UK sponsor that best fits your experience, location preference and visa route. Chat with us on WhatsApp for a quick eligibility check.
+              You submit one general eligibility check. Our advisors review your background and confidentially introduce you to the best-fit licensed UK sponsor. You'll receive the matched employer's details by email — there's no need to contact companies directly.
             </p>
             <div className="flex flex-wrap gap-2 justify-center">
-              <WhatsAppLink className="inline-flex">
-                <Button size="lg" className="bg-[#25D366] hover:bg-[#1ebe5a] text-white" asChild={false}>
-                  <span className="inline-flex items-center"><MessageCircle className="h-4 w-4 mr-2" /> Chat with our team</span>
+              <Link to="/apply?type=sponsorship">
+                <Button size="lg" className="bg-primary text-primary-foreground hover:bg-primary/90">
+                  Check eligibility & register interest <ArrowRight className="h-4 w-4 ml-2" />
                 </Button>
-              </WhatsAppLink>
-              <Link to="/apply">
-                <Button size="lg" variant="outline">Apply now</Button>
               </Link>
             </div>
           </div>

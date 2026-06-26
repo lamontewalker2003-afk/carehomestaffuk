@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { useSearchParams } from "react-router-dom";
 import { SiteHeader } from "@/components/SiteHeader";
 import { SiteFooter } from "@/components/SiteFooter";
@@ -16,12 +16,15 @@ import {
 import { WhatsAppLink } from "@/components/WhatsAppButton";
 import type { Job, SiteSettings } from "@/lib/store";
 import { toast } from "@/hooks/use-toast";
-import { CheckCircle, MessageCircle, Upload, FileText, X, Loader2 } from "lucide-react";
+import { CheckCircle, MessageCircle, Upload, FileText, X, Loader2, ShieldCheck, Mail } from "lucide-react";
 
 const ApplyPage = () => {
   const [searchParams] = useSearchParams();
   const preselectedJob = searchParams.get("job") || "";
-  const preselectedSponsor = searchParams.get("sponsor") || "";
+  const applicationType: 'standard' | 'sponsorship' =
+    searchParams.get("type") === "sponsorship" ? "sponsorship" : "standard";
+  const isSponsorshipFlow = applicationType === "sponsorship";
+
   const [jobs, setJobs] = useState<Job[]>([]);
   const [submitted, setSubmitted] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -37,11 +40,10 @@ const ApplyPage = () => {
     phone: "",
     nationality: "",
     currentLocation: "",
-    visaStatus: "",
+    visaStatus: isSponsorshipFlow ? "requires_sponsorship" : "",
     experience: "",
     qualifications: "",
     coverLetter: "",
-    sponsorCompany: preselectedSponsor,
   });
 
   useEffect(() => {
@@ -50,7 +52,13 @@ const ApplyPage = () => {
   }, []);
 
   const selectedJob = jobs.find(j => j.id === form.jobId);
-  const sponsors = site?.sponsorCompanies || [];
+
+  // For sponsorship flow we hide the per-job picker AND we never disclose
+  // which licensed sponsor will eventually be matched to the applicant.
+  // jobTitle becomes a generic placeholder admins can re-route internally.
+  const effectiveJobTitle = isSponsorshipFlow
+    ? "Sponsorship Pathway — General Enquiry"
+    : (selectedJob?.title || "General Application");
 
   const handleCvUpload = async (file: File) => {
     if (!ALLOWED_CV_MIME_TYPES[file.type]) {
@@ -92,7 +100,12 @@ const ApplyPage = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!form.jobId || !form.fullName || !form.email || !form.phone) {
+    if (isSponsorshipFlow) {
+      if (!form.fullName || !form.email || !form.phone) {
+        toast({ title: "Please fill in all required fields", variant: "destructive" });
+        return;
+      }
+    } else if (!form.jobId || !form.fullName || !form.email || !form.phone) {
       toast({ title: "Please fill in all required fields", variant: "destructive" });
       return;
     }
@@ -105,13 +118,14 @@ const ApplyPage = () => {
     try {
       const app = await saveApplication({
         ...form,
-        jobId: form.jobId,
-        jobTitle: selectedJob?.title || "General Application",
+        jobId: isSponsorshipFlow ? "" : form.jobId,
+        jobTitle: effectiveJobTitle,
         cvFileName: cvFile?.name || "",
         cvUrl: cvFile?.url || "",
         cvStoragePath: cvFile?.path || "",
         cvContentType: cvFile?.contentType || "",
-        sponsorCompany: form.sponsorCompany,
+        sponsorCompany: "", // never set by the user — admin assigns privately
+        applicationType,
       });
 
       if (app) {
@@ -131,18 +145,38 @@ const ApplyPage = () => {
   };
 
   if (submitted) {
-    const waAvailable = !!(site?.whatsappNumber || "").replace(/[^\d]/g, "");
+    // WhatsApp CTA on success is hidden when:
+    //  - admin disabled WhatsApp globally, OR
+    //  - admin enabled "hide WhatsApp after apply" (so they email instructions instead), OR
+    //  - this is a sponsorship enquiry (handled privately by the team via email).
+    const waConfigured = !!(site?.whatsappNumber || "").replace(/[^\d]/g, "");
+    const waEnabled = site?.whatsappEnabled !== false;
+    const waHiddenAfterApply = site?.hideWhatsappAfterApply === true;
+    const showWaCta = waConfigured && waEnabled && !waHiddenAfterApply && !isSponsorshipFlow;
+
     return (
       <div className="min-h-screen flex flex-col">
         <SiteHeader />
         <main className="flex-1 flex items-center justify-center">
           <div className="text-center space-y-5 p-8 animate-fade-in max-w-md">
             <CheckCircle className="h-16 w-16 text-success mx-auto" />
-            <h1 className="font-heading text-3xl font-bold">Application Submitted!</h1>
+            <h1 className="font-heading text-3xl font-bold">
+              {isSponsorshipFlow ? "Sponsorship Enquiry Received" : "Application Submitted!"}
+            </h1>
             <p className="text-muted-foreground">
-              Thank you for your application. A confirmation email has been sent to your inbox. Our team will review your details and get back to you within 3-5 working days.
+              {isSponsorshipFlow
+                ? "Thank you for registering your interest in UK Health & Care Worker sponsorship. A confirmation email has been sent. Our sponsorship advisors will review your profile against our active partner employers and reach out by email with personal next steps."
+                : "Thank you for your application. A confirmation email has been sent to your inbox. Our team will review your details and get back to you within 3-5 working days."}
             </p>
-            {waAvailable && (
+            {isSponsorshipFlow && (
+              <div className="rounded-md border border-primary/30 bg-primary/5 p-3 text-xs text-left text-muted-foreground flex gap-2">
+                <Mail className="h-4 w-4 text-primary shrink-0 mt-0.5" />
+                <span>
+                  For your protection, partner employers are matched <span className="font-semibold">privately by our team</span>. You will receive all next steps and contact details by email — please check your spam folder if you do not hear from us within 2 working days.
+                </span>
+              </div>
+            )}
+            {showWaCta && (
               <div className="space-y-2 pt-2">
                 <p className="text-sm font-medium">Want a faster response? Message us on WhatsApp:</p>
                 <WhatsAppLink className="inline-flex">
@@ -165,8 +199,19 @@ const ApplyPage = () => {
       <main className="flex-1">
         <div className="bg-hero py-12">
           <div className="container">
-            <h1 className="font-heading text-3xl font-bold text-hero-foreground">Apply Now</h1>
-            <p className="text-hero-foreground/70 mt-2">Start your care career in the UK</p>
+            {isSponsorshipFlow && (
+              <span className="inline-flex items-center gap-2 text-xs font-semibold tracking-wider uppercase bg-hero-accent/20 text-hero-accent px-3 py-1 rounded-full mb-3">
+                <ShieldCheck className="h-3.5 w-3.5" /> UK Sponsorship Pathway
+              </span>
+            )}
+            <h1 className="font-heading text-3xl font-bold text-hero-foreground">
+              {isSponsorshipFlow ? "Register Interest — UK Sponsorship" : "Apply Now"}
+            </h1>
+            <p className="text-hero-foreground/70 mt-2">
+              {isSponsorshipFlow
+                ? "Submit one application. Our team will privately match you to a licensed UK sponsor and follow up by email."
+                : "Start your care career in the UK"}
+            </p>
           </div>
         </div>
 
@@ -181,39 +226,28 @@ const ApplyPage = () => {
 
         <div className="container py-10 max-w-2xl">
           <form onSubmit={handleSubmit} className="space-y-6">
-            <div>
-              <Label htmlFor="job">Position *</Label>
-              <Select value={form.jobId} onValueChange={(v) => setForm(f => ({ ...f, jobId: v }))}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select a position" />
-                </SelectTrigger>
-                <SelectContent>
-                  {jobs.map(j => (
-                    <SelectItem key={j.id} value={j.id}>{j.title} — {j.location}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            {sponsors.length > 0 && (
+            {isSponsorshipFlow ? (
+              <div className="rounded-lg border border-primary/30 bg-primary/5 p-4 text-sm space-y-1">
+                <p className="font-semibold flex items-center gap-2 text-primary">
+                  <ShieldCheck className="h-4 w-4" /> One general application — multiple licensed sponsors
+                </p>
+                <p className="text-muted-foreground">
+                  To protect both you and our partner employers, you cannot pick a specific company. Our advisors review your profile and confidentially introduce you to the best-matched licensed UK sponsor. We confirm the matched employer by email.
+                </p>
+              </div>
+            ) : (
               <div>
-                <Label htmlFor="sponsor">
-                  Preferred sponsor company <span className="text-xs text-muted-foreground">(optional)</span>
-                </Label>
-                <Select value={form.sponsorCompany || "__any__"} onValueChange={(v) => setForm(f => ({ ...f, sponsorCompany: v === "__any__" ? "" : v }))}>
+                <Label htmlFor="job">Position *</Label>
+                <Select value={form.jobId} onValueChange={(v) => setForm(f => ({ ...f, jobId: v }))}>
                   <SelectTrigger>
-                    <SelectValue placeholder="No preference — open to any sponsor" />
+                    <SelectValue placeholder="Select a position" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="__any__">No preference — open to any sponsor</SelectItem>
-                    {sponsors.map(s => (
-                      <SelectItem key={s.id} value={s.name}>{s.name}{s.location ? ` · ${s.location}` : ''}</SelectItem>
+                    {jobs.map(j => (
+                      <SelectItem key={j.id} value={j.id}>{j.title} — {j.location}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
-                <p className="text-xs text-muted-foreground mt-1">
-                  If you arrived from a sponsor company page we&apos;ve pre-selected it. Leave blank if you are open to any licensed sponsor.
-                </p>
               </div>
             )}
 
@@ -285,8 +319,8 @@ const ApplyPage = () => {
             </div>
 
             <div>
-              <Label htmlFor="coverLetter">Cover Letter</Label>
-              <Textarea id="coverLetter" value={form.coverLetter} onChange={e => setForm(f => ({ ...f, coverLetter: e.target.value }))} placeholder="Tell us why you'd be great for this role..." rows={4} />
+              <Label htmlFor="coverLetter">{isSponsorshipFlow ? "Tell us about yourself" : "Cover Letter"}</Label>
+              <Textarea id="coverLetter" value={form.coverLetter} onChange={e => setForm(f => ({ ...f, coverLetter: e.target.value }))} placeholder={isSponsorshipFlow ? "Share your motivation, preferred UK region, available start date, and any care roles you're targeting..." : "Tell us why you'd be great for this role..."} rows={4} />
             </div>
 
             {/* CV upload */}
@@ -331,7 +365,7 @@ const ApplyPage = () => {
             </div>
 
             <Button type="submit" disabled={loading} className="w-full bg-primary text-primary-foreground hover:bg-primary/90" size="lg">
-              {loading ? "Submitting..." : "Submit Application"}
+              {loading ? "Submitting..." : (isSponsorshipFlow ? "Submit Sponsorship Enquiry" : "Submit Application")}
             </Button>
           </form>
         </div>

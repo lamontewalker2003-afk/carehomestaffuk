@@ -44,6 +44,13 @@ export interface Application {
   cvStoragePath: string;
   cvContentType: string;
   sponsorCompany: string;
+  /**
+   * 'standard' — a normal job application.
+   * 'sponsorship' — a general "Register interest" submission from the Sponsor
+   *  Companies page. Admin assigns the actual sponsor company privately later;
+   *  the applicant never sees which company they'll be matched with.
+   */
+  applicationType: 'standard' | 'sponsorship';
   submittedAt: string;
   status: string;
   offerLetterSent: boolean;
@@ -83,6 +90,10 @@ export interface SiteSettings {
   whatsappNumber: string; // international format with no +, e.g. 441234567890
   whatsappMessage: string;
   whatsappLabel: string;  // floating button tease label
+  /** Master switch for the floating WhatsApp button. When false, the button and any in-page WhatsApp CTAs are hidden site-wide. */
+  whatsappEnabled?: boolean;
+  /** When true, hide the WhatsApp success CTA on the apply-success screen so admin can follow up by email instead. */
+  hideWhatsappAfterApply?: boolean;
   footerTagline: string;
   // Footer copyright controls
   footerCompanyName: string;   // shown in © line
@@ -262,6 +273,7 @@ function mapDbApp(row: any): Application {
     cvStoragePath: row.cv_storage_path || '',
     cvContentType: row.cv_content_type || '',
     sponsorCompany: row.sponsor_company || '',
+    applicationType: (row.application_type === 'sponsorship' ? 'sponsorship' : 'standard'),
     status: row.status || 'pending', offerLetterSent: row.offer_letter_sent || false,
     offerLetterSentAt: row.offer_letter_sent_at || null,
     invoiceSent: row.invoice_sent || false,
@@ -340,6 +352,7 @@ export async function saveApplication(app: Omit<Application, 'id' | 'submittedAt
     cv_storage_path: app.cvStoragePath || null,
     cv_content_type: app.cvContentType || null,
     sponsor_company: app.sponsorCompany || null,
+    application_type: app.applicationType === 'sponsorship' ? 'sponsorship' : 'standard',
   }).select().single();
   if (error) { console.error('Error saving application:', error); return null; }
   return mapDbApp(data);
@@ -439,6 +452,8 @@ export const defaultSiteSettings: SiteSettings = {
   whatsappNumber: '441234567890',
   whatsappMessage: 'Hello! I would like to enquire about UK care work opportunities.',
   whatsappLabel: 'Chat with us on WhatsApp',
+  whatsappEnabled: true,
+  hideWhatsappAfterApply: false,
   footerTagline: 'Connecting care homes with compassionate, qualified healthcare professionals across the United Kingdom. Visa sponsorship available.',
   footerCompanyName: 'CareHomeStaffUK',
   footerYear: '',
@@ -549,6 +564,7 @@ export async function buildCustomEmail(
     siteName: site.siteName,
     contactEmail: site.contactEmail,
     contactPhone: site.contactPhone,
+    whatsappNumber: site.whatsappNumber ? `+${site.whatsappNumber.replace(/[^\d]/g, '')}` : '',
     date: new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }),
   };
   const subject = replaceVars(overrides?.subject ?? template.subject, vars);
@@ -1334,6 +1350,40 @@ const defaultCustomEmailTemplates: CustomEmailTemplate[] = [
       paragraphs: ['Write your message here. You can use variables like {{jobTitle}}, {{siteName}} and {{date}}.'],
       signoff: 'Kind regards,',
       signature: 'The {{siteName}} Team',
+    },
+  },
+  {
+    id: 'tpl-sponsorship-next-steps',
+    name: 'Sponsorship — Next Steps',
+    subject: 'Your UK sponsorship enquiry — next steps from {{siteName}}',
+    fields: {
+      heading: 'Thanks for registering your interest in UK sponsorship',
+      intro: 'Dear {{fullName}}, thank you for submitting your details for our UK Health & Care Worker sponsorship pathway.',
+      paragraphs: [
+        'Your enquiry has been received and one of our sponsorship advisors will personally review your profile against our active partner employers.',
+        'To help us match you with the right licensed sponsor, please reply to this email with: a recent CV, a clear copy of your passport, your highest qualification certificate and any care experience references you have.',
+        'Once we have your documents we will arrange a short eligibility call, after which we will introduce you to the matched UK employer. Please note we never share which employer we approach on your behalf until matching is confirmed, to protect both you and the sponsor.',
+      ],
+      highlight: 'Typical response time: 1–2 working days. Please check your spam folder if you do not hear back.',
+      signoff: 'Warm regards,',
+      signature: 'The {{siteName}} Sponsorship Team',
+    },
+  },
+  {
+    id: 'tpl-whatsapp-instructions',
+    name: 'WhatsApp — Contact Instructions',
+    subject: 'How to reach us on WhatsApp — {{siteName}}',
+    fields: {
+      heading: 'Continue your application on WhatsApp',
+      intro: 'Hello {{fullName}}, to give you faster, more personal assistance with your {{jobTitle}} application we now handle live conversations on WhatsApp.',
+      paragraphs: [
+        'Save our official WhatsApp number to your phone and send us a short message with your full name and the role you applied for, so our team can match the chat to your application file.',
+        'Our WhatsApp line is monitored by real members of the recruitment team during UK office hours and is the quickest way to ask questions about your visa status, documents or interview slot.',
+        'For your safety, we will never ask for payment details, passwords or upfront fees over WhatsApp. All payments are made only through the secure invoice you receive by email.',
+      ],
+      highlight: 'WhatsApp us: {{whatsappNumber}}  ·  Office email: {{contactEmail}}',
+      signoff: 'Speak soon,',
+      signature: 'The {{siteName}} Recruitment Team',
     },
   },
 ];

@@ -54,11 +54,17 @@ export function openWhatsAppGated(businessNumber: string) {
   open();
 }
 
-/** Wraps any clickable element to trigger the gated WhatsApp open. */
+/** Wraps any clickable element to trigger the gated WhatsApp open. Hidden when admin disables WhatsApp globally. */
 export function WhatsAppLink({ children, className }: { children: ReactNode; className?: string }) {
   const [num, setNum] = useState("");
-  useEffect(() => { getSiteSettings().then(s => setNum((s.whatsappNumber || "").replace(/[^\d]/g, ""))); }, []);
-  if (!num) return null;
+  const [enabled, setEnabled] = useState(true);
+  useEffect(() => {
+    getSiteSettings().then(s => {
+      setNum((s.whatsappNumber || "").replace(/[^\d]/g, ""));
+      setEnabled(s.whatsappEnabled !== false);
+    });
+  }, []);
+  if (!num || !enabled) return null;
   return (
     <button type="button" className={className} onClick={(e) => { e.preventDefault(); openWhatsAppGated(num); }}>
       {children}
@@ -69,6 +75,7 @@ export function WhatsAppLink({ children, className }: { children: ReactNode; cla
 export function WhatsAppButton() {
   const [number, setNumber] = useState("");
   const [label, setLabel] = useState("Chat with us on WhatsApp");
+  const [enabled, setEnabled] = useState(true);
   const [showLabel, setShowLabel] = useState(false);
   const [gateOpen, setGateOpen] = useState(false);
   const [userPhone, setUserPhone] = useState("");
@@ -79,6 +86,7 @@ export function WhatsAppButton() {
     getSiteSettings().then(s => {
       setNumber((s.whatsappNumber || "").replace(/[^\d]/g, ""));
       if (s.whatsappLabel) setLabel(s.whatsappLabel);
+      setEnabled(s.whatsappEnabled !== false);
     });
     // Register global gate opener so other components can use it
     openGateGlobal = (cb) => {
@@ -89,7 +97,7 @@ export function WhatsAppButton() {
     return () => { clearTimeout(t1); clearTimeout(t2); openGateGlobal = null; };
   }, []);
 
-  if (!number) return null;
+  if (!number || !enabled) return null;
 
   const openWa = () => window.open(`https://wa.me/${number}`, "_blank", "noopener,noreferrer");
 

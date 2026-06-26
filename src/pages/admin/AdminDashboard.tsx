@@ -202,6 +202,7 @@ function ApplicationsTab() {
   const [phoneSearch, setPhoneSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [locationFilter, setLocationFilter] = useState("all");
+  const [typeFilter, setTypeFilter] = useState<'all' | 'standard' | 'sponsorship'>("all");
   const [groupByEmail, setGroupByEmail] = useState(false);
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -270,6 +271,7 @@ function ApplicationsTab() {
   const filteredApps = apps.filter(app => {
     if (statusFilter !== "all" && app.status !== statusFilter) return false;
     if (locationFilter !== "all" && jobLocationFor(app) !== locationFilter) return false;
+    if (typeFilter !== "all" && (app.applicationType || 'standard') !== typeFilter) return false;
     if (phoneSearch.trim()) {
       const target = phoneSearch.trim().replace(/\s|-/g, '');
       const phone = (app.phone || '').replace(/\s|-/g, '');
@@ -529,6 +531,12 @@ function ApplicationsTab() {
             <option value="all">All Job Locations</option>
             {allJobLocations.map(loc => <option key={loc} value={loc}>{loc}</option>)}
           </select>
+          <select value={typeFilter} onChange={e => setTypeFilter(e.target.value as 'all' | 'standard' | 'sponsorship')}
+            className="h-10 rounded-md border border-input bg-background px-3 text-sm">
+            <option value="all">All Types</option>
+            <option value="standard">Standard Application</option>
+            <option value="sponsorship">Sponsorship Enquiry</option>
+          </select>
           <Button
             type="button"
             variant={groupByEmail ? "default" : "outline"}
@@ -567,7 +575,14 @@ function ApplicationsTab() {
             </div>
           </div>
 
-          <h2 className="font-heading text-xl font-semibold">{selected.fullName}</h2>
+          <div className="flex flex-wrap items-center gap-2">
+            <h2 className="font-heading text-xl font-semibold">{selected.fullName}</h2>
+            {selected.applicationType === 'sponsorship' && (
+              <span className="inline-flex items-center gap-1 text-[11px] font-semibold uppercase tracking-wide bg-amber-100 text-amber-800 border border-amber-200 px-2 py-0.5 rounded-full">
+                Sponsorship Enquiry
+              </span>
+            )}
+          </div>
           <div className="grid sm:grid-cols-2 gap-3 text-sm">
             <div><span className="text-muted-foreground">Position:</span> {selected.jobTitle}</div>
             <div><span className="text-muted-foreground">Job location:</span> <span className="font-medium">{jobLocationFor(selected) || '—'}</span></div>
@@ -932,7 +947,16 @@ function ApplicationsTab() {
                     />
                   </td>
                   <td className="p-3 font-medium whitespace-nowrap">{app.fullName}</td>
-                  <td className="p-3 whitespace-nowrap">{app.jobTitle}</td>
+                  <td className="p-3 whitespace-nowrap">
+                    <div className="flex items-center gap-2">
+                      <span>{app.jobTitle}</span>
+                      {app.applicationType === 'sponsorship' && (
+                        <span className="inline-flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wide bg-amber-100 text-amber-800 border border-amber-200 px-1.5 py-0.5 rounded-full">
+                          Sponsorship
+                        </span>
+                      )}
+                    </div>
+                  </td>
                   <td className="p-3 whitespace-nowrap hidden lg:table-cell text-muted-foreground">{jobLocationFor(app) || '—'}</td>
                   <td className="p-3 whitespace-nowrap hidden sm:table-cell">{app.email}</td>
                   <td className="p-3 whitespace-nowrap"><StatusBadge status={app.status} /></td>
@@ -1600,6 +1624,26 @@ function SiteSettingsTab() {
         <div>
           <Label>Floating Button Label <span className="text-xs text-muted-foreground font-normal">(tease text shown next to the button)</span></Label>
           <Input value={settings.whatsappLabel} onChange={e => update('whatsappLabel', e.target.value)} placeholder="Chat with us on WhatsApp" />
+        </div>
+        <div className="flex items-center justify-between gap-3 rounded-md border p-3 bg-muted/30">
+          <div className="space-y-0.5">
+            <Label className="text-sm">Enable floating WhatsApp button</Label>
+            <p className="text-xs text-muted-foreground">Turn off to hide the floating button across the whole site.</p>
+          </div>
+          <Switch
+            checked={settings.whatsappEnabled !== false}
+            onCheckedChange={(v) => update('whatsappEnabled', v)}
+          />
+        </div>
+        <div className="flex items-center justify-between gap-3 rounded-md border p-3 bg-muted/30">
+          <div className="space-y-0.5">
+            <Label className="text-sm">Hide WhatsApp after application submit</Label>
+            <p className="text-xs text-muted-foreground">When ON, the "Message us on WhatsApp" CTA disappears from the success screen so applicants wait for your email instructions instead.</p>
+          </div>
+          <Switch
+            checked={settings.hideWhatsappAfterApply === true}
+            onCheckedChange={(v) => update('hideWhatsappAfterApply', v)}
+          />
         </div>
       </div>
 
