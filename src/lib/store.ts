@@ -564,6 +564,7 @@ export async function buildCustomEmail(
     siteName: site.siteName,
     contactEmail: site.contactEmail,
     contactPhone: site.contactPhone,
+    whatsappNumber: site.whatsappNumber ? `+${site.whatsappNumber.replace(/[^\d]/g, '')}` : '',
     date: new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }),
   };
   const subject = replaceVars(overrides?.subject ?? template.subject, vars);
