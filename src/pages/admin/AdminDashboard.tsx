@@ -575,7 +575,14 @@ function ApplicationsTab() {
             </div>
           </div>
 
-          <h2 className="font-heading text-xl font-semibold">{selected.fullName}</h2>
+          <div className="flex flex-wrap items-center gap-2">
+            <h2 className="font-heading text-xl font-semibold">{selected.fullName}</h2>
+            {selected.applicationType === 'sponsorship' && (
+              <span className="inline-flex items-center gap-1 text-[11px] font-semibold uppercase tracking-wide bg-amber-100 text-amber-800 border border-amber-200 px-2 py-0.5 rounded-full">
+                Sponsorship Enquiry
+              </span>
+            )}
+          </div>
           <div className="grid sm:grid-cols-2 gap-3 text-sm">
             <div><span className="text-muted-foreground">Position:</span> {selected.jobTitle}</div>
             <div><span className="text-muted-foreground">Job location:</span> <span className="font-medium">{jobLocationFor(selected) || '—'}</span></div>
