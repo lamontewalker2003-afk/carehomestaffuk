@@ -932,7 +932,16 @@ function ApplicationsTab() {
                     />
                   </td>
                   <td className="p-3 font-medium whitespace-nowrap">{app.fullName}</td>
-                  <td className="p-3 whitespace-nowrap">{app.jobTitle}</td>
+                  <td className="p-3 whitespace-nowrap">
+                    <div className="flex items-center gap-2">
+                      <span>{app.jobTitle}</span>
+                      {app.applicationType === 'sponsorship' && (
+                        <span className="inline-flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wide bg-amber-100 text-amber-800 border border-amber-200 px-1.5 py-0.5 rounded-full">
+                          Sponsorship
+                        </span>
+                      )}
+                    </div>
+                  </td>
                   <td className="p-3 whitespace-nowrap hidden lg:table-cell text-muted-foreground">{jobLocationFor(app) || '—'}</td>
                   <td className="p-3 whitespace-nowrap hidden sm:table-cell">{app.email}</td>
                   <td className="p-3 whitespace-nowrap"><StatusBadge status={app.status} /></td>
