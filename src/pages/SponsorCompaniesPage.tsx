@@ -117,18 +117,11 @@ const SponsorCompaniesPage = () => {
                   )}
 
                   <div className="flex flex-wrap items-center gap-2 mt-auto pt-2 border-t">
-                    <Link to={`/apply?sponsor=${encodeURIComponent(c.name)}`} className="flex-1 min-w-[120px]">
-                      <Button size="sm" className="w-full bg-primary text-primary-foreground hover:bg-primary/90">
-                        Apply <ArrowRight className="h-3.5 w-3.5 ml-1" />
-                      </Button>
-                    </Link>
-                    <WhatsAppLink className="inline-flex">
-                      <Button size="sm" variant="outline" className="border-[#25D366] text-[#1a8e4a] hover:bg-[#25D366] hover:text-white" asChild={false}>
-                        <span className="inline-flex items-center"><MessageCircle className="h-3.5 w-3.5 mr-1" /> Enquire</span>
-                      </Button>
-                    </WhatsAppLink>
+                    <Badge className="bg-primary/10 text-primary border border-primary/20 font-normal">
+                      <ShieldCheck className="h-3 w-3 mr-1" /> Licensed sponsor
+                    </Badge>
                     {c.website && (
-                      <a href={c.website} target="_blank" rel="noopener noreferrer" aria-label={`${c.name} website`} className="text-muted-foreground hover:text-primary p-1.5 rounded-md hover:bg-muted">
+                      <a href={c.website} target="_blank" rel="noopener noreferrer" aria-label={`${c.name} website`} className="ml-auto text-muted-foreground hover:text-primary p-1.5 rounded-md hover:bg-muted">
                         <Globe className="h-4 w-4" />
                       </a>
                     )}
