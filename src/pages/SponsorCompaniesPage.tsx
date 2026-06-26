@@ -132,18 +132,15 @@ const SponsorCompaniesPage = () => {
           )}
 
           <div className="bg-primary/5 border border-primary/20 rounded-xl p-6 text-center mt-6">
-            <h2 className="font-heading text-xl font-semibold mb-2">Not sure which sponsor is right for you?</h2>
+            <h2 className="font-heading text-xl font-semibold mb-2">How matching works</h2>
             <p className="text-sm text-muted-foreground max-w-xl mx-auto mb-4">
-              Our team can match you with the licensed UK sponsor that best fits your experience, location preference and visa route. Chat with us on WhatsApp for a quick eligibility check.
+              You submit one general eligibility check. Our advisors review your background and confidentially introduce you to the best-fit licensed UK sponsor. You'll receive the matched employer's details by email — there's no need to contact companies directly.
             </p>
             <div className="flex flex-wrap gap-2 justify-center">
-              <WhatsAppLink className="inline-flex">
-                <Button size="lg" className="bg-[#25D366] hover:bg-[#1ebe5a] text-white" asChild={false}>
-                  <span className="inline-flex items-center"><MessageCircle className="h-4 w-4 mr-2" /> Chat with our team</span>
+              <Link to="/apply?type=sponsorship">
+                <Button size="lg" className="bg-primary text-primary-foreground hover:bg-primary/90">
+                  Check eligibility & register interest <ArrowRight className="h-4 w-4 ml-2" />
                 </Button>
-              </WhatsAppLink>
-              <Link to="/apply">
-                <Button size="lg" variant="outline">Apply now</Button>
               </Link>
             </div>
           </div>
