@@ -5,7 +5,7 @@ import {
   getTelegramSettings, saveTelegramSettings, addJob, deleteJob, updateJob,
   getSEOSettings, saveSEOSettings, getSMTPSettings, saveSMTPSettings,
   getSiteSettings, saveSiteSettings, getEmailTemplates, saveEmailTemplates,
-  updateApplicationStatus, markOfferLetterSent, sendEmail,
+  updateApplicationStatus, updateApplicationPriority, markOfferLetterSent, sendEmail,
   buildApplicationSuccessEmail, buildOfferLetterEmail,
   getBankAccounts, saveBankAccounts,
   getInvoiceTemplate, saveInvoiceTemplate, defaultInvoiceTemplate,
