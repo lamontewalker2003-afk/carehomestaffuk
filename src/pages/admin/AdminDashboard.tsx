@@ -2818,5 +2818,102 @@ function AdminScheduleForm({ onScheduled }: { onScheduled: () => void | Promise<
   );
 }
 
+// ---- Disabled Locations card (site-settings) ----
+function DisabledLocationsCard({ value, onChange }: { value: string[]; onChange: (next: string[]) => void }) {
+  const [jobs, setJobs] = useState<Job[]>([]);
+  const [draft, setDraft] = useState("");
+
+  useEffect(() => { getJobs().then(setJobs); }, []);
+
+  const knownLocations = Array.from(new Set(jobs.map(j => (j.location || '').trim()).filter(Boolean))).sort();
+  const disabled = new Set(value.map(v => v.trim().toLowerCase()));
+
+  const addLoc = (loc: string) => {
+    const clean = (loc || '').trim();
+    if (!clean) return;
+    if (disabled.has(clean.toLowerCase())) return;
+    onChange([...value, clean]);
+    setDraft("");
+  };
+  const removeLoc = (loc: string) => {
+    onChange(value.filter(v => v.trim().toLowerCase() !== loc.trim().toLowerCase()));
+  };
+  const affectedCount = (loc: string) =>
+    jobs.filter(j => (j.location || '').trim().toLowerCase() === loc.trim().toLowerCase()).length;
+
+  return (
+    <div className="bg-card rounded-lg border p-4 sm:p-6 space-y-4 max-w-2xl">
+      <div>
+        <h2 className="font-heading font-semibold flex items-center gap-2">
+          <Globe className="h-4 w-4 text-primary" /> Location Disabler
+        </h2>
+        <p className="text-xs text-muted-foreground mt-1">
+          Temporarily hide every job posted in a specific UK location from the public site.
+          The jobs are not deleted — they simply stop showing on the Jobs page, homepage and application form
+          until you remove the location from this list. Great for pausing intake in an over-subscribed region.
+        </p>
+      </div>
+
+      <div className="flex flex-wrap gap-2">
+        {value.length === 0 && (
+          <p className="text-xs text-muted-foreground italic">No locations disabled — all active jobs are visible.</p>
+        )}
+        {value.map((loc) => (
+          <span key={loc} className="inline-flex items-center gap-2 rounded-full bg-destructive/10 text-destructive border border-destructive/30 px-3 py-1 text-xs font-medium">
+            {loc}
+            <span className="text-[10px] opacity-70">({affectedCount(loc)} job{affectedCount(loc) === 1 ? '' : 's'})</span>
+            <button
+              type="button"
+              className="hover:opacity-70"
+              onClick={() => removeLoc(loc)}
+              aria-label={`Enable ${loc} again`}
+            >
+              <X className="h-3 w-3" />
+            </button>
+          </span>
+        ))}
+      </div>
+
+      <div className="flex flex-col sm:flex-row gap-2">
+        <Input
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          placeholder="e.g. London"
+          onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addLoc(draft); } }}
+        />
+        <Button type="button" variant="outline" onClick={() => addLoc(draft)}>
+          <Plus className="h-4 w-4 mr-1" /> Disable location
+        </Button>
+      </div>
+
+      {knownLocations.length > 0 && (
+        <div>
+          <p className="text-[11px] uppercase tracking-wide text-muted-foreground mb-2">Quick-disable from your active job list</p>
+          <div className="flex flex-wrap gap-1.5">
+            {knownLocations.map((loc) => {
+              const isDisabled = disabled.has(loc.toLowerCase());
+              return (
+                <button
+                  key={loc}
+                  type="button"
+                  onClick={() => (isDisabled ? removeLoc(loc) : addLoc(loc))}
+                  className={`px-2 py-1 rounded-md text-xs border transition ${
+                    isDisabled
+                      ? 'bg-destructive/10 text-destructive border-destructive/30'
+                      : 'bg-muted/40 hover:bg-muted border-input'
+                  }`}
+                >
+                  {isDisabled ? '✕' : '+'} {loc}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default AdminDashboard;
+
 
