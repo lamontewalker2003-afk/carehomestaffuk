@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { SiteHeader } from "@/components/SiteHeader";
 import { SiteFooter } from "@/components/SiteFooter";
 import { JobCard } from "@/components/JobCard";
-import { getJobs, getSiteSettings, defaultSiteSettings } from "@/lib/store";
+import { getPublicJobs, getSiteSettings, defaultSiteSettings } from "@/lib/store";
 import type { Job, SiteSettings } from "@/lib/store";
 import { Shield, Users, Heart, ArrowRight, Award, Building2, Globe2, CheckCircle2, FileText, Sparkles } from "lucide-react";
 import heroCare from "@/assets/hero-care.jpg";
