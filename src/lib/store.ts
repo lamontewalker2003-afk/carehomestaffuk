@@ -276,6 +276,7 @@ function mapDbApp(row: any): Application {
     cvContentType: row.cv_content_type || '',
     sponsorCompany: row.sponsor_company || '',
     applicationType: (row.application_type === 'sponsorship' ? 'sponsorship' : 'standard'),
+    priority: row.priority === true,
     status: row.status || 'pending', offerLetterSent: row.offer_letter_sent || false,
     offerLetterSentAt: row.offer_letter_sent_at || null,
     invoiceSent: row.invoice_sent || false,
