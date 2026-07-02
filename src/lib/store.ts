@@ -298,6 +298,13 @@ export async function getJobs(): Promise<Job[]> {
   return (data || []).map(mapDbJob);
 }
 
+/** Public-facing job list — respects the admin "disabled locations" list. */
+export async function getPublicJobs(): Promise<Job[]> {
+  const [jobs, site] = await Promise.all([getJobs(), getSiteSettings()]);
+  const blocked = new Set((site.disabledLocations || []).map(s => (s || '').trim().toLowerCase()).filter(Boolean));
+  return jobs.filter(j => j.isActive && !blocked.has((j.location || '').trim().toLowerCase()));
+}
+
 export async function getJobBySlug(slug: string): Promise<Job | null> {
   const { data, error } = await supabase.from('jobs').select('*').eq('slug', slug).maybeSingle();
   if (error) { console.error('Error fetching job by slug:', error); return null; }
