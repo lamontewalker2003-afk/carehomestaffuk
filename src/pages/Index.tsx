@@ -37,7 +37,7 @@ const Index = () => {
   const [site, setSite] = useState<SiteSettings>(defaultSiteSettings);
 
   useEffect(() => {
-    getJobs().then(allJobs => setJobs(allJobs.filter(j => j.isActive).slice(0, 3)));
+    getPublicJobs().then(list => setJobs(list.slice(0, 3)));
     getSiteSettings().then(setSite);
   }, []);
 
