@@ -540,6 +540,12 @@ function ApplicationsTab() {
             <option value="standard">Standard Application</option>
             <option value="sponsorship">Sponsorship Enquiry</option>
           </select>
+          <select value={priorityFilter} onChange={e => setPriorityFilter(e.target.value as 'all' | 'priority' | 'standard')}
+            className="h-10 rounded-md border border-input bg-background px-3 text-sm">
+            <option value="all">All (priority + standard)</option>
+            <option value="priority">⚡ Priority only</option>
+            <option value="standard">Standard only</option>
+          </select>
           <Button
             type="button"
             variant={groupByEmail ? "default" : "outline"}
