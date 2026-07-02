@@ -203,6 +203,7 @@ function ApplicationsTab() {
   const [statusFilter, setStatusFilter] = useState("all");
   const [locationFilter, setLocationFilter] = useState("all");
   const [typeFilter, setTypeFilter] = useState<'all' | 'standard' | 'sponsorship'>("all");
+  const [priorityFilter, setPriorityFilter] = useState<'all' | 'priority' | 'standard'>("all");
   const [groupByEmail, setGroupByEmail] = useState(false);
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
