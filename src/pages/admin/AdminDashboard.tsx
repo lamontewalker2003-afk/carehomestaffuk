@@ -964,6 +964,11 @@ function ApplicationsTab() {
                           Sponsorship
                         </span>
                       )}
+                      {app.priority && (
+                        <span className="inline-flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wide bg-gradient-to-r from-amber-500 to-orange-500 text-white px-1.5 py-0.5 rounded-full">
+                          <Zap className="h-2.5 w-2.5" /> Priority
+                        </span>
+                      )}
                     </div>
                   </td>
                   <td className="p-3 whitespace-nowrap hidden lg:table-cell text-muted-foreground">{jobLocationFor(app) || '—'}</td>
