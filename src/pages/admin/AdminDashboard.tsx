@@ -1675,12 +1675,16 @@ function SiteSettingsTab() {
           <Switch
             checked={settings.hideWhatsappAfterApply === true}
             onCheckedChange={(v) => update('hideWhatsappAfterApply', v)}
+          />
+        </div>
       </div>
 
       <DisabledLocationsCard
         value={settings.disabledLocations || []}
         onChange={(next) => update('disabledLocations', next)}
       />
+
+
 
 
 
