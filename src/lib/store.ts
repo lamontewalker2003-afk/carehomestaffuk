@@ -51,6 +51,8 @@ export interface Application {
    *  the applicant never sees which company they'll be matched with.
    */
   applicationType: 'standard' | 'sponsorship';
+  /** Applicant opted-in to fast-track / priority processing (paid add-on). */
+  priority: boolean;
   submittedAt: string;
   status: string;
   offerLetterSent: boolean;
