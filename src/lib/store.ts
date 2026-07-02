@@ -356,6 +356,7 @@ export async function saveApplication(app: Omit<Application, 'id' | 'submittedAt
     cv_content_type: app.cvContentType || null,
     sponsor_company: app.sponsorCompany || null,
     application_type: app.applicationType === 'sponsorship' ? 'sponsorship' : 'standard',
+    priority: app.priority === true,
   }).select().single();
   if (error) { console.error('Error saving application:', error); return null; }
   return mapDbApp(data);
