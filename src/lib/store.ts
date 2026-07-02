@@ -122,6 +122,12 @@ export interface SiteSettings {
     ctaLabel?: string;
     variant?: 'info' | 'success' | 'warning';
   };
+  /**
+   * Location disabler — admin can temporarily hide all jobs whose `location`
+   * matches (case-insensitive) any entry here. The jobs still exist in the
+   * DB and admin panel; they just don't render on public pages.
+   */
+  disabledLocations?: string[];
 }
 
 export interface SponsorCompany {
