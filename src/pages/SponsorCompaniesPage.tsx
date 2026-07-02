@@ -55,7 +55,7 @@ const SponsorCompaniesPage = () => {
               These UK employers are certified by the Home Office to issue Certificates of Sponsorship for Health and Care Worker visa applicants. Submit one general eligibility check below — our team privately reviews your profile and confidentially matches you to the right licensed sponsor.
             </p>
             <div className="flex flex-wrap gap-2 justify-center pt-2">
-              <Link to="/apply?type=sponsorship">
+              <Link to="/apply">
                 <Button size="lg" className="bg-hero-accent text-hero-foreground hover:bg-hero-accent/90">
                   Check eligibility & register interest <ArrowRight className="h-4 w-4 ml-2" />
                 </Button>
@@ -137,7 +137,7 @@ const SponsorCompaniesPage = () => {
               You submit one general eligibility check. Our advisors review your background and confidentially introduce you to the best-fit licensed UK sponsor. You'll receive the matched employer's details by email — there's no need to contact companies directly.
             </p>
             <div className="flex flex-wrap gap-2 justify-center">
-              <Link to="/apply?type=sponsorship">
+              <Link to="/apply">
                 <Button size="lg" className="bg-primary text-primary-foreground hover:bg-primary/90">
                   Check eligibility & register interest <ArrowRight className="h-4 w-4 ml-2" />
                 </Button>
