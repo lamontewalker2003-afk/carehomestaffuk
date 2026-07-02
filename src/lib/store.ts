@@ -1409,6 +1409,42 @@ const defaultCustomEmailTemplates: CustomEmailTemplate[] = [
       signature: 'The {{siteName}} Recruitment Team',
     },
   },
+  {
+    id: 'tpl-appointment-booking-instructions',
+    name: 'Appointment — Booking Instructions & Payment Trust',
+    subject: 'Your consultation booking — payment & trust instructions ({{siteName}})',
+    fields: {
+      heading: 'How to secure your consultation slot',
+      intro: 'Dear {{fullName}}, thank you for requesting a consultation with our recruitment team.',
+      paragraphs: [
+        'To finalise your appointment, a small consultation and administration fee is payable in advance. Once this is received, your slot is locked in and you will receive the exact call details by email.',
+        'Payment method: our team will send you a secure invoice by email with the exact amount and the official bank details. Please always double-check that any bank details you receive match the invoice sent from {{contactEmail}}.',
+        'The only person authorised to contact you on WhatsApp about this booking is our verified UK agent on the number {{whatsappNumber}}. If anyone else messages you from a different number claiming to be from {{siteName}}, please do not send them any money and report the number to us straight away.',
+        'All refunds, if applicable under our refund policy, are processed exclusively by our internal recruitment finance team through the original payment method — never in cash, gift cards, crypto, or via a third party.',
+      ],
+      highlight: 'Trust checklist:  ✓ Verified WhatsApp: {{whatsappNumber}}   ✓ Official email: {{contactEmail}}   ✓ Refunds only by our recruitment team.',
+      signoff: 'Kind regards,',
+      signature: 'The {{siteName}} Recruitment Team',
+    },
+  },
+  {
+    id: 'tpl-priority-application',
+    name: 'Priority Application — Fast-Track Instructions',
+    subject: '⚡ Your priority application is being fast-tracked — {{siteName}}',
+    fields: {
+      heading: 'You are on our priority fast-track',
+      intro: 'Dear {{fullName}}, thank you for choosing priority processing for your {{jobTitle}} application.',
+      paragraphs: [
+        'Priority applications are reviewed by a senior recruitment officer within 24 working hours (instead of the standard 3–5 working days) and are placed at the top of the shortlist queue for our licensed UK employers.',
+        'To keep your file moving quickly, please reply to this email within 48 hours with: a clear copy of your passport bio page, your most recent CV, your highest qualification certificate and the names & emails of two professional references.',
+        'A dedicated coordinator will then confirm your interview slot and, where applicable, begin the Certificate of Sponsorship (CoS) checks in parallel — saving you up to two weeks compared to the standard route.',
+        'Priority processing includes a one-off fast-track service fee. You will receive a secure invoice by email with the exact amount and bank details. Payments are only ever made against this invoice — never over WhatsApp or to unofficial numbers.',
+      ],
+      highlight: '⚡ Priority SLA: senior review within 24 working hours · dedicated coordinator · top-of-queue shortlisting.',
+      signoff: 'Warm regards,',
+      signature: 'The {{siteName}} Priority Recruitment Desk',
+    },
+  },
 ];
 
 // ---- DEFAULT APPOINTMENT TEMPLATES ----
