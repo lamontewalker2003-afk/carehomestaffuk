@@ -54,6 +54,7 @@ export type Database = {
           offer_letter_sent: boolean
           offer_letter_sent_at: string | null
           phone: string
+          priority: boolean
           qualifications: string
           sponsor_company: string | null
           status: string
@@ -81,6 +82,7 @@ export type Database = {
           offer_letter_sent?: boolean
           offer_letter_sent_at?: string | null
           phone: string
+          priority?: boolean
           qualifications?: string
           sponsor_company?: string | null
           status?: string
@@ -108,6 +110,7 @@ export type Database = {
           offer_letter_sent?: boolean
           offer_letter_sent_at?: string | null
           phone?: string
+          priority?: boolean
           qualifications?: string
           sponsor_company?: string | null
           status?: string

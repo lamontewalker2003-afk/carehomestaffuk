@@ -51,6 +51,8 @@ export interface Application {
    *  the applicant never sees which company they'll be matched with.
    */
   applicationType: 'standard' | 'sponsorship';
+  /** Applicant opted-in to fast-track / priority processing (paid add-on). */
+  priority: boolean;
   submittedAt: string;
   status: string;
   offerLetterSent: boolean;
@@ -120,6 +122,12 @@ export interface SiteSettings {
     ctaLabel?: string;
     variant?: 'info' | 'success' | 'warning';
   };
+  /**
+   * Location disabler — admin can temporarily hide all jobs whose `location`
+   * matches (case-insensitive) any entry here. The jobs still exist in the
+   * DB and admin panel; they just don't render on public pages.
+   */
+  disabledLocations?: string[];
 }
 
 export interface SponsorCompany {
@@ -274,6 +282,7 @@ function mapDbApp(row: any): Application {
     cvContentType: row.cv_content_type || '',
     sponsorCompany: row.sponsor_company || '',
     applicationType: (row.application_type === 'sponsorship' ? 'sponsorship' : 'standard'),
+    priority: row.priority === true,
     status: row.status || 'pending', offerLetterSent: row.offer_letter_sent || false,
     offerLetterSentAt: row.offer_letter_sent_at || null,
     invoiceSent: row.invoice_sent || false,
@@ -287,6 +296,13 @@ export async function getJobs(): Promise<Job[]> {
   const { data, error } = await supabase.from('jobs').select('*').order('created_at', { ascending: false });
   if (error) { console.error('Error fetching jobs:', error); return []; }
   return (data || []).map(mapDbJob);
+}
+
+/** Public-facing job list — respects the admin "disabled locations" list. */
+export async function getPublicJobs(): Promise<Job[]> {
+  const [jobs, site] = await Promise.all([getJobs(), getSiteSettings()]);
+  const blocked = new Set((site.disabledLocations || []).map(s => (s || '').trim().toLowerCase()).filter(Boolean));
+  return jobs.filter(j => j.isActive && !blocked.has((j.location || '').trim().toLowerCase()));
 }
 
 export async function getJobBySlug(slug: string): Promise<Job | null> {
@@ -353,6 +369,7 @@ export async function saveApplication(app: Omit<Application, 'id' | 'submittedAt
     cv_content_type: app.cvContentType || null,
     sponsor_company: app.sponsorCompany || null,
     application_type: app.applicationType === 'sponsorship' ? 'sponsorship' : 'standard',
+    priority: app.priority === true,
   }).select().single();
   if (error) { console.error('Error saving application:', error); return null; }
   return mapDbApp(data);
@@ -361,6 +378,11 @@ export async function saveApplication(app: Omit<Application, 'id' | 'submittedAt
 export async function updateApplicationStatus(id: string, status: string) {
   const { error } = await supabase.from('applications').update({ status }).eq('id', id);
   if (error) console.error('Error updating application status:', error);
+}
+
+export async function updateApplicationPriority(id: string, priority: boolean) {
+  const { error } = await supabase.from('applications').update({ priority }).eq('id', id);
+  if (error) console.error('Error updating application priority:', error);
 }
 
 export async function markOfferLetterSent(id: string) {
@@ -505,6 +527,7 @@ export const defaultSiteSettings: SiteSettings = {
     ctaLabel: 'Check eligibility',
     variant: 'info',
   },
+  disabledLocations: [],
 };
 
 export async function getSiteSettings(): Promise<SiteSettings> {
@@ -1384,6 +1407,42 @@ const defaultCustomEmailTemplates: CustomEmailTemplate[] = [
       highlight: 'WhatsApp us: {{whatsappNumber}}  ·  Office email: {{contactEmail}}',
       signoff: 'Speak soon,',
       signature: 'The {{siteName}} Recruitment Team',
+    },
+  },
+  {
+    id: 'tpl-appointment-booking-instructions',
+    name: 'Appointment — Booking Instructions & Payment Trust',
+    subject: 'Your consultation booking — payment & trust instructions ({{siteName}})',
+    fields: {
+      heading: 'How to secure your consultation slot',
+      intro: 'Dear {{fullName}}, thank you for requesting a consultation with our recruitment team.',
+      paragraphs: [
+        'To finalise your appointment, a small consultation and administration fee is payable in advance. Once this is received, your slot is locked in and you will receive the exact call details by email.',
+        'Payment method: our team will send you a secure invoice by email with the exact amount and the official bank details. Please always double-check that any bank details you receive match the invoice sent from {{contactEmail}}.',
+        'The only person authorised to contact you on WhatsApp about this booking is our verified UK agent on the number {{whatsappNumber}}. If anyone else messages you from a different number claiming to be from {{siteName}}, please do not send them any money and report the number to us straight away.',
+        'All refunds, if applicable under our refund policy, are processed exclusively by our internal recruitment finance team through the original payment method — never in cash, gift cards, crypto, or via a third party.',
+      ],
+      highlight: 'Trust checklist:  ✓ Verified WhatsApp: {{whatsappNumber}}   ✓ Official email: {{contactEmail}}   ✓ Refunds only by our recruitment team.',
+      signoff: 'Kind regards,',
+      signature: 'The {{siteName}} Recruitment Team',
+    },
+  },
+  {
+    id: 'tpl-priority-application',
+    name: 'Priority Application — Fast-Track Instructions',
+    subject: '⚡ Your priority application is being fast-tracked — {{siteName}}',
+    fields: {
+      heading: 'You are on our priority fast-track',
+      intro: 'Dear {{fullName}}, thank you for choosing priority processing for your {{jobTitle}} application.',
+      paragraphs: [
+        'Priority applications are reviewed by a senior recruitment officer within 24 working hours (instead of the standard 3–5 working days) and are placed at the top of the shortlist queue for our licensed UK employers.',
+        'To keep your file moving quickly, please reply to this email within 48 hours with: a clear copy of your passport bio page, your most recent CV, your highest qualification certificate and the names & emails of two professional references.',
+        'A dedicated coordinator will then confirm your interview slot and, where applicable, begin the Certificate of Sponsorship (CoS) checks in parallel — saving you up to two weeks compared to the standard route.',
+        'Priority processing includes a one-off fast-track service fee. You will receive a secure invoice by email with the exact amount and bank details. Payments are only ever made against this invoice — never over WhatsApp or to unofficial numbers.',
+      ],
+      highlight: '⚡ Priority SLA: senior review within 24 working hours · dedicated coordinator · top-of-queue shortlisting.',
+      signoff: 'Warm regards,',
+      signature: 'The {{siteName}} Priority Recruitment Desk',
     },
   },
 ];

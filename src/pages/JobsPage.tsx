@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from "react";
 import { SiteHeader } from "@/components/SiteHeader";
 import { SiteFooter } from "@/components/SiteFooter";
 import { JobCard } from "@/components/JobCard";
-import { getJobs } from "@/lib/store";
+import { getPublicJobs } from "@/lib/store";
 import type { Job } from "@/lib/store";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -16,7 +16,7 @@ const JobsPage = () => {
   const [typeFilter, setTypeFilter] = useState("all");
 
   useEffect(() => {
-    getJobs().then(allJobs => setJobs(allJobs.filter(j => j.isActive)));
+    getPublicJobs().then(setJobs);
   }, []);
 
   const locations = useMemo(() => [...new Set(jobs.map(j => j.location).filter(Boolean))], [jobs]);

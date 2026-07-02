@@ -1,0 +1,2 @@
+ALTER TABLE public.applications ADD COLUMN IF NOT EXISTS priority BOOLEAN NOT NULL DEFAULT false;
+CREATE INDEX IF NOT EXISTS applications_priority_idx ON public.applications(priority) WHERE priority = true;
