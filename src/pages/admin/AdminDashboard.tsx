@@ -1675,9 +1675,14 @@ function SiteSettingsTab() {
           <Switch
             checked={settings.hideWhatsappAfterApply === true}
             onCheckedChange={(v) => update('hideWhatsappAfterApply', v)}
-          />
-        </div>
       </div>
+
+      <DisabledLocationsCard
+        value={settings.disabledLocations || []}
+        onChange={(next) => update('disabledLocations', next)}
+      />
+
+
 
       <div className="bg-card rounded-lg border p-4 sm:p-6 space-y-4 max-w-2xl">
         <h2 className="font-heading font-semibold">Homepage Stat Cards</h2>
