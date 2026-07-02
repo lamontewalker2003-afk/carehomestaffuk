@@ -273,6 +273,8 @@ function ApplicationsTab() {
     if (statusFilter !== "all" && app.status !== statusFilter) return false;
     if (locationFilter !== "all" && jobLocationFor(app) !== locationFilter) return false;
     if (typeFilter !== "all" && (app.applicationType || 'standard') !== typeFilter) return false;
+    if (priorityFilter === "priority" && !app.priority) return false;
+    if (priorityFilter === "standard" && app.priority) return false;
     if (phoneSearch.trim()) {
       const target = phoneSearch.trim().replace(/\s|-/g, '');
       const phone = (app.phone || '').replace(/\s|-/g, '');
