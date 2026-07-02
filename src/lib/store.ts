@@ -520,6 +520,7 @@ export const defaultSiteSettings: SiteSettings = {
     ctaLabel: 'Check eligibility',
     variant: 'info',
   },
+  disabledLocations: [],
 };
 
 export async function getSiteSettings(): Promise<SiteSettings> {
