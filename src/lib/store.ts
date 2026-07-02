@@ -367,6 +367,11 @@ export async function updateApplicationStatus(id: string, status: string) {
   if (error) console.error('Error updating application status:', error);
 }
 
+export async function updateApplicationPriority(id: string, priority: boolean) {
+  const { error } = await supabase.from('applications').update({ priority }).eq('id', id);
+  if (error) console.error('Error updating application priority:', error);
+}
+
 export async function markOfferLetterSent(id: string) {
   const { error } = await supabase.from('applications').update({
     offer_letter_sent: true, offer_letter_sent_at: new Date().toISOString(),
