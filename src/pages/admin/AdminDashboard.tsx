@@ -34,7 +34,7 @@ import {
   LayoutDashboard, FileText, Briefcase, Send, LogOut, Plus, Trash2, Eye,
   Pencil, X, PoundSterling, Search, Globe, Menu, Mail, Server, Settings,
   FileCheck, CheckCircle, XCircle, Clock, Award, Landmark, Receipt, Star,
-  MessageSquare, Copy as CopyIcon, Users, History, ChevronDown, ChevronRight,
+  MessageSquare, Copy as CopyIcon, Users, History, ChevronDown, ChevronRight, Zap,
 } from "lucide-react";
 
 type Tab = "dashboard" | "applications" | "jobs" | "telegram" | "smtp" | "email-templates" | "custom-emails" | "seo" | "site-settings" | "banks" | "invoice-template" | "appointments";
