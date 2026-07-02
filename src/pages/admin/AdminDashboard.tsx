@@ -1302,6 +1302,11 @@ function JobsTab() {
               <div className="flex items-center gap-2 flex-wrap">
                 <h3 className="font-semibold">{job.title}</h3>
                 {!job.isActive && <span className="text-xs bg-muted text-muted-foreground px-2 py-0.5 rounded">Inactive</span>}
+                {job.isActive && isLocationDisabled(job.location) && (
+                  <span className="text-xs bg-destructive/10 text-destructive border border-destructive/30 px-2 py-0.5 rounded" title="Hidden on the public site because this location is disabled in Site Settings">
+                    Location disabled
+                  </span>
+                )}
               </div>
               <p className="text-sm text-muted-foreground">SOC {job.socCode} · {job.location} · {job.salary}</p>
               <div className="flex gap-4 mt-1 text-xs text-muted-foreground">
