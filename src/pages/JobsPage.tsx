@@ -16,7 +16,7 @@ const JobsPage = () => {
   const [typeFilter, setTypeFilter] = useState("all");
 
   useEffect(() => {
-    getJobs().then(allJobs => setJobs(allJobs.filter(j => j.isActive)));
+    getPublicJobs().then(setJobs);
   }, []);
 
   const locations = useMemo(() => [...new Set(jobs.map(j => j.location).filter(Boolean))], [jobs]);
