@@ -591,6 +591,24 @@ function ApplicationsTab() {
                 Sponsorship Enquiry
               </span>
             )}
+            {selected.priority && (
+              <span className="inline-flex items-center gap-1 text-[11px] font-semibold uppercase tracking-wide bg-gradient-to-r from-amber-500 to-orange-500 text-white px-2 py-0.5 rounded-full shadow-sm">
+                <Zap className="h-3 w-3" /> Priority
+              </span>
+            )}
+            <Button
+              variant="outline"
+              size="sm"
+              className="ml-auto"
+              onClick={async () => {
+                await updateApplicationPriority(selected.id, !selected.priority);
+                await refresh();
+                toast({ title: selected.priority ? 'Priority removed' : '⚡ Marked as priority' });
+              }}
+            >
+              <Zap className="h-3.5 w-3.5 mr-1" />
+              {selected.priority ? 'Remove priority' : 'Mark as priority'}
+            </Button>
           </div>
           <div className="grid sm:grid-cols-2 gap-3 text-sm">
             <div><span className="text-muted-foreground">Position:</span> {selected.jobTitle}</div>
