@@ -1180,6 +1180,7 @@ function RefreshIcon(props: any) {
 
 function JobsTab() {
   const [jobs, setJobs] = useState<Job[]>([]);
+  const [disabledLocations, setDisabledLocations] = useState<string[]>([]);
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState({
@@ -1190,8 +1191,13 @@ function JobsTab() {
     companyLogoUrl: "", visaSponsorship: true,
   });
 
-  useEffect(() => { getJobs().then(setJobs); }, []);
+  useEffect(() => {
+    getJobs().then(setJobs);
+    getSiteSettings().then(s => setDisabledLocations(s.disabledLocations || []));
+  }, []);
   const refreshJobs = async () => { setJobs(await getJobs()); };
+  const isLocationDisabled = (loc: string) =>
+    disabledLocations.some(d => d.trim().toLowerCase() === (loc || '').trim().toLowerCase());
   const resetForm = () => {
     setForm({ title: "", socCode: "", location: "", type: "Full-time", salary: "", hourlyRate: "", sponsorshipFee: "", description: "", requirements: "", isActive: true, streetAddress: "", city: "", region: "", postcode: "", salaryMin: "", salaryMax: "", companyLogoUrl: "", visaSponsorship: true });
     setEditingId(null); setShowForm(false);
