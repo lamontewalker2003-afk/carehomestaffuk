@@ -12,7 +12,7 @@ import {
   buildInvoiceEmail, generateInvoiceNumber, markInvoiceSent,
   getCustomEmailTemplates, saveCustomEmailTemplates, buildCustomEmail,
   getEmailLogsForEmail, groupApplicationsByEmail, uploadOfferLetterAttachment, uploadPartnerLogo,
-  getAppointments, updateAppointmentStatus, deleteAppointment, buildAppointmentEmail,
+  getAppointments, updateAppointmentStatus, updateAppointmentTracking, deleteAppointment, buildAppointmentEmail,
   buildApplicationRevokedEmail, adminScheduleAppointment, buildAppointmentScheduledByAdminEmail,
   APPLICATION_REVOCATION_REASONS,
 } from "@/lib/store";
