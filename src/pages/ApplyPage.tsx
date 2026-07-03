@@ -160,27 +160,31 @@ const ApplyPage = () => {
     return (
       <div className="min-h-screen flex flex-col">
         <SiteHeader />
-        <main className="flex-1 flex items-center justify-center">
-          <div className="text-center space-y-5 p-8 animate-fade-in max-w-md">
-            <CheckCircle className="h-16 w-16 text-success mx-auto" />
-            <h1 className="font-heading text-3xl font-bold">Application Submitted!</h1>
-            <p className="text-muted-foreground">
-              Thank you for your application. A confirmation email has been sent to your inbox.
-              {form.priority
-                ? " You selected priority processing — a senior recruiter will contact you within 24 working hours."
-                : " Our team will review your details and get back to you within 3–5 working days."}
-            </p>
-            {form.priority && (
-              <div className="rounded-md border border-amber-300/60 bg-amber-50 dark:bg-amber-950/20 p-3 text-xs text-left text-amber-900 dark:text-amber-100 flex gap-2">
-                <Zap className="h-4 w-4 shrink-0 mt-0.5" />
-                <span>
-                  Your file is now flagged <span className="font-semibold">Priority</span>. Watch your inbox for a secure invoice covering the fast-track service fee — payments are only ever made against that emailed invoice.
-                </span>
-              </div>
-            )}
+        <main className="flex-1">
+          <div className="container py-10 max-w-2xl space-y-6 animate-fade-in">
+            <div className="text-center space-y-3">
+              <CheckCircle className="h-14 w-14 text-success mx-auto" />
+              <h1 className="font-heading text-3xl font-bold">Application Submitted!</h1>
+              <p className="text-muted-foreground">
+                Thank you {submittedApp?.fullName || form.fullName}. A confirmation email has been sent to{" "}
+                <span className="font-semibold text-foreground">{form.email}</span>.
+              </p>
+            </div>
+
+            {form.priority && <PrioritySlaNotice compact={false} />}
+
+            <PostApplyAppointmentStep
+              applicant={{
+                fullName: submittedApp?.fullName || form.fullName,
+                email: submittedApp?.email || form.email,
+                phone: submittedApp?.phone || form.phone,
+              }}
+              priority={form.priority}
+              whatsappNumber={showWaCta ? site?.whatsappNumber : ""}
+            />
+
             {showWaCta && (
-              <div className="space-y-2 pt-2">
-                <p className="text-sm font-medium">Want a faster response? Message us on WhatsApp:</p>
+              <div className="text-center pt-2">
                 <WhatsAppLink className="inline-flex">
                   <Button size="lg" className="bg-[#25D366] hover:bg-[#1ebe5a] text-white" asChild={false}>
                     <span className="inline-flex items-center"><MessageCircle className="h-5 w-5 mr-2" /> Message us on WhatsApp</span>
