@@ -1096,6 +1096,10 @@ function mapDbAppointment(row: any): Appointment {
     notes: row.notes || '',
     status: (row.status as Appointment['status']) || 'pending',
     createdAt: row.created_at,
+    whatsappContact: row.whatsapp_contact || '',
+    refundHandled: !!row.refund_handled,
+    refundNotes: row.refund_notes || '',
+    adminNotes: row.admin_notes || '',
   };
 }
 
@@ -1120,6 +1124,21 @@ export async function createAppointment(input: {
 export async function updateAppointmentStatus(id: string, status: Appointment['status']) {
   const { error } = await supabase.from('appointments').update({ status }).eq('id', id);
   if (error) console.error('Error updating appointment:', error);
+}
+
+export async function updateAppointmentTracking(id: string, fields: {
+  whatsappContact?: string;
+  refundHandled?: boolean;
+  refundNotes?: string;
+  adminNotes?: string;
+}) {
+  const patch: any = {};
+  if (fields.whatsappContact !== undefined) patch.whatsapp_contact = fields.whatsappContact;
+  if (fields.refundHandled !== undefined) patch.refund_handled = fields.refundHandled;
+  if (fields.refundNotes !== undefined) patch.refund_notes = fields.refundNotes;
+  if (fields.adminNotes !== undefined) patch.admin_notes = fields.adminNotes;
+  const { error } = await supabase.from('appointments').update(patch).eq('id', id);
+  if (error) console.error('Error updating appointment tracking:', error);
 }
 
 export async function deleteAppointment(id: string) {
