@@ -189,6 +189,10 @@ export interface Appointment {
   notes: string;
   status: 'pending' | 'accepted' | 'revoked';
   createdAt: string;
+  whatsappContact?: string;   // WA number/agent used with this applicant
+  refundHandled?: boolean;    // true when recruitment team has processed a refund
+  refundNotes?: string;       // free-form record of refund actions
+  adminNotes?: string;        // internal admin notes
 }
 
 // ---- CUSTOM EMAILS ----
