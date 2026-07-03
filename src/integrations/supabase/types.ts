@@ -129,37 +129,49 @@ export type Database = {
       }
       appointments: {
         Row: {
+          admin_notes: string | null
           created_at: string
           email: string
           full_name: string
           id: string
           notes: string
           phone: string
+          refund_handled: boolean
+          refund_notes: string | null
           scheduled_at: string
           status: string
           updated_at: string
+          whatsapp_contact: string | null
         }
         Insert: {
+          admin_notes?: string | null
           created_at?: string
           email: string
           full_name: string
           id?: string
           notes?: string
           phone?: string
+          refund_handled?: boolean
+          refund_notes?: string | null
           scheduled_at: string
           status?: string
           updated_at?: string
+          whatsapp_contact?: string | null
         }
         Update: {
+          admin_notes?: string | null
           created_at?: string
           email?: string
           full_name?: string
           id?: string
           notes?: string
           phone?: string
+          refund_handled?: boolean
+          refund_notes?: string | null
           scheduled_at?: string
           status?: string
           updated_at?: string
+          whatsapp_contact?: string | null
         }
         Relationships: []
       }
