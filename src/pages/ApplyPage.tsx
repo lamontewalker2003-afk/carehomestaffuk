@@ -102,6 +102,14 @@ const ApplyPage = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (selectedJobLocationBlocked) {
+      toast({
+        title: "This job is currently unavailable in that location",
+        description: "Please choose a different role or submit a general application.",
+        variant: "destructive",
+      });
+      return;
+    }
     if (!form.fullName || !form.email || !form.phone) {
       toast({ title: "Please fill in all required fields", variant: "destructive" });
       return;
@@ -133,6 +141,7 @@ const ApplyPage = () => {
         });
       }
 
+      setSubmittedApp(app);
       setSubmitted(true);
       toast({ title: "Application submitted successfully!" });
     } catch {
