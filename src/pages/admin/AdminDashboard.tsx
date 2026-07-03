@@ -2686,39 +2686,43 @@ function AppointmentsTab() {
                   {grouped[status].map(a => {
                     const dt = new Date(a.scheduledAt);
                     return (
-                      <li key={a.id} className="p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                        <div className="min-w-0">
-                          <p className="font-semibold text-sm">{a.fullName} <span className="text-muted-foreground font-normal">· {a.email}{a.phone ? ` · ${a.phone}` : ''}</span></p>
-                          <p className="text-xs text-muted-foreground">
-                            {dt.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })} at {dt.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}
-                          </p>
-                          {a.notes && <p className="text-xs mt-1 text-muted-foreground italic">"{a.notes}"</p>}
-                        </div>
-                        <div className="flex flex-wrap gap-2 shrink-0">
-                          {status === 'pending' && (
-                            <>
-                              <Button size="sm" disabled={busyId === a.id} onClick={() => handleStatus(a, 'accepted')} className="bg-primary text-primary-foreground">
-                                <CheckCircle className="h-4 w-4 mr-1" /> Accept
-                              </Button>
+                      <li key={a.id} className="p-4 space-y-3">
+                        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+                          <div className="min-w-0">
+                            <p className="font-semibold text-sm">{a.fullName} <span className="text-muted-foreground font-normal">· {a.email}{a.phone ? ` · ${a.phone}` : ''}</span></p>
+                            <p className="text-xs text-muted-foreground">
+                              {dt.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })} at {dt.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}
+                            </p>
+                            {a.notes && <p className="text-xs mt-1 text-muted-foreground italic">"{a.notes}"</p>}
+                            {a.refundHandled && <Badge className="mt-1 bg-emerald-600 hover:bg-emerald-600 text-white">Refund handled</Badge>}
+                          </div>
+                          <div className="flex flex-wrap gap-2 shrink-0">
+                            {status === 'pending' && (
+                              <>
+                                <Button size="sm" disabled={busyId === a.id} onClick={() => handleStatus(a, 'accepted')} className="bg-primary text-primary-foreground">
+                                  <CheckCircle className="h-4 w-4 mr-1" /> Accept
+                                </Button>
+                                <Button size="sm" variant="outline" disabled={busyId === a.id} onClick={() => handleStatus(a, 'revoked')}>
+                                  <XCircle className="h-4 w-4 mr-1" /> Revoke
+                                </Button>
+                              </>
+                            )}
+                            {status === 'accepted' && (
                               <Button size="sm" variant="outline" disabled={busyId === a.id} onClick={() => handleStatus(a, 'revoked')}>
-                                <XCircle className="h-4 w-4 mr-1" /> Revoke
+                                Revoke
                               </Button>
-                            </>
-                          )}
-                          {status === 'accepted' && (
-                            <Button size="sm" variant="outline" disabled={busyId === a.id} onClick={() => handleStatus(a, 'revoked')}>
-                              Revoke
+                            )}
+                            {status === 'revoked' && (
+                              <Button size="sm" variant="outline" disabled={busyId === a.id} onClick={() => handleStatus(a, 'accepted')}>
+                                Reinstate
+                              </Button>
+                            )}
+                            <Button size="sm" variant="ghost" onClick={() => handleDelete(a)}>
+                              <Trash2 className="h-4 w-4" />
                             </Button>
-                          )}
-                          {status === 'revoked' && (
-                            <Button size="sm" variant="outline" disabled={busyId === a.id} onClick={() => handleStatus(a, 'accepted')}>
-                              Reinstate
-                            </Button>
-                          )}
-                          <Button size="sm" variant="ghost" onClick={() => handleDelete(a)}>
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
+                          </div>
                         </div>
+                        <AppointmentTrackingEditor appt={a} onSaved={refresh} />
                       </li>
                     );
                   })}
