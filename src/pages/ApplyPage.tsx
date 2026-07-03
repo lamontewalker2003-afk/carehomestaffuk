@@ -25,8 +25,10 @@ const ApplyPage = () => {
   const preselectedJob = searchParams.get("job") || "";
   const priorityPre = searchParams.get("priority") === "1";
 
-  const [jobs, setJobs] = useState<Job[]>([]);
+  const [jobs, setJobs] = useState<Job[]>([]);           // public (dropdown)
+  const [allJobs, setAllJobs] = useState<Job[]>([]);     // for preselected lookup
   const [submitted, setSubmitted] = useState(false);
+  const [submittedApp, setSubmittedApp] = useState<Application | null>(null);
   const [loading, setLoading] = useState(false);
   const [site, setSite] = useState<SiteSettings | null>(null);
   const [cvUploading, setCvUploading] = useState(false);
@@ -49,11 +51,16 @@ const ApplyPage = () => {
 
   useEffect(() => {
     getPublicJobs().then(setJobs);
+    getJobs().then(setAllJobs);
     getSiteSettings().then(setSite);
   }, []);
 
-  const selectedJob = jobs.find(j => j.id === form.jobId);
+  const blockedLocations = new Set(
+    (site?.disabledLocations || []).map(s => (s || "").trim().toLowerCase()).filter(Boolean)
+  );
+  const selectedJob = allJobs.find(j => j.id === form.jobId) || jobs.find(j => j.id === form.jobId);
   const effectiveJobTitle = selectedJob?.title || "General Application";
+  const selectedJobLocationBlocked = !!selectedJob && blockedLocations.has((selectedJob.location || "").trim().toLowerCase());
 
   const handleCvUpload = async (file: File) => {
     if (!ALLOWED_CV_MIME_TYPES[file.type]) {
