@@ -2736,6 +2736,67 @@ function AppointmentsTab() {
   );
 }
 
+function AppointmentTrackingEditor({ appt, onSaved }: { appt: Appointment; onSaved: () => void | Promise<void> }) {
+  const [wa, setWa] = useState(appt.whatsappContact || "");
+  const [refundHandled, setRefundHandled] = useState(!!appt.refundHandled);
+  const [refundNotes, setRefundNotes] = useState(appt.refundNotes || "");
+  const [adminNotes, setAdminNotes] = useState(appt.adminNotes || "");
+  const [saving, setSaving] = useState(false);
+
+  const dirty =
+    (wa || "") !== (appt.whatsappContact || "") ||
+    refundHandled !== !!appt.refundHandled ||
+    (refundNotes || "") !== (appt.refundNotes || "") ||
+    (adminNotes || "") !== (appt.adminNotes || "");
+
+  const save = async () => {
+    setSaving(true);
+    await updateAppointmentTracking(appt.id, {
+      whatsappContact: wa.trim(),
+      refundHandled,
+      refundNotes: refundNotes.trim(),
+      adminNotes: adminNotes.trim(),
+    });
+    setSaving(false);
+    toast({ title: "Appointment tracking updated" });
+    await onSaved();
+  };
+
+  return (
+    <div className="rounded-md border bg-muted/30 p-3 space-y-3">
+      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Tracking</p>
+      <div className="grid sm:grid-cols-2 gap-3">
+        <div>
+          <Label className="text-xs">WhatsApp contact used</Label>
+          <Input value={wa} onChange={e => setWa(e.target.value)} placeholder="+44 7… (agent/number)" />
+        </div>
+        <label className="flex items-center gap-2 pt-6 text-sm cursor-pointer">
+          <input
+            type="checkbox"
+            className="h-4 w-4"
+            checked={refundHandled}
+            onChange={e => setRefundHandled(e.target.checked)}
+          />
+          <span>Refund handled by recruitment team</span>
+        </label>
+      </div>
+      <div>
+        <Label className="text-xs">Refund notes</Label>
+        <Textarea rows={2} value={refundNotes} onChange={e => setRefundNotes(e.target.value)} placeholder="Amount, date processed, payment reference…" />
+      </div>
+      <div>
+        <Label className="text-xs">Internal admin notes</Label>
+        <Textarea rows={2} value={adminNotes} onChange={e => setAdminNotes(e.target.value)} placeholder="Call outcome, follow-up actions…" />
+      </div>
+      <div className="flex justify-end">
+        <Button size="sm" onClick={save} disabled={!dirty || saving}>
+          {saving ? "Saving…" : "Save tracking"}
+        </Button>
+      </div>
+    </div>
+  );
+}
+
 function AdminScheduleForm({ onScheduled }: { onScheduled: () => void | Promise<void> }) {
   const [open, setOpen] = useState(false);
   const [fullName, setFullName] = useState("");
