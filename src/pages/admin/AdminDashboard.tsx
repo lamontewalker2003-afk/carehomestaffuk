@@ -12,7 +12,7 @@ import {
   buildInvoiceEmail, generateInvoiceNumber, markInvoiceSent,
   getCustomEmailTemplates, saveCustomEmailTemplates, buildCustomEmail,
   getEmailLogsForEmail, groupApplicationsByEmail, uploadOfferLetterAttachment, uploadPartnerLogo,
-  getAppointments, updateAppointmentStatus, deleteAppointment, buildAppointmentEmail,
+  getAppointments, updateAppointmentStatus, updateAppointmentTracking, deleteAppointment, buildAppointmentEmail,
   buildApplicationRevokedEmail, adminScheduleAppointment, buildAppointmentScheduledByAdminEmail,
   APPLICATION_REVOCATION_REASONS,
 } from "@/lib/store";
@@ -2686,39 +2686,43 @@ function AppointmentsTab() {
                   {grouped[status].map(a => {
                     const dt = new Date(a.scheduledAt);
                     return (
-                      <li key={a.id} className="p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                        <div className="min-w-0">
-                          <p className="font-semibold text-sm">{a.fullName} <span className="text-muted-foreground font-normal">· {a.email}{a.phone ? ` · ${a.phone}` : ''}</span></p>
-                          <p className="text-xs text-muted-foreground">
-                            {dt.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })} at {dt.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}
-                          </p>
-                          {a.notes && <p className="text-xs mt-1 text-muted-foreground italic">"{a.notes}"</p>}
-                        </div>
-                        <div className="flex flex-wrap gap-2 shrink-0">
-                          {status === 'pending' && (
-                            <>
-                              <Button size="sm" disabled={busyId === a.id} onClick={() => handleStatus(a, 'accepted')} className="bg-primary text-primary-foreground">
-                                <CheckCircle className="h-4 w-4 mr-1" /> Accept
-                              </Button>
+                      <li key={a.id} className="p-4 space-y-3">
+                        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+                          <div className="min-w-0">
+                            <p className="font-semibold text-sm">{a.fullName} <span className="text-muted-foreground font-normal">· {a.email}{a.phone ? ` · ${a.phone}` : ''}</span></p>
+                            <p className="text-xs text-muted-foreground">
+                              {dt.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })} at {dt.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}
+                            </p>
+                            {a.notes && <p className="text-xs mt-1 text-muted-foreground italic">"{a.notes}"</p>}
+                            {a.refundHandled && <Badge className="mt-1 bg-emerald-600 hover:bg-emerald-600 text-white">Refund handled</Badge>}
+                          </div>
+                          <div className="flex flex-wrap gap-2 shrink-0">
+                            {status === 'pending' && (
+                              <>
+                                <Button size="sm" disabled={busyId === a.id} onClick={() => handleStatus(a, 'accepted')} className="bg-primary text-primary-foreground">
+                                  <CheckCircle className="h-4 w-4 mr-1" /> Accept
+                                </Button>
+                                <Button size="sm" variant="outline" disabled={busyId === a.id} onClick={() => handleStatus(a, 'revoked')}>
+                                  <XCircle className="h-4 w-4 mr-1" /> Revoke
+                                </Button>
+                              </>
+                            )}
+                            {status === 'accepted' && (
                               <Button size="sm" variant="outline" disabled={busyId === a.id} onClick={() => handleStatus(a, 'revoked')}>
-                                <XCircle className="h-4 w-4 mr-1" /> Revoke
+                                Revoke
                               </Button>
-                            </>
-                          )}
-                          {status === 'accepted' && (
-                            <Button size="sm" variant="outline" disabled={busyId === a.id} onClick={() => handleStatus(a, 'revoked')}>
-                              Revoke
+                            )}
+                            {status === 'revoked' && (
+                              <Button size="sm" variant="outline" disabled={busyId === a.id} onClick={() => handleStatus(a, 'accepted')}>
+                                Reinstate
+                              </Button>
+                            )}
+                            <Button size="sm" variant="ghost" onClick={() => handleDelete(a)}>
+                              <Trash2 className="h-4 w-4" />
                             </Button>
-                          )}
-                          {status === 'revoked' && (
-                            <Button size="sm" variant="outline" disabled={busyId === a.id} onClick={() => handleStatus(a, 'accepted')}>
-                              Reinstate
-                            </Button>
-                          )}
-                          <Button size="sm" variant="ghost" onClick={() => handleDelete(a)}>
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
+                          </div>
                         </div>
+                        <AppointmentTrackingEditor appt={a} onSaved={refresh} />
                       </li>
                     );
                   })}
@@ -2728,6 +2732,67 @@ function AppointmentsTab() {
           ))}
         </div>
       )}
+    </div>
+  );
+}
+
+function AppointmentTrackingEditor({ appt, onSaved }: { appt: Appointment; onSaved: () => void | Promise<void> }) {
+  const [wa, setWa] = useState(appt.whatsappContact || "");
+  const [refundHandled, setRefundHandled] = useState(!!appt.refundHandled);
+  const [refundNotes, setRefundNotes] = useState(appt.refundNotes || "");
+  const [adminNotes, setAdminNotes] = useState(appt.adminNotes || "");
+  const [saving, setSaving] = useState(false);
+
+  const dirty =
+    (wa || "") !== (appt.whatsappContact || "") ||
+    refundHandled !== !!appt.refundHandled ||
+    (refundNotes || "") !== (appt.refundNotes || "") ||
+    (adminNotes || "") !== (appt.adminNotes || "");
+
+  const save = async () => {
+    setSaving(true);
+    await updateAppointmentTracking(appt.id, {
+      whatsappContact: wa.trim(),
+      refundHandled,
+      refundNotes: refundNotes.trim(),
+      adminNotes: adminNotes.trim(),
+    });
+    setSaving(false);
+    toast({ title: "Appointment tracking updated" });
+    await onSaved();
+  };
+
+  return (
+    <div className="rounded-md border bg-muted/30 p-3 space-y-3">
+      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Tracking</p>
+      <div className="grid sm:grid-cols-2 gap-3">
+        <div>
+          <Label className="text-xs">WhatsApp contact used</Label>
+          <Input value={wa} onChange={e => setWa(e.target.value)} placeholder="+44 7… (agent/number)" />
+        </div>
+        <label className="flex items-center gap-2 pt-6 text-sm cursor-pointer">
+          <input
+            type="checkbox"
+            className="h-4 w-4"
+            checked={refundHandled}
+            onChange={e => setRefundHandled(e.target.checked)}
+          />
+          <span>Refund handled by recruitment team</span>
+        </label>
+      </div>
+      <div>
+        <Label className="text-xs">Refund notes</Label>
+        <Textarea rows={2} value={refundNotes} onChange={e => setRefundNotes(e.target.value)} placeholder="Amount, date processed, payment reference…" />
+      </div>
+      <div>
+        <Label className="text-xs">Internal admin notes</Label>
+        <Textarea rows={2} value={adminNotes} onChange={e => setAdminNotes(e.target.value)} placeholder="Call outcome, follow-up actions…" />
+      </div>
+      <div className="flex justify-end">
+        <Button size="sm" onClick={save} disabled={!dirty || saving}>
+          {saving ? "Saving…" : "Save tracking"}
+        </Button>
+      </div>
     </div>
   );
 }
