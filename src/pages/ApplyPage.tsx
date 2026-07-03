@@ -233,6 +233,17 @@ const ApplyPage = () => {
                   ))}
                 </SelectContent>
               </Select>
+              {selectedJobLocationBlocked && selectedJob && (
+                <div className="mt-2 rounded-md border border-destructive/50 bg-destructive/10 p-3 text-sm flex gap-2 items-start" role="alert">
+                  <AlertTriangle className="h-4 w-4 mt-0.5 text-destructive shrink-0" />
+                  <div>
+                    <p className="font-semibold text-destructive">Location currently unavailable</p>
+                    <p className="text-destructive/90 text-xs mt-0.5">
+                      We're not accepting applications for <span className="font-medium">{selectedJob.title}</span> in <span className="font-medium">{selectedJob.location}</span> right now. Please choose another role or clear the selection to submit a general application.
+                    </p>
+                  </div>
+                </div>
+              )}
             </div>
 
             <div className="grid md:grid-cols-2 gap-4">
