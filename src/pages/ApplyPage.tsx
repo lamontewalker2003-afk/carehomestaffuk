@@ -384,7 +384,7 @@ const ApplyPage = () => {
               </div>
             </label>
 
-            <Button type="submit" disabled={loading} className="w-full bg-primary text-primary-foreground hover:bg-primary/90" size="lg">
+            <Button type="submit" disabled={loading || selectedJobLocationBlocked} className="w-full bg-primary text-primary-foreground hover:bg-primary/90" size="lg">
               {loading ? "Submitting..." : (form.priority ? "Submit Priority Application ⚡" : "Submit Application")}
             </Button>
           </form>
@@ -394,5 +394,180 @@ const ApplyPage = () => {
     </div>
   );
 };
+
+// ============================================================
+// Priority SLA notice — reused on Apply success + Book confirm
+// ============================================================
+export function PrioritySlaNotice({ compact = false }: { compact?: boolean }) {
+  return (
+    <div className={`rounded-md border border-amber-300/60 bg-amber-50 dark:bg-amber-950/20 text-amber-900 dark:text-amber-100 flex gap-3 ${compact ? "p-3 text-xs" : "p-4 text-sm"}`}>
+      <Zap className="h-5 w-5 shrink-0 mt-0.5" />
+      <div className="space-y-1">
+        <p className="font-semibold">Priority processing — 24-hour SLA</p>
+        <ul className="list-disc pl-4 space-y-0.5">
+          <li>A senior recruiter contacts you within <strong>24 working hours</strong>.</li>
+          <li>Your file is pushed to the top of the shortlist queue.</li>
+          <li>A one-off fast-track fee is invoiced by email — pay only against that secure invoice.</li>
+          <li>Refunds, if applicable, are processed only by our recruitment team.</li>
+        </ul>
+      </div>
+    </div>
+  );
+}
+
+// ============================================================
+// Inline appointment booking step shown after apply
+// ============================================================
+const TIME_SLOTS = [
+  "09:00","09:30","10:00","10:30","11:00","11:30",
+  "13:00","13:30","14:00","14:30","15:00","15:30","16:00","16:30",
+];
+function nextWorkingDays(count: number): Date[] {
+  const days: Date[] = [];
+  let d = addDays(startOfDay(new Date()), 1);
+  while (days.length < count) {
+    const day = d.getDay();
+    if (day !== 0 && day !== 6) days.push(d);
+    d = addDays(d, 1);
+  }
+  return days;
+}
+
+function PostApplyAppointmentStep({
+  applicant, priority, whatsappNumber,
+}: {
+  applicant: { fullName: string; email: string; phone: string };
+  priority: boolean;
+  whatsappNumber?: string;
+}) {
+  const days = nextWorkingDays(7);
+  const [date, setDate] = useState<Date>(days[0]);
+  const [time, setTime] = useState<string>("");
+  const [booked, setBooked] = useState<string[]>([]);
+  const [saving, setSaving] = useState(false);
+  const [confirmed, setConfirmed] = useState<{ iso: string } | null>(null);
+
+  useEffect(() => { void getBookedSlots().then(setBooked); }, []);
+
+  const slots = TIME_SLOTS.map(t => {
+    const [h, m] = t.split(":").map(Number);
+    const d = new Date(date); d.setHours(h, m, 0, 0);
+    const taken = booked.some(iso => Math.abs(new Date(iso).getTime() - d.getTime()) < 60_000);
+    return { label: t, iso: d.toISOString(), taken };
+  });
+
+  const submit = async () => {
+    if (!time) { toast({ title: "Please pick a time slot", variant: "destructive" }); return; }
+    const slot = slots.find(s => s.label === time);
+    if (!slot || slot.taken) { toast({ title: "That time is no longer available", variant: "destructive" }); return; }
+    setSaving(true);
+    const appt = await createAppointment({
+      fullName: applicant.fullName,
+      email: applicant.email,
+      phone: applicant.phone,
+      scheduledAt: slot.iso,
+      notes: priority ? "Priority applicant — please prioritise scheduling." : "",
+    });
+    setSaving(false);
+    if (!appt) { toast({ title: "Could not book that slot. Please try again.", variant: "destructive" }); return; }
+    setBooked(prev => [...prev, slot.iso]);
+    setConfirmed({ iso: slot.iso });
+  };
+
+  if (confirmed) {
+    const dt = new Date(confirmed.iso);
+    return (
+      <div className="rounded-xl border bg-card p-5 sm:p-6 space-y-4">
+        <div className="flex items-start gap-3">
+          <CalendarClock className="h-6 w-6 text-primary shrink-0 mt-0.5" />
+          <div>
+            <h2 className="font-heading text-xl text-primary">Appointment slot reserved</h2>
+            <p className="text-sm text-muted-foreground">
+              {format(dt, "EEEE d MMMM yyyy 'at' HH:mm")} — we'll email confirmation and payment instructions to <span className="font-medium text-foreground">{applicant.email}</span>.
+            </p>
+          </div>
+        </div>
+        <div className="rounded-md border border-amber-300/60 bg-amber-50 dark:bg-amber-950/20 p-3 text-xs text-amber-900 dark:text-amber-100">
+          <p className="font-semibold mb-1">Payment &amp; refund policy</p>
+          <p>
+            A small consultation/administration fee is payable before the meeting. Payment instructions arrive by email; the WhatsApp agent listed in that email is the only person you should transact with. All refunds, if applicable, are processed exclusively by our recruitment team.
+          </p>
+        </div>
+        {priority && <PrioritySlaNotice compact />}
+        <div className="flex flex-wrap gap-2">
+          <Button variant="outline" size="sm" asChild>
+            <a href="/appointments/manage">Reschedule or cancel</a>
+          </Button>
+          {whatsappNumber && (
+            <WhatsAppLink className="inline-flex">
+              <Button size="sm" className="bg-[#25D366] hover:bg-[#1ebe5a] text-white" asChild={false}>
+                <span className="inline-flex items-center"><MessageCircle className="h-4 w-4 mr-1.5" /> WhatsApp us</span>
+              </Button>
+            </WhatsAppLink>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="rounded-xl border bg-card p-5 sm:p-6 space-y-4">
+      <div className="flex items-start gap-3">
+        <CalendarClock className="h-6 w-6 text-primary shrink-0 mt-0.5" />
+        <div>
+          <h2 className="font-heading text-xl text-primary">Book your consultation slot</h2>
+          <p className="text-sm text-muted-foreground">
+            Pick a working day &amp; time in the next 7 working days. You'll receive booking &amp; payment instructions by email once confirmed.
+          </p>
+        </div>
+      </div>
+
+      <div>
+        <Label className="text-xs">Date</Label>
+        <div className="flex flex-wrap gap-2 mt-1">
+          {days.map(d => (
+            <button
+              key={d.toISOString()}
+              type="button"
+              onClick={() => { setDate(d); setTime(""); }}
+              className={`px-3 py-1.5 rounded-md border text-xs transition ${
+                isSameDay(d, date) ? "bg-primary text-primary-foreground border-primary" : "bg-background hover:bg-muted"
+              }`}
+            >
+              {format(d, "EEE d MMM")}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div>
+        <Label className="text-xs">Time</Label>
+        <div className="grid grid-cols-4 sm:grid-cols-6 gap-2 mt-1">
+          {slots.map(s => (
+            <button
+              key={s.label}
+              type="button"
+              disabled={s.taken}
+              onClick={() => setTime(s.label)}
+              className={`px-2 py-1.5 rounded-md text-sm border transition ${
+                s.taken ? "opacity-40 line-through cursor-not-allowed" :
+                time === s.label ? "bg-primary text-primary-foreground border-primary" : "bg-background hover:bg-muted"
+              }`}
+            >
+              {s.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <Button onClick={submit} disabled={saving || !time} className="w-full">
+        {saving ? "Booking…" : "Reserve this slot"}
+      </Button>
+      <p className="text-[11px] text-muted-foreground">
+        Booking &amp; payment instructions are sent by email <em>after</em> you reserve a slot. Payments only go to the WhatsApp agent listed in that email. Refunds are handled exclusively by our recruitment team.
+      </p>
+    </div>
+  );
+}
 
 export default ApplyPage;
