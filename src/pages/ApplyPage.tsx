@@ -10,13 +10,15 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import PhoneInput, { isValidPhoneNumber } from "react-phone-number-input";
 import "react-phone-number-input/style.css";
 import {
-  getPublicJobs, saveApplication, sendToTelegram, sendEmail, buildApplicationConfirmationEmail, getSiteSettings,
+  getPublicJobs, getJobs, saveApplication, sendToTelegram, sendEmail, buildApplicationConfirmationEmail, getSiteSettings,
   uploadApplicantCv, ALLOWED_CV_MIME_TYPES, CV_MAX_BYTES,
+  createAppointment, getBookedSlots,
 } from "@/lib/store";
 import { WhatsAppLink } from "@/components/WhatsAppButton";
-import type { Job, SiteSettings } from "@/lib/store";
+import type { Job, SiteSettings, Application } from "@/lib/store";
 import { toast } from "@/hooks/use-toast";
-import { CheckCircle, MessageCircle, Upload, FileText, X, Loader2, Zap } from "lucide-react";
+import { CheckCircle, MessageCircle, Upload, FileText, X, Loader2, Zap, AlertTriangle, CalendarClock } from "lucide-react";
+import { addDays, format, isSameDay, startOfDay } from "date-fns";
 
 const ApplyPage = () => {
   const [searchParams] = useSearchParams();
